@@ -104,6 +104,7 @@ void PresenceCard::show_art(bool shown, const std::string& title_id) {
     if (title_id != icon_title_) {
         icon_title_ = title_id;
         icon_ok_ = false;
+        icon_->clear();
         const auto& jpeg = title_icon::get(title_id);
         if (!jpeg.empty()) {
             icon_->setImageFromMem(jpeg.data(), static_cast<int>(jpeg.size()));
