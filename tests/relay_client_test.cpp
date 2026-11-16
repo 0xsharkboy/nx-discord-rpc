@@ -410,7 +410,9 @@ TEST_CASE("icons: none inside a presence backoff window") {
     c.set_report(game("Zelda", "0100000000010000"), std::nullopt);
     CHECK(answer(c, 1, status(503)).kind == Kind::PutPresence);
     CHECK_FALSE(first_due(c, 2, 5000, 1));
-    CHECK(c.next(5001)->kind == Kind::PutPresence);
+    auto put = c.next(5001);
+    REQUIRE(put);
+    CHECK(put->kind == Kind::PutPresence);
 }
 
 TEST_CASE("icons: a 401 with the admin key drops it and retries the title with the API key") {
@@ -486,6 +488,50 @@ TEST_CASE("wake: a failed PUT is retried after the backoff") {
     answer(c, 10000, status(0));
     CHECK_FALSE(c.next(14999));
     CHECK(c.next(15000));
+}
+
+TEST_CASE("wake: clears an open backoff window") {
+    auto c = keyed();
+    c.set_report(home(), std::nullopt);
+    answer(c, 0, status(503));
+    CHECK_FALSE(c.next(1000));
+    c.on_wake();
+    auto put = c.next(1000);
+    REQUIRE(put);
+    CHECK(put->kind == Kind::PutPresence);
+}
+
+TEST_CASE("backoff: Retry-After is capped at 3600 s") {
+    auto c = keyed();
+    c.set_report(home(), std::nullopt);
+    answer(c, 0, status(429, 86400));
+    CHECK_FALSE(c.next(3599999));
+    CHECK(c.next(3600000));
+}
+
+TEST_CASE("stale outcome: a report changed while its PUT was in flight is sent at once") {
+    auto c = keyed();
+    c.set_report(home(), std::nullopt);
+    auto a = c.next(0);
+    REQUIRE(a);
+    c.set_report(game(), std::nullopt);
+    c.on_outcome(*a, status(204), 0);
+    auto b = c.next(1);
+    REQUIRE(b);
+    CHECK(b->kind == Kind::PutPresence);
+    CHECK(b->body == report_json(game(), std::nullopt));
+}
+
+TEST_CASE("stale outcome: a report cleared while its PUT was in flight gives a DELETE") {
+    auto c = keyed();
+    c.set_report(home(), std::nullopt);
+    auto a = c.next(0);
+    REQUIRE(a);
+    c.set_report(std::nullopt, std::nullopt);
+    c.on_outcome(*a, status(204), 0);
+    auto del = c.next(1);
+    REQUIRE(del);
+    CHECK(del->kind == Kind::DeletePresence);
 }
 
 TEST_CASE("NoKey: nothing is ever sent") {

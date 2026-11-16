@@ -12,6 +12,7 @@ namespace {
 constexpr int64_t kHeartbeatMs = 60000;
 constexpr int64_t kRelayTimeoutMs = 150000;
 constexpr int64_t kBackoffMaxMs = 300000;
+constexpr int64_t kRetryAfterMaxS = 3600;
 constexpr int kIconMaxAttempts = 3;
 
 bool is_retryable(int status) { return status == 0 || is_transient_http_status(status); }
@@ -21,7 +22,7 @@ bool is_success(int status) { return status >= 200 && status < 300; }
 
 void RelayClient::Backoff::fail(const Outcome& out, int64_t now_ms) {
     if (out.retry_after_s) {
-        until_ms = now_ms + std::max<int64_t>(*out.retry_after_s, 0) * 1000;
+        until_ms = now_ms + std::clamp<int64_t>(*out.retry_after_s, 0, kRetryAfterMaxS) * 1000;
         return;
     }
     until_ms = now_ms + delay_ms;
@@ -45,7 +46,10 @@ void RelayClient::set_report(std::optional<Report> report, std::optional<int64_t
     elapsed_s_ = elapsed_s;
 }
 
-void RelayClient::on_wake() { wake_pending_ = true; }
+void RelayClient::on_wake() {
+    wake_pending_ = true;
+    backoff_.reset();
+}
 
 std::optional<Request> RelayClient::next(int64_t now_ms) {
     if (link_ != LinkState::Ok || backoff_.open(now_ms)) return std::nullopt;

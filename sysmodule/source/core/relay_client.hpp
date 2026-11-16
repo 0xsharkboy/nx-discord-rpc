@@ -28,13 +28,14 @@ enum class LinkState { NoKey, Ok, Unauthorized, LinkBroken };
 // Decides what to send to the relay and when. No I/O; time is a monotonic now_ms.
 class RelayClient {
 public:
-    // A new key resets Unauthorized/LinkBroken.
+    // A key change: call on boot and on key import only. Resets Unauthorized/LinkBroken.
     void set_key(bool has_api_key, bool has_admin_key);
     // Desired state; elapsed is computed by the caller and sent with each PUT.
     void set_report(std::optional<Report> report, std::optional<int64_t> elapsed_s);
+    // One request in flight: do not call next() again before on_outcome() for its request.
     std::optional<Request> next(int64_t now_ms);
     void on_outcome(const Request& req, const Outcome& out, int64_t now_ms);
-    // Re-send at once after sleep.
+    // Re-send at once after sleep, ignoring any open backoff window.
     void on_wake();
     LinkState link_state() const { return link_; }
 
