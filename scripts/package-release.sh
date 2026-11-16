@@ -15,6 +15,9 @@ files=(
   switch/.overlays/nx-discord-rpc.ovl
 )
 
+# Licence notices that must accompany the binaries, shipped at the zip root.
+notices=THIRD_PARTY_NOTICES.md
+
 missing=0
 for f in "${files[@]}"; do
   if [ ! -f "$root/out/$f" ]; then
@@ -22,13 +25,18 @@ for f in "${files[@]}"; do
     missing=1
   fi
 done
+if [ ! -f "$root/$notices" ]; then
+  echo "missing $notices" >&2
+  missing=1
+fi
 [ "$missing" -eq 0 ] || exit 1
 
 rm -rf "$root/release"
 mkdir -p "$root/release"
 
 # Zip from inside out/ so atmosphere/ and switch/ sit at the archive root.
-# Entries are the expected files plus their parent directories, sorted; -X drops extra attributes.
+# Entries are the expected files plus their parent directories, sorted, then the notices file at the
+# root; -X drops extra attributes.
 (
   cd "$root/out"
   {
@@ -38,6 +46,7 @@ mkdir -p "$root/release"
       echo "$f"
     done
   } | LC_ALL=C sort -u | zip -X -q "$root/release/$zip_name" -@
+  zip -X -q "$root/release/$zip_name" -j "$root/$notices"
 )
 
 (
@@ -45,4 +54,4 @@ mkdir -p "$root/release"
   sha256sum "$zip_name" > SHA256SUMS
 )
 
-echo "wrote release/$zip_name and release/SHA256SUMS"
+echo "wrote release/$zip_name (with $notices) and release/SHA256SUMS"
