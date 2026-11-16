@@ -469,7 +469,7 @@ void publish(SharedState& shared, const Snapshot& s) {
                 }
                 client.on_outcome(*req, out, mono_ms());
             }
-        } else {
+        } else if (!power.asleep()) {
             link.on_offline();
         }
 
