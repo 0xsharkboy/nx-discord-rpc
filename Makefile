@@ -38,6 +38,9 @@ app-desktop: $(BOREALIS_GLFW)
 	cmake -S app -B build/app-desktop -DPLATFORM_DESKTOP=ON -DCMAKE_BUILD_TYPE=RelWithDebInfo
 	cmake --build build/app-desktop --parallel
 
+screenshots: app-desktop
+	scripts/screenshots.sh
+
 dist: sysmodule app overlay
 
 release: dist
@@ -51,4 +54,4 @@ compile_commands:
 clean:
 	rm -rf build out release sysmodule/build compile_commands.json overlay/build overlay/*.ovl overlay/*.elf overlay/*.nacp
 
-.PHONY: print-version test sysmodule app overlay app-desktop dist release compile_commands clean
+.PHONY: print-version test sysmodule app overlay app-desktop screenshots dist release compile_commands clean

@@ -1,62 +1,64 @@
 # nx-discord-rpc
 
-An Atmosphère sysmodule for the Nintendo Switch that reports the running title to the
-nx-discord-rpc relay, which shows it as Discord Rich Presence. The console holds only an API key
-issued by the relay.
+Show the game you are playing on your Nintendo Switch as your Discord status.
 
-Work in progress. There is no release yet; nothing here counts as tested until
-[docs/hardware-checklist.md](docs/hardware-checklist.md) has been run on a console.
+![Status tab of the app](docs/images/status.png)
 
-The relay receives your Discord link, the current game name, elapsed time and icon. It keeps no play
-history and never sees your Discord password.
+![Linking your Discord account](docs/images/link.png)
 
-## Parts
+## What it does
 
-- The sysmodule reports the running title to the relay.
-- The app (homebrew `.nro`) shows the status, edits the settings and links your Discord account.
-- The overlay (Tesla) toggles the settings in game.
+nx-discord-rpc shows the game being played on your Switch as Discord Rich Presence, with the game
+name, the elapsed time and the game's icon. It has three parts:
+
+- a sysmodule that runs in the background, starts at boot and reports the running game;
+- an app, started from the Homebrew Menu, that shows the status, edits the settings and links your
+  Discord account;
+- an overlay for Tesla Menu or Ultrahand that toggles the settings while you play.
+
+The console does not talk to Discord directly. It sends the current game to a relay, which shows it
+on your profile through Discord's official Social SDK. See [Privacy](#privacy) for what the relay
+receives and keeps.
 
 ## Requirements
 
-- A Switch running Atmosphère.
-- A relay that implements [docs/protocol.md](docs/protocol.md).
-- For the overlay: nx-ovlloader and Tesla Menu or Ultrahand.
+- A Switch running [Atmosphère](https://github.com/Atmosphere-NX/Atmosphere).
+- For the overlay: nx-ovlloader with Tesla Menu or Ultrahand.
 
-## Build and install
+## Install
 
-Everything comes from the Nix flake.
+1. Download `nx-discord-rpc-X.Y.Z.zip` from the
+   [Releases](https://github.com/0xsharkboy/nx-discord-rpc/releases) page.
+2. Extract it at the root of the SD card. It holds two folders, `atmosphere` and `switch`, and puts
+   the sysmodule, the app (`switch/nx-discord-rpc/nx-discord-rpc.nro`) and the overlay
+   (`switch/.overlays/nx-discord-rpc.ovl`) in place.
+3. Reboot the console so the sysmodule starts.
 
-    nix develop -c make test
-    nix develop -c make dist
+## Link your Discord account
 
-Copy the contents of `out/` to the root of the SD card:
+1. Open the Homebrew Menu and start nx-discord-rpc.
+2. Go to the Account tab and choose Link with Discord.
+3. Scan the QR code with your phone, or open the address shown and enter the code.
+4. Approve the request on Discord.
 
-- `atmosphere/contents/4200000000D15C0D/` (`exefs.nsp`, `toolbox.json`, `flags/boot2.flag`): the sysmodule
-- `switch/nx-discord-rpc/nx-discord-rpc.nro`: the app
-- `switch/.overlays/nx-discord-rpc.ovl`: the overlay
+The app then shows "Linked as" followed by your Discord username, and the game you are playing
+appears on your profile within a few seconds. The Status tab shows what is currently shown on
+Discord and the state of the relay.
 
-Reboot so the sysmodule starts. `make sysmodule`, `make app` and `make overlay` build one part each.
-To preview the app on a PC: `nix develop .#desktop -c make app-desktop`, then
-`build/app-desktop/nx-discord-rpc --fake <scenario>`.
-
-## Linking
-
-Open the app, go to the Account tab and start the link. Scan the QR code, or open the link and enter
-the code on your phone. The key is kept in `config.ini` and the Discord username is shown. Unlinking
-asks the relay to drop the link; if the relay cannot be reached, "Forget locally" only clears the key
-on the console.
-
-As a fallback, write an API key to `api_key.txt` (see below).
+![Account tab of the app](docs/images/account.png)
 
 ## Settings
 
-The app (Settings tab) and the overlay edit the same settings; Debug log is only in the app. Changes
-apply within about a second and are written to `config.ini` after about 2 seconds without further
-changes. The relay URL is not editable from either: change it in `config.ini`.
+The Settings tab of the app and the overlay edit the same settings. A change applies within about a
+second and is written to `config.ini` after about 2 seconds without further changes. The app has
+Enabled, Private mode, Show firmware version, Show HOME Menu and Debug log. The overlay has the same
+toggles except Debug log. The relay URL cannot be changed from either: edit `relay_url` in
+`config.ini`.
 
-## Configuration
+![Settings tab of the app](docs/images/settings.png)
 
-`sdmc:/config/nx-discord-rpc/config.ini`, one `key = value` per line:
+The file is `sdmc:/config/nx-discord-rpc/config.ini`, one `key = value` per line. The sysmodule
+reads it at boot, so edit it with the SD card in a PC rather than on a running console.
 
 | Key | Default | Meaning |
 | --- | --- | --- |
@@ -65,23 +67,60 @@ changes. The relay URL is not editable from either: change it in `config.ini`.
 | `show_firmware` | `false` | Append the firmware version |
 | `show_home_menu` | `false` | Report the HOME Menu too |
 | `debug_log` | `false` | Write debug lines to the log |
-| `relay_url` | `https://nx-discord-rpc.0xsharkboy.dev` | The relay's base URL (https only). Empty uses the default; an invalid URL disables sending (logged), the API key never goes to another host |
-| `api_key` | empty | The API key issued by the relay |
-| `admin_key` | empty | Optional relay admin key, used only for icon uploads |
-| `username` | empty | The Discord username shown by the UIs; informational only, kept up to 32 bytes |
+| `relay_url` | `https://nx-discord-rpc.0xsharkboy.dev` | The relay's base URL (https only), editable in `config.ini` only. Empty uses the default. An invalid URL disables sending, and the API key never goes to another host |
+| `api_key` | empty | The API key issued by the relay when you link. Written by the sysmodule, not meant to be edited |
+| `admin_key` | empty | Optional relay admin key, used only for icon uploads. Leave it empty |
+| `username` | empty | The Discord username shown by the app and the overlay. Informational only |
 
-The sysmodule reads the file at boot. To set the API key, write it to
-`sdmc:/config/nx-discord-rpc/api_key.txt`: it is imported at boot, or within 30 seconds while the
-sysmodule has no working key, saved to `config.ini`, then the file is deleted.
-After a rejected key (401) or a broken Discord link (409), a new `api_key.txt` is needed.
+Title icons are uploaded to the relay automatically, once per title and session. None are uploaded
+in private mode or on the HOME Menu.
 
-Title icons are uploaded to the relay automatically, once per title and session. None are uploaded in
-private mode or on the HOME Menu.
+## Privacy
 
-The log is `sdmc:/config/nx-discord-rpc/log.txt`. Keys are masked in it.
+- **What the relay receives:** your Discord link (to show the presence on your account), the name of
+  the game you are playing, the elapsed time and the game's icon.
+- **What it keeps:** no play history. The current game is held in memory only, to send it to
+  Discord. Your Discord OAuth tokens are encrypted at rest. The
+  [how it works](https://github.com/0xsharkboy/nx-discord-rpc-relay/blob/main/docs/how-it-works.md)
+  page lists everything else the relay stores, such as your Discord user id and username, and icon
+  votes for about 30 days.
+- **Unlinking:** choose Unlink in the Account tab. You can also revoke "NX RPC" in Discord, under
+  User Settings > Authorized Apps.
+- **Who runs it:** the relay is operated by the author of this project. Its code is public at
+  [nx-discord-rpc-relay](https://github.com/0xsharkboy/nx-discord-rpc-relay), and you can run your own:
+  follow the
+  [self-hosting guide](https://github.com/0xsharkboy/nx-discord-rpc-relay/blob/main/docs/self-hosting.md),
+  then set `relay_url` in `config.ini`.
+- **Your Discord login:** your Discord password and account token are never used. Linking is approved
+  on discord.com, and the console only holds an API key issued by the relay.
+
+## Troubleshooting
+
+- The log is `sdmc:/config/nx-discord-rpc/log.txt`. Keys are masked in it. Turn on Debug log in the
+  Settings tab (`debug_log`) for more detail.
+- If the app says "nx-discord-rpc is not running", check that the sysmodule is installed in
+  `atmosphere/contents/4200000000D15C0D` on the SD card, then reboot.
+- If the Status tab says "Relay rejected the key. Link again" or "Discord link broken. Link again",
+  go to the Account tab and choose Link with Discord again.
+- If Unlink cannot reach the relay, the app offers Forget locally. It only clears the key on the
+  console, and Discord keeps the authorization until you remove it in Discord's settings.
+
+## Building from source
+
+Everything comes from the Nix flake.
+
+    nix develop -c make test
+    nix develop -c make dist
+
+`make dist` builds the sysmodule, the app and the overlay into `out/`. To preview the app on a PC:
+
+    nix develop .#desktop -c make app-desktop
+    build/app-desktop/nx-discord-rpc --fake linked-game
+
+The README screenshots come from `nix develop .#desktop -c make screenshots`. Before trusting a
+build on a console, run the [hardware checklist](docs/hardware-checklist.md). The wire protocol is
+described in [docs/protocol.md](docs/protocol.md).
 
 ## License
 
-SPDX-License-Identifier: GPL-3.0-or-later
-
-See [LICENSE](LICENSE).
+GPL-3.0-or-later. See [LICENSE](LICENSE).
