@@ -30,7 +30,7 @@ std::string link_line(const ipc::Status& s) {
         case ipc::LinkState::Linked:
             return s.username[0] ? std::string("Linked as ") + s.username : std::string("Linked");
         case ipc::LinkState::NoKey:
-            return "Not linked\nOpen the nx-discord-rpc app";
+            return "Not linked\nOpen the NX Discord RPC app";
         case ipc::LinkState::Unauthorized:
             return "Relay rejected the key";
         case ipc::LinkState::LinkBroken:
@@ -109,20 +109,20 @@ std::string unavailable_message(std::string& second) {
         const std::string remote = std::to_string(g_remote_version);
         const std::string local = std::to_string(ipc::kProtocolVersion);
         if (drpc::sysmodule_outdated(g_remote_version))
-            second = "Update the nx-discord-rpc sysmodule (protocol " + remote + ") to match this overlay (protocol " +
+            second = "Update the NX Discord RPC sysmodule (protocol " + remote + ") to match this overlay (protocol " +
                      local + ").";
         else
             second = "Update this overlay (protocol " + local + ") to match the sysmodule (protocol " + remote + ").";
         return "Version mismatch.";
     }
     second.clear();
-    return "nx-discord-rpc is not running.";
+    return "NX Discord RPC is not running.";
 }
 
 class MainGui : public tsl::Gui {
 public:
     tsl::elm::Element* createUI() override {
-        auto* frame = new tsl::elm::OverlayFrame("nx-discord-rpc", OVERLAY_VERSION);
+        auto* frame = new tsl::elm::OverlayFrame("NX Discord RPC", OVERLAY_VERSION);
 
         if (g_connect_error != ConnectError::None) {
             frame->setContent(new tsl::elm::CustomDrawer([](tsl::gfx::Renderer* r, s32 x, s32 y, s32 w, s32) {
@@ -140,7 +140,7 @@ public:
         ipc::Settings cur{};
         if (!g_client->settings(cur)) {
             frame->setContent(new tsl::elm::CustomDrawer([](tsl::gfx::Renderer* r, s32 x, s32 y, s32 w, s32) {
-                draw_wrapped(r, "Lost contact with nx-discord-rpc", x + kPadding, y + 40, 22, w - 2 * kPadding,
+                draw_wrapped(r, "Lost contact with NX Discord RPC", x + kPadding, y + 40, 22, w - 2 * kPadding,
                              r->a(tsl::style::color::ColorText));
             }));
             return frame;
@@ -192,7 +192,7 @@ private:
         last_refresh_ms_ = now_ms();
         ipc::Status s{};
         if (!g_client->status(s)) {
-            link_text_ = "Lost contact with nx-discord-rpc";
+            link_text_ = "Lost contact with NX Discord RPC";
             presence_text_.clear();
             return;
         }

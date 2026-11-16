@@ -334,7 +334,7 @@ void publish(SharedState& shared, const Snapshot& s) {
 }
 
 [[noreturn]] void run() {
-    log::info("nx-discord-rpc starting");
+    log::info("NX Discord RPC starting");
     ConfigStore store;
     Settings settings = load_settings(store);
     log::set_debug(settings.debug_log);

@@ -21,7 +21,7 @@ include $(DEVKITPRO)/libnx/switch_rules
 # APP_VERSION is the version of the app stored in the .nacp file (Optional)
 #---------------------------------------------------------------------------------
 
-APP_TITLE	:=	nx-discord-rpc
+APP_TITLE	:=	NX Discord RPC
 APP_VERSION	:=	$(strip $(shell cat $(VERSION_FILE)))
 ifeq ($(APP_VERSION),)
 $(error "empty version: could not read $(VERSION_FILE)")

@@ -10,7 +10,7 @@ include(${BOREALIS_LIBRARY}/cmake/toolchain.cmake)
 
 project(nx-discord-rpc C CXX)
 
-set(APP_TITLE "nx-discord-rpc")
+set(APP_TITLE "NX Discord RPC")
 set(APP_AUTHOR "0xsharkboy")
 file(STRINGS ${CMAKE_CURRENT_SOURCE_DIR}/../VERSION APP_VERSION LIMIT_COUNT 1)
 set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/../VERSION)
