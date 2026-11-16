@@ -125,3 +125,7 @@ TEST_CASE("username round trips and rejects control characters") {
 TEST_CASE("a username containing a newline normalizes to empty") {
     CHECK(drpc::normalize_username("a\nb").empty());
 }
+
+TEST_CASE("username truncation does not split a UTF-8 sequence") {
+    CHECK(drpc::normalize_username(std::string(31, 'a') + "\xC3\xA9") == std::string(31, 'a'));
+}

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstddef>
 #include <cstdint>
 #include <type_traits>
 
@@ -38,6 +39,7 @@ struct Status {
     char name[132];
     char details[132];
     char title_id[20];
+    uint8_t pad0[4];
     int64_t elapsed_s;
     uint32_t backoff_s;
     LinkState link;
@@ -46,6 +48,7 @@ struct Status {
     uint8_t is_game;
     UnlinkResult unlink;
     uint8_t reserved[3];
+    uint8_t pad1[4];
 };
 
 struct Link {
@@ -61,6 +64,7 @@ struct Link {
 
 static_assert(sizeof(Settings) == 8);
 static_assert(sizeof(Status) == 432);
+static_assert(offsetof(Status, elapsed_s) == 408);
 static_assert(sizeof(Link) == 196);
 static_assert(std::is_standard_layout_v<Settings> && std::is_trivial_v<Settings>);
 static_assert(std::is_standard_layout_v<Status> && std::is_trivial_v<Status>);
