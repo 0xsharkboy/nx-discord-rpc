@@ -24,7 +24,35 @@ std::string_view strip_bom(std::string_view s) {
     return s.substr(0, kBom.size()) == kBom ? s.substr(kBom.size()) : s;
 }
 
+std::string_view unwrap(std::string_view raw) {
+    raw = trim(strip_bom(raw));
+    if (raw.size() >= 2 && (raw.front() == '"' || raw.front() == '\'') && raw.back() == raw.front()) {
+        raw = trim(raw.substr(1, raw.size() - 2));
+    }
+    return raw;
+}
+
 }  // namespace
+
+std::optional<std::string> normalize_api_key(std::string_view raw) {
+    raw = unwrap(raw);
+    if (raw.size() != 43) return std::nullopt;
+    for (char c : raw) {
+        const bool ok = (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') ||
+                        c == '_' || c == '-';
+        if (!ok) return std::nullopt;
+    }
+    return std::string{raw};
+}
+
+std::optional<std::string> normalize_admin_key(std::string_view raw) {
+    raw = unwrap(raw);
+    if (raw.size() < 16 || raw.size() > 128) return std::nullopt;
+    for (char c : raw) {
+        if (c <= ' ' || c > '~') return std::nullopt;
+    }
+    return std::string{raw};
+}
 
 Settings parse_settings(std::string_view ini) {
     Settings s;
@@ -46,6 +74,9 @@ Settings parse_settings(std::string_view ini) {
         else if (key == "show_firmware") parse_bool(value, s.show_firmware);
         else if (key == "show_home_menu") parse_bool(value, s.show_home_menu);
         else if (key == "debug_log") parse_bool(value, s.debug_log);
+        else if (key == "relay_url") s.relay_url = value;
+        else if (key == "api_key") s.api_key = normalize_api_key(value).value_or(std::string{});
+        else if (key == "admin_key") s.admin_key = normalize_admin_key(value).value_or(std::string{});
     }
     return s;
 }
@@ -59,21 +90,28 @@ std::string serialize_settings(const Settings& s) {
     out += std::string("show_firmware = ") + b(s.show_firmware) + "\n";
     out += std::string("show_home_menu = ") + b(s.show_home_menu) + "\n";
     out += std::string("debug_log = ") + b(s.debug_log) + "\n";
+    out += "relay_url = " + s.relay_url + "\n";
+    out += "api_key = " + s.api_key + "\n";
+    out += "admin_key = " + s.admin_key + "\n";
     return out;
 }
 
-std::string redact(std::string_view text, std::string_view secret) {
-    if (secret.empty()) return std::string{text};
-    std::string out;
-    size_t pos = 0;
-    for (;;) {
-        const size_t hit = text.find(secret, pos);
-        if (hit == std::string_view::npos) break;
-        out.append(text.substr(pos, hit - pos));
-        out += "[redacted]";
-        pos = hit + secret.size();
+std::string redact(std::string_view text, std::span<const std::string_view> secrets) {
+    std::string out{text};
+    for (const std::string_view secret : secrets) {
+        if (secret.empty()) continue;
+        std::string next;
+        size_t pos = 0;
+        for (;;) {
+            const size_t hit = out.find(secret, pos);
+            if (hit == std::string::npos) break;
+            next.append(out, pos, hit - pos);
+            next += "[secret]";
+            pos = hit + secret.size();
+        }
+        next.append(out, pos, std::string::npos);
+        out = std::move(next);
     }
-    out.append(text.substr(pos));
     return out;
 }
 

@@ -5,6 +5,7 @@
 #include <string>
 #include <sys/stat.h>
 
+#include "platform/log.hpp"
 #include "platform/paths.hpp"
 
 namespace drpc {
@@ -54,6 +55,21 @@ bool ConfigStore::save(const Settings& s) {
     // fsdev cannot rename over an existing file.
     std::remove(paths::kConfig);
     return std::rename(paths::kConfigTmp, paths::kConfig) == 0;
+}
+
+std::optional<std::string> ConfigStore::import_api_key_file() {
+    auto raw = read_file(paths::kApiKey);
+    if (!raw) return std::nullopt;
+    auto key = normalize_api_key(*raw);
+    if (!key) {
+        delete_api_key_file();
+        log::warn("api_key.txt does not contain a valid API key; ignored and deleted");
+    }
+    return key;
+}
+
+void ConfigStore::delete_api_key_file() {
+    std::remove(paths::kApiKey);
 }
 
 }  // namespace drpc

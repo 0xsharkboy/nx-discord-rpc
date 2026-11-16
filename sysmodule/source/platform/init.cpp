@@ -15,7 +15,7 @@ const SocketInitConfig kSocketConfig = {
     .tcp_rx_buf_max_size = 0,
     .udp_tx_buf_size = 0x2400,
     .udp_rx_buf_size = 0xA500,
-    .sb_efficiency = 2, 
+    .sb_efficiency = 2,
     .num_bsd_sessions = 1,
     .bsd_service_type = BsdServiceType_User,
 };

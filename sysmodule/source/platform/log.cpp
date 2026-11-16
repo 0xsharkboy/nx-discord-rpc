@@ -35,7 +35,8 @@ void write(std::string_view level, std::string_view msg) {
         if (!(f = std::fopen(paths::kLog, "a"))) return;
     }
     const uint64_t ms = uint64_t(mono_ms());
-    const std::string line = redact(redact(msg, g_api_key), g_admin_key);
+    const std::string_view secrets[] = {g_api_key, g_admin_key};
+    const std::string line = redact(msg, secrets);
     std::fprintf(f, "[%llu.%03llu] %.*s %.*s\n", (unsigned long long)(ms / 1000), (unsigned long long)(ms % 1000),
                  int(level.size()), level.data(), int(line.size()), line.data());
     std::fclose(f);
