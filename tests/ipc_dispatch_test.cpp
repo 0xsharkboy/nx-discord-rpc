@@ -203,3 +203,15 @@ TEST_CASE("request ignores commands that are not requests") {
     state.request(Cmd::GetStatus);
     CHECK_FALSE(state.take_request(Cmd::GetStatus));
 }
+
+TEST_CASE("seed_settings is served by GetSettings without being taken") {
+    SharedState state;
+    const drpc::ipc::Settings s = valid_settings();
+    state.seed_settings(s);
+    CHECK_FALSE(state.take_settings().has_value());
+
+    const DispatchResult r = call(state, Cmd::GetSettings);
+    REQUIRE(r.rc == 0);
+    REQUIRE(r.raw_out.size() == sizeof(drpc::ipc::Settings));
+    CHECK(std::memcmp(r.raw_out.data(), &s, sizeof(s)) == 0);
+}

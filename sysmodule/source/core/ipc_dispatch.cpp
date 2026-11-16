@@ -18,7 +18,6 @@ DispatchResult raw(const T& value) {
 template <typename T>
 DispatchResult write_out(const T& value, std::span<uint8_t> out_buf) {
     if (out_buf.size() < sizeof(T)) return {kRcBadBuffer, {}};
-    std::memset(out_buf.data(), 0, sizeof(T));
     std::memcpy(out_buf.data(), &value, sizeof(T));
     return {0, {}};
 }

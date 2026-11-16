@@ -40,6 +40,11 @@ void SharedState::set_settings(const ipc::Settings& settings) {
     settings_pending_ = true;
 }
 
+void SharedState::seed_settings(const ipc::Settings& settings) {
+    std::lock_guard lock(mutex_);
+    settings_ = settings;
+}
+
 ipc::Settings SharedState::settings() const {
     std::lock_guard lock(mutex_);
     return settings_;
