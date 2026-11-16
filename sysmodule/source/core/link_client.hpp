@@ -66,7 +66,6 @@ private:
     ipc::LinkFailure failure_ = ipc::LinkFailure::None;
     int retry_after_s_ = 0;
     bool start_sent_ = false;
-    bool poll_in_flight_ = false;
 
     std::string link_id_, user_code_, verification_uri_, username_;
     int64_t interval_ms_ = 0;

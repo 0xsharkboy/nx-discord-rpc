@@ -364,3 +364,74 @@ TEST_CASE("priority: Unlink, then Start, then Poll, then FetchMe") {
     answer(c, 5000, resp(200, R"({"state":"pending"})"), Kind::Poll);
     answer(c, 5000, resp(200, R"({"username":"u"})"), Kind::FetchMe);
 }
+
+TEST_CASE("errors: a Start 200 with an empty code or URI fails with Other") {
+    for (const char* body : {R"({"link_id":"L","user_code":"","verification_uri_complete":"U"})",
+                             R"({"link_id":"L","user_code":"C","verification_uri_complete":""})"}) {
+        LinkClient c;
+        c.start(0);
+        answer(c, 0, resp(200, body), Kind::Start);
+        CHECK(c.view(0).phase == LinkPhase::Failed);
+        CHECK(c.view(0).failure == LinkFailure::Other);
+        CHECK_FALSE(first_due(c, 0, 1000000));
+    }
+}
+
+TEST_CASE("fetch me: the username also updates the Linked view") {
+    auto c = pending_at_zero();
+    answer(c, 5000, resp(200, R"({"state":"linked","api_key":")" + kKey + R"(","username":"old"})"), Kind::Poll);
+    c.request_username();
+    answer(c, 5000, resp(200, R"({"username":"new_name"})"), Kind::FetchMe);
+    CHECK(c.view(5000).username == "new_name");
+}
+
+TEST_CASE("fetch me: Idle view stays empty") {
+    LinkClient c;
+    c.request_username();
+    answer(c, 0, resp(200, R"({"username":"test_rpc"})"), Kind::FetchMe);
+    CHECK(c.view(0).username.empty());
+}
+
+TEST_CASE("sleep: a late Start answer after on_sleep is ignored") {
+    LinkClient c;
+    c.start(0);
+    auto req = c.next(0);
+    REQUIRE(req);
+    c.on_sleep();
+    auto fx = c.on_response(*req, resp(200, kStartBody), 0);
+    CHECK_FALSE(fx.api_key);
+    CHECK_FALSE(fx.username);
+    auto v = c.view(0);
+    CHECK(v.phase == LinkPhase::Failed);
+    CHECK(v.failure == LinkFailure::Interrupted);
+    CHECK(v.user_code.empty());
+    CHECK(v.verification_uri.empty());
+    CHECK_FALSE(first_due(c, 0, 1000000));
+}
+
+TEST_CASE("cancel: a late linked Poll answer is ignored") {
+    auto c = pending_at_zero();
+    auto req = c.next(5000);
+    REQUIRE(req);
+    REQUIRE(req->kind == Kind::Poll);
+    c.cancel();
+    auto fx = c.on_response(*req, resp(200, R"({"state":"linked","api_key":")" + kKey + R"(","username":"u"})"), 5000);
+    CHECK_FALSE(fx.api_key);
+    CHECK_FALSE(fx.username);
+    CHECK_FALSE(fx.clear_key);
+    CHECK(c.view(5000).phase == LinkPhase::Idle);
+    CHECK(c.view(5000).username.empty());
+    CHECK_FALSE(first_due(c, 5000, 1000000));
+}
+
+TEST_CASE("unlink: after a failure, unlink() sends a new Unlink") {
+    LinkClient c;
+    c.unlink();
+    answer(c, 0, resp(0), Kind::Unlink);
+    CHECK(c.unlink_result() == UnlinkResult::Failed);
+    c.unlink();
+    CHECK(c.unlink_result() == UnlinkResult::InProgress);
+    auto fx = answer(c, 0, resp(204), Kind::Unlink);
+    CHECK(fx.clear_key);
+    CHECK(c.unlink_result() == UnlinkResult::Done);
+}

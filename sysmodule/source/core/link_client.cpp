@@ -117,7 +117,8 @@ void LinkClient::on_start(const LinkResponse& resp, int64_t now_ms) {
     auto link_id = string_at(e, "link_id");
     auto user_code = string_at(e, "user_code");
     auto uri = string_at(e, "verification_uri_complete");
-    if (resp.status != 200 || !parsed || !link_id || link_id->empty() || !user_code || !uri) {
+    if (resp.status != 200 || !parsed || !link_id || link_id->empty() || !user_code || user_code->empty() || !uri ||
+        uri->empty()) {
         fail(LinkFailure::Other);
         return;
     }
@@ -199,6 +200,7 @@ LinkEffect LinkClient::on_fetch_me(const LinkResponse& resp) {
     if (!raw) return {};
     std::string username = normalize_username(*raw);
     if (username.empty()) return {};
+    if (phase_ == LinkPhase::Linked) username_ = username;
     return LinkEffect{std::nullopt, std::move(username), false};
 }
 
