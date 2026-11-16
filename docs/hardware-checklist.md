@@ -26,3 +26,9 @@ Run on the console before trusting a build. Tick each box only when the expected
 22. [ ] Sleep on the dock for several minutes, with background wakes. Expected: nothing is sent while asleep; presence resumes after a real wake.
 23. [ ] Restart the relay while playing. Expected: the sysmodule recovers on its own and the presence returns.
 24. [ ] Check `log.txt`. Expected: no key or admin key appears in it.
+25. [ ] Link a Discord account that has a custom avatar. Expected: the Account tab shows the picture within a few seconds of the "Linked as" line.
+26. [ ] On a console that was already linked before this version, reboot and open the Account tab. Expected: the picture appears once the sysmodule has read the profile at boot.
+27. [ ] Break the link (revoke NX RPC in Discord, User Settings > Authorized Apps) or turn Wi-Fi off, then reopen the Account tab. Expected: the picture stays.
+28. [ ] Unlink from the Account tab. Expected: the picture disappears, and `avatar.png` and `avatar.key` are gone from `sdmc:/config/nx-discord-rpc/`.
+29. [ ] Link an account without a custom avatar. Expected: the Account tab shows Discord's default avatar.
+30. [ ] Change the avatar on Discord. Expected: the new picture shows within about a week (the next token refresh), or right away after unlinking and linking again.

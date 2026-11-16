@@ -145,7 +145,8 @@ No auth, no body.
 {"state": "pending"}
 {"state": "denied"}
 {"state": "expired"}
-{"state": "linked", "api_key": "Zk3...43 chars...", "username": "alice"}
+{"state": "linked", "api_key": "Zk3...43 chars...", "username": "alice",
+ "discord_id": "80351110224678912", "avatar": "a_1b2c3d4e5f"}
 ```
 
 - `pending`: keep polling every `interval` seconds. Polling faster is harmless but only returns
@@ -169,8 +170,18 @@ Auth: API key.
 **200**
 
 ```json
-{"username": "alice", "link_broken": false, "presence": {"name": "Zelda", "details": "Chapter 1"}}
+{"username": "alice", "discord_id": "80351110224678912", "avatar": "a_1b2c3d4e5f",
+ "link_broken": false, "presence": {"name": "Zelda", "details": "Chapter 1"}}
 ```
+
+`discord_id` is the account's Discord user id (a decimal string). `avatar` is the avatar hash, or
+`null` when the account has no custom avatar. The `linked` poll answer carries the same two fields.
+The relay re-reads the username and avatar from Discord at each token refresh (about weekly), so a
+changed avatar shows up within about a week, or right away after a relink. Clients can build the
+picture address from them (`https://cdn.discordapp.com/avatars/<discord_id>/<avatar>.png?size=128`,
+or `https://cdn.discordapp.com/embed/avatars/<(discord_id >> 22) % 6>.png` when `avatar` is `null`);
+it is public and needs no token. The sysmodule reads `GET /v1/me` at boot when it holds a key, then
+every 24 hours while linked and online.
 
 `presence` is the activity last sent to Discord, or `null` when none is shown.
 
@@ -262,6 +273,12 @@ Errors: `404 not_found` (invalid title id or no published icon).
 ### `GET /healthz`
 
 No auth. **200** with the text body `ok`.
+
+## Console IPC protocol
+
+The sysmodule and the app talk over a local IPC service, versioned separately from the HTTP API
+above. Protocol version 2 adds `discord_id` (24 bytes) and `avatar` (40 bytes) to the Status the
+app reads, both empty strings when unknown.
 
 ## Examples
 

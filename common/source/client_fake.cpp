@@ -34,7 +34,8 @@ struct Scenario {
     ConnectError connect = ConnectError::None;
     bool key = true;
     const char* username = "test_rpc";
-    const char* discord_id = "";
+    // Only reported while a key is held, so no_key scenarios show none until a link completes.
+    const char* discord_id = "80351110224678912";
     Presence presence = Presence::Game;
     ipc::LinkState link = ipc::LinkState::Linked;
     ipc::RelayHealth health = ipc::RelayHealth::Ok;
@@ -87,7 +88,6 @@ const Scenario* find_scenario(std::string_view name) {
     static const auto kScenarios = [] {
         Scenario linked_home{"linked-home"};
         linked_home.presence = Presence::Home;
-        linked_home.discord_id = "80351110224678912";
 
         Scenario backoff{"backoff"};
         backoff.health = ipc::RelayHealth::Backoff;

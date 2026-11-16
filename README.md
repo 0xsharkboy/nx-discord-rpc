@@ -42,7 +42,7 @@ receives and keeps.
 3. Scan the QR code with your phone, or open the address shown and enter the code.
 4. Approve the request on Discord.
 
-The app then shows "Linked as" followed by your Discord username, and the game you are playing
+The app then shows your Discord picture, "Linked as" followed by your Discord username, and the game you are playing
 appears on your profile within a few seconds. The Status tab shows what is currently shown on
 Discord and the state of the relay.
 
@@ -78,6 +78,7 @@ while the console is off (SD card in a PC), never on a running console.
 | `api_key` | empty | The API key issued by the relay when you link. Written by the sysmodule, not meant to be edited |
 | `admin_key` | empty | Optional relay admin key, used only for icon uploads. Leave it empty |
 | `username` | empty | The Discord username shown by the app and the overlay. Informational only |
+| `discord_id`, `avatar` | empty | Your Discord user id and avatar hash, used to show your picture. Written by the sysmodule, not meant to be edited |
 
 Title icons are uploaded to the relay automatically, once per title and session. None are uploaded
 in private mode or on the HOME Menu.
@@ -90,7 +91,10 @@ in private mode or on the HOME Menu.
   Discord. Your Discord OAuth tokens are encrypted at rest. The
   [how it works](https://github.com/0xsharkboy/nx-discord-rpc-relay/blob/main/docs/how-it-works.md)
   page lists everything else the relay stores, such as your Discord user id and username, and icon
-  votes for about 30 days.
+  votes for about 30 days. It also keeps your avatar id, to tell the app which picture to show.
+- **Your picture:** the app downloads your Discord picture from `cdn.discordapp.com` without any
+  token, so Discord sees your console's IP address. The picture is cached in
+  `sdmc:/config/nx-discord-rpc/avatar.png` and deleted when you unlink.
 - **Unlinking:** choose Unlink in the Account tab. Revoking NX RPC in Discord stops the presence;
   Unlink in the app also deletes your data on the relay. You can revoke it in Discord, under
   User Settings > Authorized Apps.
