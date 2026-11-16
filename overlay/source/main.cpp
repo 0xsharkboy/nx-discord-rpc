@@ -30,7 +30,7 @@ std::string link_line(const ipc::Status& s) {
         case ipc::LinkState::Linked:
             return s.username[0] ? std::string("Linked as ") + s.username : std::string("Linked");
         case ipc::LinkState::NoKey:
-            return "Not linked\nOpen the nx-discord-rpc app to link";
+            return "Not linked\nOpen the nx-discord-rpc app";
         case ipc::LinkState::Unauthorized:
             return "Relay rejected the key";
         case ipc::LinkState::LinkBroken:
