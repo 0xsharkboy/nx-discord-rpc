@@ -5,6 +5,7 @@
 #include <optional>
 #include <string>
 
+#include "core/http.hpp"
 #include "core/relay_client.hpp"
 #include "core/relay_url.hpp"
 #include "core/report.hpp"
@@ -75,6 +76,7 @@ bool import_key(ConfigStore& store, Settings& settings, std::string key) {
     }
     if (store.save(settings)) {
         store.delete_api_key_file();
+        if (!changed) log::info("api_key.txt holds the key already in use");
     } else {
         log::error("config.ini could not be saved; api_key.txt kept for the next start");
     }
@@ -89,11 +91,31 @@ Settings load_settings(ConfigStore& store) {
     return s;
 }
 
-RelayUrl relay_url(const Settings& settings) {
-    if (auto url = parse_relay_url(settings.relay_url)) return std::move(*url);
-    log::error("relay_url is invalid; using the default");
-    return *parse_relay_url(kDefaultRelayUrl);
+// An empty relay_url means the default. An invalid one yields nothing: the API key must not go to a host
+// the user did not configure.
+std::optional<RelayUrl> relay_url(const Settings& settings) {
+    if (settings.relay_url.empty()) return parse_relay_url(kDefaultRelayUrl);
+    auto url = parse_relay_url(settings.relay_url);
+    if (!url) log::error("relay_url is invalid; nothing will be sent");
+    return url;
 }
+
+// One WARN per distinct unexpected status; icon rejections (400, 413) are handled by design.
+class UnexpectedStatus {
+public:
+    void observe(const Request& req, int status) {
+        if (status <= 0 || (status >= 200 && status < 300) || status == 401 || status == 409 ||
+            is_transient_http_status(status))
+            return;
+        if (req.kind == Request::Kind::PutIcon && (status == 400 || status == 413)) return;
+        if (status == last_) return;
+        last_ = status;
+        log::warn("Relay answered with unexpected HTTP " + std::to_string(status));
+    }
+
+private:
+    int last_ = 0;
+};
 
 // Seconds on the current title. The wall clock keeps counting across sleep, like the console's play timer.
 class Elapsed {
@@ -119,7 +141,8 @@ private:
     ConfigStore store;
     Settings settings = load_settings(store);
     log::set_debug(settings.debug_log);
-    const RelayUrl url = relay_url(settings);
+    const std::optional<RelayUrl> url = relay_url(settings);
+    UnexpectedStatus unexpected;
     const std::string firmware = firmware_display_version();
 
     static PowerNet power;
@@ -178,12 +201,13 @@ private:
             }
         }
 
-        if (power.online()) {
+        if (url && power.online()) {
             if (const auto req = client.next(mono_ms())) {
-                const Outcome out = execute(url, *req, settings.api_key, settings.admin_key);
+                const Outcome out = execute(*url, *req, settings.api_key, settings.admin_key);
                 if (req->kind == Request::Kind::PutIcon && req->use_admin_key && out.status == 401) {
                     log::warn("Relay rejected the admin key; icons use the API key until reboot");
                 }
+                unexpected.observe(*req, out.status);
                 client.on_outcome(*req, out, mono_ms());
             }
         }
