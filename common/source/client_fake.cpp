@@ -44,8 +44,10 @@ public:
     }
 
     ConnectError connect() override {
+        connected_ = false;
         if (scenario_ == Scenario::Missing) return ConnectError::NotRunning;
         if (scenario_ == Scenario::Mismatch) return ConnectError::VersionMismatch;
+        connected_ = true;
         return ConnectError::None;
     }
 
@@ -54,6 +56,7 @@ public:
     }
 
     bool status(ipc::Status& out) override {
+        if (!connected_) return false;
         std::memset(&out, 0, sizeof out);
         put(out.sysmodule_version, "0.1.0");
         put(out.relay_host, "relay.example.org");
@@ -84,23 +87,31 @@ public:
     }
 
     bool settings(ipc::Settings& out) override {
+        if (!connected_) return false;
         out = settings_;
         return true;
     }
 
     bool set_settings(const ipc::Settings& in) override {
+        if (!connected_) return false;
+        if (in.enabled > 1 || in.private_mode > 1 || in.show_elapsed > 1 || in.show_firmware > 1 ||
+            in.show_home_menu > 1 || in.debug_log > 1) {
+            return false;
+        }
         settings_ = in;
         std::memset(settings_.reserved, 0, sizeof settings_.reserved);
         return true;
     }
 
     bool link(ipc::Link& out) override {
+        if (!connected_) return false;
         refresh_link();
         out = link_;
         return true;
     }
 
     bool start_link() override {
+        if (!connected_) return false;
         if (link_.phase == ipc::LinkPhase::Pending) return true;
         std::memset(&link_, 0, sizeof link_);
         link_.phase = ipc::LinkPhase::Pending;
@@ -112,11 +123,13 @@ public:
     }
 
     bool cancel_link() override {
+        if (!connected_) return false;
         if (link_.phase == ipc::LinkPhase::Pending) std::memset(&link_, 0, sizeof link_);
         return true;
     }
 
     bool unlink() override {
+        if (!connected_) return false;
         std::memset(&link_, 0, sizeof link_);
         key_ = false;
         unlink_result_ = ipc::UnlinkResult::Done;
@@ -124,6 +137,7 @@ public:
     }
 
     bool forget_key() override {
+        if (!connected_) return false;
         std::memset(&link_, 0, sizeof link_);
         key_ = false;
         return true;
@@ -154,6 +168,7 @@ private:
     ipc::UnlinkResult unlink_result_ = ipc::UnlinkResult::None;
     int64_t started_ms_ = 0;
     bool key_ = false;
+    bool connected_ = false;
 };
 
 }  // namespace

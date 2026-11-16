@@ -8,10 +8,14 @@ namespace {
 
 class SwitchClient final : public Client {
 public:
+    SwitchClient() = default;
+    SwitchClient(const SwitchClient&) = delete;
+    SwitchClient& operator=(const SwitchClient&) = delete;
     ~SwitchClient() override { close(); }
 
     ConnectError connect() override {
         close();
+        version_ = 0;
         if (R_FAILED(smGetService(&srv_, ipc::kServiceName))) return ConnectError::NotRunning;
         open_ = true;
         uint32_t v = 0;
@@ -20,7 +24,10 @@ public:
             return ConnectError::NotRunning;
         }
         version_ = v;
-        if (v != ipc::kProtocolVersion) return ConnectError::VersionMismatch;
+        if (v != ipc::kProtocolVersion) {
+            close();
+            return ConnectError::VersionMismatch;
+        }
         return ConnectError::None;
     }
 

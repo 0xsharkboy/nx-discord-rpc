@@ -43,6 +43,7 @@ TEST_CASE("linked-game shows a game and a linked account") {
 
 TEST_CASE("linked-home is not a game") {
     auto c = make_fake_client("linked-home");
+    REQUIRE(c->connect() == ConnectError::None);
     ipc::Status st;
     REQUIRE(c->status(st));
     CHECK(st.is_game == 0);
@@ -51,6 +52,7 @@ TEST_CASE("linked-home is not a game") {
 
 TEST_CASE("backoff scenario reports the relay backoff") {
     auto c = make_fake_client("backoff");
+    REQUIRE(c->connect() == ConnectError::None);
     ipc::Status st;
     REQUIRE(c->status(st));
     CHECK(st.health == ipc::RelayHealth::Backoff);
@@ -59,6 +61,7 @@ TEST_CASE("backoff scenario reports the relay backoff") {
 
 TEST_CASE("nokey settings round-trip") {
     auto c = make_fake_client("nokey");
+    REQUIRE(c->connect() == ConnectError::None);
     ipc::Status st;
     REQUIRE(c->status(st));
     CHECK(st.link == ipc::LinkState::NoKey);
@@ -77,6 +80,7 @@ TEST_CASE("link-flow counts down then links") {
     set_fake_clock(fake_now);
     g_now = 1000;
     auto c = make_fake_client("link-flow");
+    REQUIRE(c->connect() == ConnectError::None);
     ipc::Link l;
     REQUIRE(c->link(l));
     CHECK(l.phase == ipc::LinkPhase::Idle);
@@ -102,6 +106,7 @@ TEST_CASE("cancel_link returns to idle and forget_key clears the key") {
     set_fake_clock(fake_now);
     g_now = 0;
     auto c = make_fake_client("link-flow");
+    REQUIRE(c->connect() == ConnectError::None);
     c->start_link();
     c->cancel_link();
     ipc::Link l;
@@ -109,9 +114,43 @@ TEST_CASE("cancel_link returns to idle and forget_key clears the key") {
     CHECK(l.phase == ipc::LinkPhase::Idle);
 
     auto g = make_fake_client("linked-game");
+    REQUIRE(g->connect() == ConnectError::None);
     g->forget_key();
     ipc::Status st;
     g->status(st);
     CHECK(st.link == ipc::LinkState::NoKey);
     set_fake_clock(nullptr);
+}
+
+TEST_CASE("calls fail before connect and after a failed connect") {
+    for (const char* name : {"linked-game", "missing", "mismatch"}) {
+        auto c = make_fake_client(name);
+        ipc::Status st;
+        ipc::Settings s{};
+        ipc::Link l;
+        CHECK_FALSE(c->status(st));
+        CHECK_FALSE(c->settings(s));
+        CHECK_FALSE(c->set_settings(s));
+        CHECK_FALSE(c->link(l));
+        CHECK_FALSE(c->start_link());
+        CHECK_FALSE(c->cancel_link());
+        CHECK_FALSE(c->unlink());
+        CHECK_FALSE(c->forget_key());
+        if (std::strcmp(name, "linked-game") != 0) {
+            CHECK(c->connect() != ConnectError::None);
+            CHECK_FALSE(c->status(st));
+            CHECK_FALSE(c->start_link());
+        }
+    }
+}
+
+TEST_CASE("set_settings rejects non-boolean values") {
+    auto c = make_fake_client("nokey");
+    REQUIRE(c->connect() == ConnectError::None);
+    ipc::Settings s{};
+    s.debug_log = 2;
+    CHECK_FALSE(c->set_settings(s));
+    ipc::Settings back;
+    REQUIRE(c->settings(back));
+    CHECK(back.debug_log == 0);
 }
