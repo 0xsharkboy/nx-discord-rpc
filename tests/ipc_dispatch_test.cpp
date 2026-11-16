@@ -215,3 +215,18 @@ TEST_CASE("seed_settings is served by GetSettings without being taken") {
     REQUIRE(r.raw_out.size() == sizeof(drpc::ipc::Settings));
     CHECK(std::memcmp(r.raw_out.data(), &s, sizeof(s)) == 0);
 }
+
+TEST_CASE("seed_settings does not overwrite a SetSettings not yet taken") {
+    SharedState state;
+    drpc::ipc::Settings pending = valid_settings();
+    pending.private_mode = 1;
+    state.set_settings(pending);
+    drpc::ipc::Settings older = valid_settings();
+    older.private_mode = 0;
+    state.seed_settings(older);
+
+    const auto taken = state.take_settings();
+    REQUIRE(taken.has_value());
+    CHECK(taken->private_mode == 1);
+    CHECK(state.settings().private_mode == 1);
+}

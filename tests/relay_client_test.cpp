@@ -562,3 +562,15 @@ TEST_CASE("NoKey: nothing is ever sent") {
     c.on_wake();
     CHECK_FALSE(first_due(c, 0, 400000));
 }
+
+TEST_CASE("backoff_left_ms: the presence backoff window, nullopt once it closes") {
+    auto c = keyed();
+    c.set_report(home(), std::nullopt);
+    CHECK_FALSE(c.backoff_left_ms(0).has_value());
+    answer(c, 0, status(503));
+    CHECK(c.backoff_left_ms(0) == 5000);
+    CHECK(c.backoff_left_ms(4000) == 1000);
+    CHECK_FALSE(c.backoff_left_ms(5000).has_value());
+    answer(c, 5000, status(204));
+    CHECK_FALSE(c.backoff_left_ms(5000).has_value());
+}

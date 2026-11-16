@@ -1,19 +1,27 @@
 #include <switch.h>
 
+#include <algorithm>
 #include <cstdio>
+#include <limits>
 #include <malloc.h>
 #include <optional>
 #include <string>
 
 #include "core/http.hpp"
+#include "core/ipc_convert.hpp"
+#include "core/link_client.hpp"
 #include "core/relay_client.hpp"
 #include "core/relay_url.hpp"
 #include "core/report.hpp"
 #include "core/settings.hpp"
+#include "core/settings_saver.hpp"
+#include "core/shared_state.hpp"
+#include "core/version.hpp"
 #include "platform/clock.hpp"
 #include "platform/config_store.hpp"
 #include "platform/firmware.hpp"
 #include "platform/init.hpp"
+#include "platform/ipc_server.hpp"
 #include "platform/log.hpp"
 #include "platform/power_net.hpp"
 #include "platform/relay_http.hpp"
@@ -74,6 +82,7 @@ bool import_key(ConfigStore& store, Settings& settings, std::string key) {
     const bool changed = key != settings.api_key;
     if (changed) {
         settings.api_key = std::move(key);
+        settings.username.clear();
         log::set_secrets(settings.api_key, settings.admin_key);
         log::info("API key imported");
     }
@@ -139,6 +148,175 @@ private:
     int64_t start_mono_ms_ = 0;
 };
 
+void save_now(ConfigStore& store, const Settings& settings, SettingsSaver& saver) {
+    if (!store.save(settings)) log::error("config.ini could not be saved");
+    saver.saved();
+}
+
+void forget_key(ConfigStore& store, Settings& settings, SettingsSaver& saver, RelayClient& client) {
+    settings.api_key.clear();
+    settings.username.clear();
+    save_now(store, settings, saver);
+    client.set_key(false, !settings.admin_key.empty());
+}
+
+void apply_link_effect(const LinkEffect& effect, ConfigStore& store, Settings& settings, SettingsSaver& saver,
+                       RelayClient& client) {
+    if (effect.clear_key) {
+        forget_key(store, settings, saver, client);
+        return;
+    }
+    bool save = false;
+    if (effect.api_key) {
+        if (*effect.api_key != settings.api_key) {
+            settings.api_key = *effect.api_key;
+            log::set_secrets(settings.api_key, settings.admin_key);
+            log::info("API key imported");
+        }
+        client.set_key(true, !settings.admin_key.empty());
+        save = true;
+    }
+    if (effect.username && *effect.username != settings.username) {
+        settings.username = *effect.username;
+        save = true;
+    }
+    if (save) save_now(store, settings, saver);
+}
+
+const char* failure_text(ipc::LinkFailure failure) {
+    switch (failure) {
+        case ipc::LinkFailure::RateLimited:
+            return "too many attempts, try again later";
+        case ipc::LinkFailure::Unreachable:
+            return "relay unreachable";
+        case ipc::LinkFailure::Interrupted:
+            return "interrupted by sleep";
+        case ipc::LinkFailure::Other:
+        case ipc::LinkFailure::None:
+            break;
+    }
+    return "unexpected relay answer";
+}
+
+// One line per link phase or unlink result change. The code and its URL stay out of the log.
+class LinkLog {
+public:
+    void observe(const LinkView& view, ipc::UnlinkResult unlink, const std::string& username) {
+        if (view.phase != phase_ || view.failure != failure_) {
+            const bool was_linking = phase_ == ipc::LinkPhase::Starting || phase_ == ipc::LinkPhase::Pending;
+            phase_ = view.phase;
+            failure_ = view.failure;
+            log_phase(was_linking, username);
+        }
+        if (unlink != unlink_) {
+            unlink_ = unlink;
+            if (unlink == ipc::UnlinkResult::Done) log::info("Unlinked");
+            if (unlink == ipc::UnlinkResult::Failed) log::warn("Unlink failed; the relay could not be reached");
+        }
+    }
+
+private:
+    void log_phase(bool was_linking, const std::string& username) const {
+        switch (phase_) {
+            case ipc::LinkPhase::Idle:
+                if (was_linking) log::info("Linking cancelled");
+                break;
+            case ipc::LinkPhase::Starting:
+                log::info("Linking: requesting a code");
+                break;
+            case ipc::LinkPhase::Pending:
+                log::info("Linking: code shown");
+                break;
+            case ipc::LinkPhase::Linked:
+                log::info(username.empty() ? std::string{"Linked"} : "Linked as " + username);
+                break;
+            case ipc::LinkPhase::Denied:
+                log::info("Link denied");
+                break;
+            case ipc::LinkPhase::Expired:
+                log::info("Link expired");
+                break;
+            case ipc::LinkPhase::Failed:
+                log::warn(std::string{"Link failed: "} + failure_text(failure_));
+                break;
+        }
+    }
+
+    ipc::LinkPhase phase_ = ipc::LinkPhase::Idle;
+    ipc::LinkFailure failure_ = ipc::LinkFailure::None;
+    ipc::UnlinkResult unlink_ = ipc::UnlinkResult::None;
+};
+
+ipc::LinkState ipc_link_state(LinkState state) {
+    switch (state) {
+        case LinkState::Ok:
+            return ipc::LinkState::Linked;
+        case LinkState::Unauthorized:
+            return ipc::LinkState::Unauthorized;
+        case LinkState::LinkBroken:
+            return ipc::LinkState::LinkBroken;
+        case LinkState::NoKey:
+            break;
+    }
+    return ipc::LinkState::NoKey;
+}
+
+uint32_t clamp_u32(int64_t v) {
+    return static_cast<uint32_t>(std::clamp<int64_t>(v, 0, std::numeric_limits<uint32_t>::max()));
+}
+
+struct Snapshot {
+    const Settings& settings;
+    const std::optional<RelayUrl>& url;
+    bool online;
+    const std::optional<Report>& report;
+    int64_t elapsed_s;
+    const RelayClient& client;
+    const LinkClient& link;
+    int64_t now_ms;
+};
+
+void publish(SharedState& shared, const Snapshot& s) {
+    ipc::Status st{};
+    copy_str(st.sysmodule_version, sizeof st.sysmodule_version, kVersion);
+    copy_str(st.username, sizeof st.username, s.settings.username);
+    if (s.url) copy_str(st.relay_host, sizeof st.relay_host, s.url->host);
+    st.elapsed_s = -1;
+    if (s.report) {
+        st.shown = 1;
+        copy_str(st.name, sizeof st.name, s.report->name);
+        copy_str(st.details, sizeof st.details, s.report->details);
+        if (s.report->title_id) {
+            st.is_game = 1;
+            copy_str(st.title_id, sizeof st.title_id, *s.report->title_id);
+        }
+        if (s.report->show_elapsed) st.elapsed_s = std::max<int64_t>(s.elapsed_s, 0);
+    }
+    st.link = ipc_link_state(s.client.link_state());
+    if (!s.url) {
+        st.health = ipc::RelayHealth::NoUrl;
+    } else if (!s.online) {
+        st.health = ipc::RelayHealth::Offline;
+    } else if (const auto left = s.client.backoff_left_ms(s.now_ms)) {
+        st.health = ipc::RelayHealth::Backoff;
+        st.backoff_s = clamp_u32((*left + 999) / 1000);
+    } else {
+        st.health = ipc::RelayHealth::Ok;
+    }
+    st.unlink = s.link.unlink_result();
+
+    const LinkView view = s.link.view(s.now_ms);
+    ipc::Link lk{};
+    lk.phase = view.phase;
+    lk.failure = view.failure;
+    lk.seconds_left = clamp_u32(view.seconds_left);
+    lk.retry_after_s = clamp_u32(view.retry_after_s);
+    copy_str(lk.user_code, sizeof lk.user_code, view.user_code);
+    copy_str(lk.verification_uri, sizeof lk.verification_uri, view.verification_uri);
+    copy_str(lk.username, sizeof lk.username, view.username);
+    shared.publish(st, lk);
+}
+
 [[noreturn]] void run() {
     log::info("nx-discord-rpc starting");
     ConfigStore store;
@@ -150,7 +328,17 @@ private:
 
     static PowerNet power;
     static RelayClient client;
+    static LinkClient link;
+    static SharedState shared;
     client.set_key(!settings.api_key.empty(), !settings.admin_key.empty());
+    if (!settings.api_key.empty() && settings.username.empty()) link.request_username();
+
+    SettingsSaver saver;
+    LinkLog link_log;
+    shared.seed_settings(to_ipc(settings));
+    publish(shared, Snapshot{settings, url, false, std::nullopt, 0, client, link, mono_ms()});
+    if (!ipc_server_start(shared)) log::error("drpc service could not start; running without IPC");
+    Result shown_ipc_error = 0;
 
     bool polled = false;
     std::optional<uint64_t> shown_id;
@@ -161,7 +349,10 @@ private:
 
     for (;;) {
         // One short-lived connection per request: none is ever open between ticks.
-        if (power.take_close_request()) power.connection_closed();
+        if (power.take_close_request()) {
+            link.on_sleep();
+            power.connection_closed();
+        }
         // Until the console wakes: no log, title polling or network, any of them may block while asleep.
         if (power.asleep()) {
             svcSleepThread(kAsleepSliceMs * 1'000'000);
@@ -177,6 +368,29 @@ private:
             log::warn(buf);
         }
         if (power.take_disabled()) log::warn("Sleep handling disabled after repeated wait failures");
+        if (const Result rc = ipc_server_take_error(); rc != 0 && rc != shown_ipc_error) {
+            shown_ipc_error = rc;
+            char buf[64];
+            std::snprintf(buf, sizeof buf, "drpc service error: 0x%x", rc);
+            log::warn(buf);
+        }
+
+        const int64_t now = mono_ms();
+        if (const auto changed = shared.take_settings()) {
+            apply_ipc(*changed, settings);
+            log::set_debug(settings.debug_log);
+            shared.seed_settings(to_ipc(settings));
+            saver.changed(now);
+        }
+        if (saver.due(now)) save_now(store, settings, saver);
+
+        if (shared.take_request(ipc::Cmd::StartLink)) link.start(now);
+        if (shared.take_request(ipc::Cmd::CancelLink)) link.cancel();
+        if (shared.take_request(ipc::Cmd::Unlink)) link.unlink();
+        if (shared.take_request(ipc::Cmd::ForgetKey)) {
+            forget_key(store, settings, saver, client);
+            log::info("Forgot the API key locally");
+        }
 
         const auto title = current_title();
         const std::optional<uint64_t> id = title ? std::optional{title->title_id} : std::nullopt;
@@ -194,18 +408,25 @@ private:
             scene.title_id = title->title_id;
             scene.game_name = title->name;
         }
-        client.set_report(render_report(scene, settings), elapsed.seconds());
+        const std::optional<Report> report = render_report(scene, settings);
+        client.set_report(report, elapsed.seconds());
 
-        const int64_t now = mono_ms();
         if (needs_key(client.link_state()) && now >= next_key_check) {
             next_key_check = now + kKeyCheckIntervalMs;
             if (auto key = store.import_api_key_file()) {
-                if (import_key(store, settings, std::move(*key))) client.set_key(true, !settings.admin_key.empty());
+                if (import_key(store, settings, std::move(*key))) {
+                    client.set_key(true, !settings.admin_key.empty());
+                    link.request_username();
+                }
             }
         }
 
-        if (url && power.online()) {
-            if (const auto req = client.next(mono_ms())) {
+        const bool online = url && power.online();
+        if (online) {
+            if (const auto lreq = link.next(now)) {
+                const LinkResponse resp = execute_link(*url, *lreq, settings.api_key);
+                apply_link_effect(link.on_response(*lreq, resp, mono_ms()), store, settings, saver, client);
+            } else if (const auto req = client.next(mono_ms())) {
                 const Outcome out = execute(*url, *req, settings.api_key, settings.admin_key);
                 if (req->kind == Request::Kind::PutIcon && req->use_admin_key && out.status == 401) {
                     log::warn("Relay rejected the admin key; icons use the API key until reboot");
@@ -219,6 +440,10 @@ private:
             shown_link = client.link_state();
             log_link_state(shown_link);
         }
+
+        const int64_t after = mono_ms();
+        link_log.observe(link.view(after), link.unlink_result(), settings.username);
+        publish(shared, Snapshot{settings, url, online, report, elapsed.seconds(), client, link, after});
 
         if (now >= next_heap_log) {
             log_heap();

@@ -51,6 +51,11 @@ void RelayClient::on_wake() {
     backoff_.reset();
 }
 
+std::optional<int64_t> RelayClient::backoff_left_ms(int64_t now_ms) const {
+    if (!backoff_.open(now_ms)) return std::nullopt;
+    return backoff_.until_ms - now_ms;
+}
+
 std::optional<Request> RelayClient::next(int64_t now_ms) {
     if (link_ != LinkState::Ok || backoff_.open(now_ms)) return std::nullopt;
 

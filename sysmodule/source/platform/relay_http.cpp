@@ -32,9 +32,48 @@ bool parse_title_id(std::string_view s, uint64_t& out) {
     return true;
 }
 
-Outcome network_error(std::string_view what) {
+HttpResponse network_error(std::string_view what) {
     log::debug(std::string{"Relay request: "} + std::string{what});
-    return Outcome{0, std::nullopt};
+    return HttpResponse{};
+}
+
+// One request over a new TLS connection. Status 0 on a network error; the body is empty unless complete.
+HttpResponse round_trip(const RelayUrl& url, std::string_view head, std::span<const uint8_t> body) {
+    TlsTransport tls;
+    tls.set_time_budget(kBudgetMs);
+    if (!tls.connect(url.host, url.port)) return network_error("connection failed");
+    if (!tls.write_all({reinterpret_cast<const uint8_t*>(head.data()), head.size()})) return network_error("write failed");
+    if (!body.empty() && !tls.write_all(body)) return network_error("write failed");
+
+    HttpResponseParser parser;
+    std::array<uint8_t, 1024> buf;
+    while (!parser.done() && !parser.failed()) {
+        const int n = tls.read(buf, int(kBudgetMs));
+        if (n <= 0) break;
+        parser.feed({reinterpret_cast<const char*>(buf.data()), size_t(n)});
+    }
+    tls.close();
+    if (!parser.done() && !parser.head_done()) {
+        return network_error(parser.failed() ? "invalid response" : "no response in time");
+    }
+    // A parsed head already says what the relay decided, even when its body could not be read.
+    const bool complete = parser.done();
+    if (!complete) log::debug("Relay request: response body incomplete");
+
+    HttpResponse response = parser.take();
+    if (!complete) response.body.clear();
+    log::debug("Relay request: HTTP " + std::to_string(response.status));
+    return response;
+}
+
+// The relay's link ids are opaque tokens; anything else must not reach the request line.
+bool valid_link_id(std::string_view id) {
+    if (id.empty() || id.size() > 128) return false;
+    for (char c : id) {
+        const bool ok = (c >= '0' && c <= '9') || (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || c == '-' || c == '_';
+        if (!ok) return false;
+    }
+    return true;
 }
 
 }  // namespace
@@ -74,30 +113,40 @@ Outcome execute(const RelayUrl& url, const Request& req, std::string_view api_ke
         icon ? std::span<const uint8_t>{*icon}
              : std::span<const uint8_t>{reinterpret_cast<const uint8_t*>(body_text.data()), body_text.size()};
     const std::string head = build_request(method, url, path, bearer, content_type, body.size());
-
-    TlsTransport tls;
-    tls.set_time_budget(kBudgetMs);
-    if (!tls.connect(url.host, url.port)) return network_error("connection failed");
-    if (!tls.write_all({reinterpret_cast<const uint8_t*>(head.data()), head.size()})) return network_error("write failed");
-    if (!body.empty() && !tls.write_all(body)) return network_error("write failed");
-
-    HttpResponseParser parser;
-    std::array<uint8_t, 1024> buf;
-    while (!parser.done() && !parser.failed()) {
-        const int n = tls.read(buf, int(kBudgetMs));
-        if (n <= 0) break;
-        parser.feed({reinterpret_cast<const char*>(buf.data()), size_t(n)});
-    }
-    tls.close();
-    if (!parser.done() && !parser.head_done()) {
-        return network_error(parser.failed() ? "invalid response" : "no response in time");
-    }
-    // A parsed head already says what the relay decided, even when its body could not be read.
-    if (!parser.done()) log::debug("Relay request: response body incomplete");
-
-    const HttpResponse response = parser.take();
-    log::debug("Relay request: HTTP " + std::to_string(response.status));
+    const HttpResponse response = round_trip(url, head, body);
     return Outcome{response.status, response.retry_after_s};
+}
+
+LinkResponse execute_link(const RelayUrl& url, const LinkRequest& req, std::string_view api_key) {
+    std::string_view method;
+    std::string_view bearer;
+    std::string path;
+
+    switch (req.kind) {
+        case LinkRequest::Kind::Start:
+            method = "POST";
+            path = "/v1/link";
+            break;
+        case LinkRequest::Kind::Poll:
+            if (!valid_link_id(req.link_id)) return LinkResponse{-1, {}, std::nullopt};
+            method = "POST";
+            path = "/v1/link/" + req.link_id + "/poll";
+            break;
+        case LinkRequest::Kind::Unlink:
+            method = "DELETE";
+            path = "/v1/me";
+            bearer = api_key;
+            break;
+        case LinkRequest::Kind::FetchMe:
+            method = "GET";
+            path = "/v1/me";
+            bearer = api_key;
+            break;
+    }
+
+    const std::string head = build_request(method, url, path, bearer, {}, 0);
+    HttpResponse response = round_trip(url, head, {});
+    return LinkResponse{response.status, std::move(response.body), response.retry_after_s};
 }
 
 }  // namespace drpc

@@ -19,6 +19,7 @@ public:
 
     void set_settings(const ipc::Settings& settings);
     // Sets the value GetSettings serves without making it pending for take_settings.
+    // Ignored while a set_settings value is pending, so it never replaces a newer one.
     void seed_settings(const ipc::Settings& settings);
     ipc::Settings settings() const;
     // The latest value from set_settings not yet taken, once.

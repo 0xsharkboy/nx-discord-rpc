@@ -38,6 +38,8 @@ public:
     // Re-send at once after sleep, ignoring any open backoff window.
     void on_wake();
     LinkState link_state() const { return link_; }
+    // Time left in the presence backoff window, nullopt when it is closed.
+    std::optional<int64_t> backoff_left_ms(int64_t now_ms) const;
 
 private:
     struct Backoff {
