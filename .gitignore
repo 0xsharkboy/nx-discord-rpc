@@ -1,0 +1,16 @@
+build/
+out/
+*.elf
+*.nso
+*.npdm
+*.nsp
+*.nro
+*.nacp
+*.ovl
+docs/superpowers/
+.superpowers/
+compile_commands.json
+.cache/
+.direnv/
+spikes/
+.envrc

@@ -1,0 +1,2 @@
+CompileFlags:
+  Remove: [-mtp=*, -mtune=*, -march=*, -fno-rtti]
