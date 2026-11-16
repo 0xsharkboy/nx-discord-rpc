@@ -6,6 +6,22 @@ namespace drpc {
 
 namespace {
 
+constexpr Result kSmAlreadyRegistered = MAKERESULT(21, 4);
+
+// GetService on a name nobody registered waits until someone does: probe first. Registering only succeeds
+// when the sysmodule has not, and then the name is released at once.
+bool service_registered(const char* name) {
+    const SmServiceName encoded = smEncodeName(name);
+    Handle port = INVALID_HANDLE;
+    const Result rc = smRegisterService(&port, encoded, false, 1);
+    if (R_SUCCEEDED(rc)) {
+        smUnregisterService(encoded);
+        svcCloseHandle(port);
+        return false;
+    }
+    return rc == kSmAlreadyRegistered;
+}
+
 class SwitchClient final : public Client {
 public:
     SwitchClient() = default;
@@ -16,6 +32,7 @@ public:
     ConnectError connect() override {
         close();
         version_ = 0;
+        if (!service_registered(ipc::kServiceName)) return ConnectError::NotRunning;
         if (R_FAILED(smGetService(&srv_, ipc::kServiceName))) return ConnectError::NotRunning;
         open_ = true;
         uint32_t v = 0;
