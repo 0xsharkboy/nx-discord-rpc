@@ -1,4 +1,4 @@
-# nx-discord-rpc
+# NX Discord RPC
 
 Show the game you are playing on your Nintendo Switch as your Discord status.
 
@@ -8,7 +8,7 @@ Show the game you are playing on your Nintendo Switch as your Discord status.
 
 ## What it does
 
-nx-discord-rpc shows the game being played on your Switch as Discord Rich Presence, with the game
+NX Discord RPC shows the game being played on your Switch as Discord Rich Presence, with the game
 name, the elapsed time and the game's icon. It has three parts:
 
 - a sysmodule that runs in the background, starts at boot and reports the running game;
@@ -37,7 +37,7 @@ receives and keeps.
 
 ## Link your Discord account
 
-1. Open the Homebrew Menu and start nx-discord-rpc.
+1. Open the Homebrew Menu and start NX Discord RPC.
 2. Go to the Account tab and choose Link with Discord.
 3. Scan the QR code with your phone, or open the address shown and enter the code.
 4. Approve the request on Discord.
@@ -106,7 +106,7 @@ in private mode or on the HOME Menu.
 
 - The log is `sdmc:/config/nx-discord-rpc/log.txt`. Keys are masked in it. Turn on Debug log in the
   Settings tab (`debug_log`) for more detail.
-- If the app says "nx-discord-rpc is not running", check that the sysmodule is installed in
+- If the app says "NX Discord RPC is not running", check that the sysmodule is installed in
   `atmosphere/contents/4200000000D15C0D` on the SD card, then reboot.
 - If the Status tab says "Relay rejected the key. Link again" or "Discord link broken. Link again",
   go to the Account tab and choose Link with Discord again.

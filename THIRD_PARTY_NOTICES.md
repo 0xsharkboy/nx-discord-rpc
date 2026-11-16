@@ -1,7 +1,7 @@
 # Third-party notices
 
-The nx-discord-rpc release binaries (sysmodule, app and overlay) include or link the components
-below. nx-discord-rpc itself is GPL-3.0-or-later (see LICENSE). This file carries the license texts
+The NX Discord RPC release binaries (sysmodule, app and overlay) include or link the components
+below. NX Discord RPC itself is GPL-3.0-or-later (see LICENSE). This file carries the license texts
 and notices those components require. Source for all of it is in the repository for the release
 tag (clone with `git clone --recursive`).
 
