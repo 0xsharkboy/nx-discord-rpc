@@ -227,6 +227,7 @@ void LinkView::open(drpc::Client& client, std::function<void()> on_close) {
 }
 
 void LinkView::start() {
+    if (closing_) return;
     drpc::ipc::Link link{};
     const bool known = client_.link(link);
     const bool active = known && (link.phase == drpc::ipc::LinkPhase::Starting ||
@@ -236,6 +237,7 @@ void LinkView::start() {
 }
 
 void LinkView::poll() {
+    if (closing_) return;
     drpc::ipc::Link link{};
     if (!client_.link(link)) {
         link = {};

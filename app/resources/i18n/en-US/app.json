@@ -16,6 +16,7 @@
     "elapsed": "{} elapsed",
     "footer": {
       "ok": "Linked as {} · relay OK",
+      "ok_unnamed": "Linked · relay OK",
       "backoff": "Relay unreachable, retrying in {}s",
       "nokey": "Not linked — open Account",
       "broken": "Discord link broken — link again",

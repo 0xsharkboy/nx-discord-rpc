@@ -113,7 +113,10 @@ void AccountTab::refresh() {
     }
 
     const bool has_name = status.link != LinkState::NoKey && status.username[0] != '\0';
-    name_->setText(has_name ? std::string(status.username) : "app/account/not_linked"_i18n);
+    std::string title = "app/account/heading"_i18n;
+    if (has_name) title = status.username;
+    if (status.link == LinkState::NoKey) title = "app/account/not_linked"_i18n;
+    name_->setText(title);
     const char first = has_name ? status.username[0] : '?';
     initial_->setText(std::string(1, static_cast<char>(std::toupper(static_cast<unsigned char>(first)))));
 

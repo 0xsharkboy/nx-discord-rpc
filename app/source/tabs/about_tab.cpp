@@ -26,11 +26,11 @@ brls::DetailCell* make_row(const std::string& title, const std::string& value) {
 
 AboutTab::AboutTab(drpc::Client& client) {
     auto* list = new brls::Box(brls::Axis::COLUMN);
-    list->setPadding(40, 56, 40, 56);
+    list->setPadding(28, 56, 32, 56);
 
     auto* hero = new brls::Box(brls::Axis::ROW);
     hero->setAlignItems(brls::AlignItems::CENTER);
-    hero->setMarginBottom(24);
+    hero->setMarginBottom(16);
     list->addView(hero);
 
     auto* icon = new brls::Image();
@@ -64,7 +64,7 @@ AboutTab::AboutTab(drpc::Client& client) {
 
     auto* privacy = new brls::Header();
     privacy->setTitle("app/about/privacy"_i18n);
-    privacy->setMarginTop(24);
+    privacy->setMarginTop(12);
     list->addView(privacy);
     auto* body = new brls::Label();
     body->setFontSize(20);

@@ -30,6 +30,7 @@ FooterLine footer_line(const drpc::ipc::Status& status) {
     }
     if (status.health == RelayHealth::Backoff)
         return {brls::getStr("app/status/footer/backoff", status.backoff_s), Tone::Warning};
+    if (status.username[0] == '\0') return {"app/status/footer/ok_unnamed"_i18n, Tone::Good};
     return {brls::getStr("app/status/footer/ok", std::string(status.username)), Tone::Good};
 }
 
@@ -80,7 +81,10 @@ StatusTab::StatusTab(drpc::Client& client) : brls::Box(brls::Axis::COLUMN), clie
 
 void StatusTab::refresh() {
     drpc::ipc::Status status{};
-    if (!client_.status(status)) return;
+    if (!client_.status(status)) {
+        card_->tick();
+        return;
+    }
     card_->update(status);
     const FooterLine line = footer_line(status);
     footer_->setText(line.text);

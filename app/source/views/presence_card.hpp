@@ -16,9 +16,9 @@ public:
     PresenceCard();
 
     void update(const drpc::ipc::Status& status);
+    void tick();
 
 private:
-    void tick();
     void show_icon(const std::string& title_id);
 
     brls::Image* logo_;
