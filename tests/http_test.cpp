@@ -3,6 +3,7 @@
 #include <string>
 
 #include "core/http.hpp"
+#include "core/relay_url.hpp"
 
 namespace {
 
@@ -96,3 +97,80 @@ TEST_CASE("rate limits and server errors are worth retrying soon, other errors a
         CHECK_FALSE(drpc::is_transient_http_status(status));
 }
 
+
+TEST_CASE("build_request with base path and port") {
+    const auto url = drpc::parse_relay_url("https://h.example:8443/relay");
+    REQUIRE(url);
+    CHECK(drpc::build_request("PUT", *url, "/v1/presence", "key", "application/json", 98) ==
+          "PUT /relay/v1/presence HTTP/1.1\r\n"
+          "Host: h.example:8443\r\n"
+          "User-Agent: nx-discord-rpc/0.1.0\r\n"
+          "Authorization: Bearer key\r\n"
+          "Content-Type: application/json\r\n"
+          "Content-Length: 98\r\n"
+          "Connection: close\r\n\r\n");
+}
+
+TEST_CASE("build_request default port without base path") {
+    const auto url = drpc::parse_relay_url("https://h.example");
+    REQUIRE(url);
+    CHECK(drpc::build_request("PUT", *url, "/v1/presence", "key", "application/json", 98) ==
+          "PUT /v1/presence HTTP/1.1\r\n"
+          "Host: h.example\r\n"
+          "User-Agent: nx-discord-rpc/0.1.0\r\n"
+          "Authorization: Bearer key\r\n"
+          "Content-Type: application/json\r\n"
+          "Content-Length: 98\r\n"
+          "Connection: close\r\n\r\n");
+}
+
+TEST_CASE("build_request DELETE has no body headers") {
+    const auto url = drpc::parse_relay_url("https://h.example");
+    REQUIRE(url);
+    CHECK(drpc::build_request("DELETE", *url, "/v1/presence", "key", "", 0) ==
+          "DELETE /v1/presence HTTP/1.1\r\n"
+          "Host: h.example\r\n"
+          "User-Agent: nx-discord-rpc/0.1.0\r\n"
+          "Authorization: Bearer key\r\n"
+          "Content-Length: 0\r\n"
+          "Connection: close\r\n\r\n");
+}
+
+TEST_CASE("build_request omits Authorization without bearer") {
+    const auto url = drpc::parse_relay_url("https://h.example");
+    REQUIRE(url);
+    CHECK(drpc::build_request("GET", *url, "/x", "", "", 0).find("Authorization") == std::string::npos);
+}
+
+TEST_CASE("bodiless 204 is done after the head") {
+    auto p = parse("HTTP/1.1 204 No Content\r\nConnection: close\r\n\r\n");
+    CHECK(p.done());
+    CHECK(p.take().status == 204);
+}
+
+TEST_CASE("Retry-After seconds") {
+    auto p = parse("HTTP/1.1 429 Too Many Requests\r\nretry-after: 360\r\nContent-Length: 0\r\n\r\n");
+    REQUIRE(p.done());
+    const auto r = p.take();
+    CHECK(r.status == 429);
+    REQUIRE(r.retry_after_s);
+    CHECK(*r.retry_after_s == 360);
+}
+
+TEST_CASE("Retry-After other forms are ignored") {
+    for (const char* v : {"Wed, 21 Oct 2015 07:28:00 GMT", "-1", "86401", "", "1.5", "99999999999999"}) {
+        CAPTURE(v);
+        auto p = parse(std::string("HTTP/1.1 503 Service Unavailable\r\nRetry-After: ") + v +
+                       "\r\nContent-Length: 0\r\n\r\n");
+        REQUIRE(p.done());
+        CHECK_FALSE(p.take().retry_after_s);
+    }
+}
+
+TEST_CASE("409 JSON body is captured") {
+    auto p = parse("HTTP/1.1 409 Conflict\r\nContent-Length: 17\r\n\r\n{\"error\":\"taken\"}");
+    REQUIRE(p.done());
+    const auto r = p.take();
+    CHECK(r.status == 409);
+    CHECK(r.body == "{\"error\":\"taken\"}");
+}

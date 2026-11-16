@@ -3,12 +3,15 @@
 #include <charconv>
 #include <optional>
 
+#include "core/version.hpp"
+
 
 namespace drpc {
 namespace {
 
 constexpr size_t kMaxHead = 8192;
 constexpr size_t kMaxLine = 1024;
+constexpr int kMaxRetryAfterS = 86400;
 
 char lower(char c) { return c >= 'A' && c <= 'Z' ? char(c - 'A' + 'a') : c; }
 
@@ -33,6 +36,20 @@ bool parse_number(std::string_view s, T& out, int base = 10) {
 }
 
 }  // namespace
+
+std::string build_request(std::string_view method, const RelayUrl& url, std::string_view path,
+                          std::string_view bearer, std::string_view content_type, size_t body_size) {
+    std::string r;
+    r.append(method).append(" ").append(url.base_path).append(path).append(" HTTP/1.1\r\n");
+    r.append("Host: ").append(url.host);
+    if (url.port != 443) r.append(":").append(std::to_string(url.port));
+    r.append("\r\nUser-Agent: nx-discord-rpc/").append(kVersion).append("\r\n");
+    if (!bearer.empty()) r.append("Authorization: Bearer ").append(bearer).append("\r\n");
+    if (!content_type.empty()) r.append("Content-Type: ").append(content_type).append("\r\n");
+    r.append("Content-Length: ").append(std::to_string(body_size)).append("\r\n");
+    r.append("Connection: close\r\n\r\n");
+    return r;
+}
 
 bool is_transient_http_status(int status) {
     return status == 429 || (status >= 500 && status <= 599);
@@ -132,6 +149,9 @@ void HttpResponseParser::parse_head() {
         const std::string_view value = trim(line.substr(colon + 1));
         if (iequals(name, "transfer-encoding")) {
             chunked = iequals(value, "chunked");
+        } else if (iequals(name, "retry-after")) {
+            int n = 0;
+            if (parse_number(value, n) && n >= 0 && n <= kMaxRetryAfterS) response_.retry_after_s = n;
         } else if (iequals(name, "content-length")) {
             size_t n = 0;
             if (!parse_number(value, n)) {

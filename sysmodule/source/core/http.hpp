@@ -3,7 +3,10 @@
 #include <cstddef>
 #include <cstdint>
 #include <string>
+#include <optional>
 #include <string_view>
+
+#include "core/relay_url.hpp"
 
 namespace drpc {
 
@@ -12,7 +15,12 @@ inline constexpr size_t kHttpMaxBody = 4096;
 struct HttpResponse {
     int status = 0;
     std::string body;
+    std::optional<int> retry_after_s;
 };
+
+// Head only; the caller writes the body (exactly body_size bytes) separately.
+std::string build_request(std::string_view method, const RelayUrl& url, std::string_view path,
+                          std::string_view bearer, std::string_view content_type, size_t body_size);
 
 // 429 and 5xx: the same request may succeed a few minutes later.
 bool is_transient_http_status(int status);
