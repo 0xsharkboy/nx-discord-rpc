@@ -9,5 +9,77 @@
   "blocking": {
     "not_running": "nx-discord-rpc is not running. Check that it is installed in atmosphere/contents/4200000000D15C0D and reboot.",
     "mismatch": "The app (protocol {}) and the sysmodule (protocol {}) do not match. Install the same release of both."
+  },
+  "status": {
+    "heading": "SHOWN ON DISCORD",
+    "nothing": "Nothing is shown on Discord right now",
+    "elapsed": "{} elapsed",
+    "footer": {
+      "ok": "Linked as {} · relay OK",
+      "backoff": "Relay unreachable, retrying in {}s",
+      "nokey": "Not linked — open Account",
+      "broken": "Discord link broken — link again",
+      "unauthorized": "Relay rejected the key — link again",
+      "offline": "Console is offline",
+      "nourl": "relay_url in config.ini is invalid"
+    }
+  },
+  "settings": {
+    "presence": "Presence",
+    "enabled": "Enabled",
+    "private_mode": "Private mode",
+    "show_elapsed": "Show elapsed time",
+    "show_firmware": "Show firmware version",
+    "show_home_menu": "Show HOME Menu",
+    "advanced": "Advanced",
+    "debug_log": "Debug log",
+    "relay": "Relay: {}",
+    "relay_hint": "edit relay_url in config.ini"
+  },
+  "account": {
+    "heading": "Discord account",
+    "not_linked": "Not linked",
+    "linked": "Linked to Discord",
+    "nokey": "Link your Discord account to show what you play.",
+    "broken": "Discord link broken — link again",
+    "unauthorized": "Relay rejected the key — link again",
+    "unlinking": "Unlinking…",
+    "link": "Link with Discord",
+    "unlink": "Unlink",
+    "unlink_confirm": "Unlink your Discord account? Nothing will show on Discord until you link again.",
+    "unlink_failed": "The relay could not be reached to unlink. Forget the key on this console only? Discord keeps the authorization until you remove it in Discord's settings.",
+    "forget": "Forget locally",
+    "cancel": "Cancel"
+  },
+  "link": {
+    "title": "Link with Discord",
+    "starting": "Requesting a code…",
+    "scan": "Scan the code with your phone, or open",
+    "enter": "and enter this code",
+    "expires": "Expires in {}",
+    "cancel": "Cancel",
+    "retry": "Retry",
+    "close": "Close",
+    "linked_title": "Linked as {}",
+    "linked_body": "Your presence now shows on Discord.",
+    "denied_title": "Link denied",
+    "denied_body": "The request was declined on Discord.",
+    "expired_title": "Code expired",
+    "expired_body": "The code was not used in time.",
+    "failed_title": "Link failed",
+    "rate_limited_body": "Too many attempts, try again in {} min",
+    "unreachable_body": "Could not reach the relay. Check the console's connection.",
+    "interrupted_title": "Link interrupted",
+    "interrupted_body": "Linking stopped, for example because the console went to sleep.",
+    "other_body": "Something went wrong. Try again."
+  },
+  "about": {
+    "tagline": "Discord Rich Presence for Nintendo Switch",
+    "app_version": "App version",
+    "sysmodule_version": "Sysmodule version",
+    "protocol_version": "Protocol version",
+    "source": "Source code",
+    "privacy": "Privacy",
+    "privacy_body": "The relay receives your Discord link, the current game name, elapsed time and icon. It keeps no play history and never sees your Discord password."
   }
 }

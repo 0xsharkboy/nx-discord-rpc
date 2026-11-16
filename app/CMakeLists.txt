@@ -22,6 +22,7 @@ set(BRLS_RESOURCES_DIR ${CMAKE_CURRENT_BINARY_DIR})
 add_subdirectory(${BOREALIS_LIBRARY} borealis)
 
 file(GLOB_RECURSE APP_SOURCES CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/source/*.cpp)
+list(APPEND APP_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/lib/qrcodegen/qrcodegen.cpp)
 if (PLATFORM_SWITCH)
     list(APPEND APP_SOURCES
         ${REPO_ROOT}/common/source/client_switch.cpp
@@ -49,6 +50,8 @@ target_link_libraries(${PROJECT_NAME} PRIVATE borealis ${APP_PLATFORM_LIB})
 # so it still shadows the devkitPro portlibs copy.
 get_target_property(BOREALIS_INCLUDES borealis INTERFACE_INCLUDE_DIRECTORIES)
 target_include_directories(${PROJECT_NAME} SYSTEM PRIVATE ${BOREALIS_INCLUDES})
+target_include_directories(${PROJECT_NAME} SYSTEM PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/lib/qrcodegen)
+target_compile_definitions(${PROJECT_NAME} PRIVATE APP_VERSION_STRING="${APP_VERSION}")
 
 set(BRLS_RES ${BOREALIS_DIR}/resources)
 set(STAGE_COMMANDS
@@ -56,7 +59,9 @@ set(STAGE_COMMANDS
     COMMAND ${CMAKE_COMMAND} -E copy_directory ${BRLS_RES}/material ${ROMFS_DIR}/material
     COMMAND ${CMAKE_COMMAND} -E copy_directory ${BRLS_RES}/img/sys ${ROMFS_DIR}/img/sys
     COMMAND ${CMAKE_COMMAND} -E copy ${BRLS_RES}/i18n/en-US/hints.json ${ROMFS_DIR}/i18n/en-US/hints.json
-    COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/resources/i18n ${ROMFS_DIR}/i18n)
+    COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/resources/i18n ${ROMFS_DIR}/i18n
+    COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_SOURCE_DIR}/resources/img/switch_logo.png ${ROMFS_DIR}/img/switch_logo.png
+    COMMAND ${CMAKE_COMMAND} -E copy ${APP_ICON} ${ROMFS_DIR}/img/app_icon.jpg)
 if (PLATFORM_DESKTOP)
     list(APPEND STAGE_COMMANDS
         COMMAND ${CMAKE_COMMAND} -E copy_directory ${BRLS_RES}/font ${ROMFS_DIR}/font

@@ -7,6 +7,7 @@
 
 #include "app_window.hpp"
 #include "drpc/client.hpp"
+#include "title_icon.hpp"
 
 using namespace brls::literals;
 
@@ -45,10 +46,12 @@ int main(int argc, char* argv[]) {
     }
     brls::Application::createWindow("app/title"_i18n);
 
+    app::title_icon::init();
     app::AppWindow window(std::move(client));
     window.open();
 
     while (brls::Application::mainLoop()) {
     }
+    app::title_icon::exit();
     return EXIT_SUCCESS;
 }
