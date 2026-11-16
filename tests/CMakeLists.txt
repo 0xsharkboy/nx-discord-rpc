@@ -30,6 +30,7 @@ add_executable(nxdrpc_tests
   link_client_test.cpp
   ipc_dispatch_test.cpp
   settings_saver_test.cpp
+  client_fake_test.cpp
   ../sysmodule/source/core/json_writer.cpp
   ../sysmodule/source/core/settings.cpp
   ../sysmodule/source/core/title_name.cpp
@@ -43,6 +44,7 @@ add_executable(nxdrpc_tests
   ../sysmodule/source/core/shared_state.cpp
   ../sysmodule/source/core/ipc_dispatch.cpp
   ../sysmodule/source/core/settings_saver.cpp
+  ../common/source/client_fake.cpp
 )
 target_compile_options(nxdrpc_tests PRIVATE -Wall -Wextra)
 target_link_libraries(nxdrpc_tests PRIVATE doctest::doctest)
