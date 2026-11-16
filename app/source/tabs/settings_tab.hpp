@@ -26,7 +26,7 @@ private:
     drpc::ipc::Settings settings_{};
     bool loaded_ = false;
     std::vector<std::pair<brls::BooleanCell*, Field>> toggles_;
-    brls::RepeatingTimer retry_;
+    brls::RepeatingTimer refresh_;
 };
 
 }  // namespace app

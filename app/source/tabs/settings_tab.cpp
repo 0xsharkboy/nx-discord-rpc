@@ -8,7 +8,7 @@ namespace app {
 
 namespace {
 
-constexpr brls::Time kRetryMs = 1000;
+constexpr brls::Time kRefreshMs = 1000;
 constexpr float kDisabledAlpha = 0.4f;
 
 brls::Header* make_header(const std::string& title) {
@@ -47,13 +47,8 @@ SettingsTab::SettingsTab(drpc::Client& client) : client_(client) {
     setContentView(list);
 
     load();
-    if (!loaded_) {
-        retry_.setCallback([this] {
-            load();
-            if (loaded_) retry_.stop();
-        });
-        retry_.start(kRetryMs);
-    }
+    refresh_.setCallback([this] { load(); });
+    refresh_.start(kRefreshMs);
 }
 
 void SettingsTab::add_toggle(brls::Box* list, const std::string& title, Field field) {
@@ -71,11 +66,12 @@ void SettingsTab::load() {
 }
 
 void SettingsTab::apply(brls::BooleanCell* cell, Field field, bool on) {
-    if (!loaded_) {
+    drpc::ipc::Settings next{};
+    if (!loaded_ || !client_.settings(next)) {
         cell->setOn(!on, false);
+        load();
         return;
     }
-    drpc::ipc::Settings next = settings_;
     next.*field = on ? 1 : 0;
     client_.set_settings(next);
     load();
