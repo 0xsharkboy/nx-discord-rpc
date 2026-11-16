@@ -13,6 +13,7 @@
 #include "core/relay_client.hpp"
 #include "core/relay_url.hpp"
 #include "core/report.hpp"
+#include "core/retry.hpp"
 #include "core/settings.hpp"
 #include "core/settings_saver.hpp"
 #include "core/shared_state.hpp"
@@ -34,6 +35,7 @@ constexpr int64_t kLoopMs = 250;
 constexpr int64_t kHeapLogIntervalMs = 60'000;
 constexpr int64_t kAsleepSliceMs = 100;
 constexpr int64_t kKeyCheckIntervalMs = 30'000;
+constexpr int64_t kIpcRetryMs = 5000;
 
 void log_wake(const PowerNet::WakeReport& wake) {
     log::info("Console awake; sleep acknowledged after " + std::to_string(wake.ack_ms) + " ms" +
@@ -153,14 +155,16 @@ struct Store {
     ConfigStore& config;
     Settings& settings;
     SettingsSaver& saver;
+    FailureLog failures;
 };
 
-// A failed write is retried by the debounce.
+// A failed write is retried by the debounce; only the first failure and the recovery are logged.
 void save_now(Store& s, int64_t now_ms) {
     if (s.config.save(s.settings)) {
         s.saver.saved();
+        if (s.failures.recovered()) log::info("config.ini saved again");
     } else {
-        log::error("config.ini could not be saved; retrying");
+        if (s.failures.failed(0)) log::error("config.ini could not be saved; retrying");
         s.saver.changed(now_ms);
     }
 }
@@ -346,11 +350,14 @@ void publish(SharedState& shared, const Snapshot& s) {
     if (!settings.api_key.empty() && settings.username.empty()) link.request_username();
 
     SettingsSaver saver;
-    Store persist{store, settings, saver};
+    Store persist{store, settings, saver, {}};
     LinkLog link_log;
     shared.seed_settings(to_ipc(settings));
     publish(shared, Snapshot{settings, url, url && power.online(), std::nullopt, 0, client, link, mono_ms()});
-    if (!ipc_server_start(shared)) log::error("drpc service could not start; running without IPC");
+    RetryGate ipc_retry(kIpcRetryMs);
+    bool ipc_up = ipc_server_start(shared);
+    ipc_retry.attempted(mono_ms());
+    if (!ipc_up) log::error("drpc service could not start; retrying");
     Result shown_ipc_error = 0;
     // An answer that came back after sleep began: applied on the first awake tick.
     std::optional<LinkEffect> deferred;
@@ -391,6 +398,11 @@ void publish(SharedState& shared, const Snapshot& s) {
         }
 
         const int64_t now = mono_ms();
+        if (!ipc_up && ipc_retry.due(now)) {
+            ipc_retry.attempted(now);
+            ipc_up = ipc_server_start(shared);
+            if (ipc_up) log::info("drpc service started");
+        }
         if (deferred) {
             apply_link_effect(*deferred, persist, client, link, now);
             deferred.reset();

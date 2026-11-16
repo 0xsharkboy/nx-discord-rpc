@@ -30,6 +30,7 @@ add_executable(nxdrpc_tests
   link_client_test.cpp
   ipc_dispatch_test.cpp
   settings_saver_test.cpp
+  retry_test.cpp
   client_fake_test.cpp
   app_presentation_test.cpp
   ../sysmodule/source/core/json_writer.cpp
