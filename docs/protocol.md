@@ -146,7 +146,7 @@ No auth, no body.
 {"state": "denied"}
 {"state": "expired"}
 {"state": "linked", "api_key": "Zk3...43 chars...", "username": "alice",
- "discord_id": "80351110224678912", "avatar": "a_1b2c3d4e5f"}
+ "discord_id": "80351110224678912", "avatar": "a_0123456789abcdef0123456789abcdef"}
 ```
 
 - `pending`: keep polling every `interval` seconds. Polling faster is harmless but only returns
@@ -170,12 +170,15 @@ Auth: API key.
 **200**
 
 ```json
-{"username": "alice", "discord_id": "80351110224678912", "avatar": "a_1b2c3d4e5f",
+{"username": "alice", "discord_id": "80351110224678912", "avatar": "a_0123456789abcdef0123456789abcdef",
  "link_broken": false, "presence": {"name": "Zelda", "details": "Chapter 1"}}
 ```
 
 `discord_id` is the account's Discord user id (a decimal string). `avatar` is the avatar hash, or
 `null` when the account has no custom avatar. The `linked` poll answer carries the same two fields.
+`avatar` matches `^(a_)?[0-9a-f]{32}$` (an `a_` prefix marks an animated avatar). Both fields can be
+absent, from an older relay or while the relay has not read the identity yet (accounts linked before
+avatars existed); the console then keeps showing the initial instead of a picture.
 The relay re-reads the username and avatar from Discord at each token refresh (about weekly), so a
 changed avatar shows up within about a week, or right away after a relink. Clients can build the
 picture address from them (`https://cdn.discordapp.com/avatars/<discord_id>/<avatar>.png?size=128`,

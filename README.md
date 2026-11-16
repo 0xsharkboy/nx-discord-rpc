@@ -42,9 +42,9 @@ receives and keeps.
 3. Scan the QR code with your phone, or open the address shown and enter the code.
 4. Approve the request on Discord.
 
-The app then shows your Discord picture, "Linked as" followed by your Discord username, and the game you are playing
-appears on your profile within a few seconds. The Status tab shows what is currently shown on
-Discord and the state of the relay.
+The app then shows your Discord picture, "Linked as" followed by your Discord username, and the game
+you are playing appears on your profile within a few seconds. The Status tab shows what is
+currently shown on Discord and the state of the relay.
 
 As a fallback, you can link without the app: write the API key issued by the relay to
 `sdmc:/config/nx-discord-rpc/api_key.txt`. The sysmodule imports it at boot, or within 30 seconds
@@ -93,8 +93,9 @@ in private mode or on the HOME Menu.
   page lists everything else the relay stores, such as your Discord user id and username, and icon
   votes for about 30 days. It also keeps your avatar id, to tell the app which picture to show.
 - **Your picture:** the app downloads your Discord picture from `cdn.discordapp.com` without any
-  token, so Discord sees your console's IP address. The picture is cached in
-  `sdmc:/config/nx-discord-rpc/avatar.png` and deleted when you unlink.
+  token. The request carries the app's User-Agent (`nx-discord-rpc/<version>`), and Discord sees your
+  console's IP address. The picture is cached in `sdmc:/config/nx-discord-rpc/avatar.png` and
+  `avatar.key`, which the app deletes after you unlink.
 - **Unlinking:** choose Unlink in the Account tab. Revoking NX RPC in Discord stops the presence;
   Unlink in the app also deletes your data on the relay. You can revoke it in Discord, under
   User Settings > Authorized Apps.
