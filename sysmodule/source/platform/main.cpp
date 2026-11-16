@@ -18,6 +18,7 @@
 #include "core/settings_saver.hpp"
 #include "core/shared_state.hpp"
 #include "core/version.hpp"
+#include "drpc/net_log.hpp"
 #include "platform/clock.hpp"
 #include "platform/config_store.hpp"
 #include "platform/firmware.hpp"
@@ -527,6 +528,7 @@ void publish(SharedState& shared, const Snapshot& s) {
 }  // namespace drpc
 
 int main(int, char**) {
+    drpc::set_net_log([](std::string_view message) { drpc::log::warn(std::string{message}); });
     if (const auto failure = drpc::init_failure()) {
         char buf[96];
         std::snprintf(buf, sizeof buf, "Service %s failed to start: 0x%x; exiting", failure->service, failure->rc);

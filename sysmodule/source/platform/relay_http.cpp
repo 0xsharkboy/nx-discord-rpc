@@ -1,15 +1,14 @@
 #include "platform/relay_http.hpp"
 
-#include <array>
 #include <cstdint>
 #include <span>
 #include <string>
 #include <vector>
 
 #include "core/http.hpp"
+#include "drpc/tls_transport.hpp"
 #include "platform/icon_source.hpp"
 #include "platform/log.hpp"
-#include "platform/tls_transport.hpp"
 
 namespace drpc {
 namespace {
@@ -32,37 +31,13 @@ bool parse_title_id(std::string_view s, uint64_t& out) {
     return true;
 }
 
-HttpResponse network_error(std::string_view what) {
-    log::debug(std::string{"Relay request: "} + std::string{what});
-    return HttpResponse{};
-}
-
 // One request over a new TLS connection. Status 0 on a network error; the body is empty unless complete.
-HttpResponse round_trip(const RelayUrl& url, std::string_view head, std::span<const uint8_t> body) {
+HttpResponse relay_round_trip(const RelayUrl& url, std::string_view head, std::span<const uint8_t> body) {
     TlsTransport tls;
     tls.set_time_budget(kBudgetMs);
-    if (!tls.connect(url.host, url.port)) return network_error("connection failed");
-    if (!tls.write_all({reinterpret_cast<const uint8_t*>(head.data()), head.size()})) return network_error("write failed");
-    if (!body.empty() && !tls.write_all(body)) return network_error("write failed");
-
-    HttpResponseParser parser;
-    std::array<uint8_t, 1024> buf;
-    while (!parser.done() && !parser.failed()) {
-        const int n = tls.read(buf, int(kBudgetMs));
-        if (n <= 0) break;
-        parser.feed({reinterpret_cast<const char*>(buf.data()), size_t(n)});
-    }
-    tls.close();
-    if (!parser.done() && !parser.head_done()) {
-        return network_error(parser.failed() ? "invalid response" : "no response in time");
-    }
-    // A parsed head already says what the relay decided, even when its body could not be read.
-    const bool complete = parser.done();
-    if (!complete) log::debug("Relay request: response body incomplete");
-
-    HttpResponse response = parser.take();
-    if (!complete) response.body.clear();
-    log::debug("Relay request: HTTP " + std::to_string(response.status));
+    const HttpResponse response = round_trip(tls, url, head, body, kHttpMaxBody, int(kBudgetMs));
+    if (response.note) log::debug(std::string{"Relay request: "} + response.note);
+    if (response.status != 0) log::debug("Relay request: HTTP " + std::to_string(response.status));
     return response;
 }
 
@@ -113,7 +88,7 @@ Outcome execute(const RelayUrl& url, const Request& req, std::string_view api_ke
         icon ? std::span<const uint8_t>{*icon}
              : std::span<const uint8_t>{reinterpret_cast<const uint8_t*>(body_text.data()), body_text.size()};
     const std::string head = build_request(method, url, path, bearer, content_type, body.size());
-    const HttpResponse response = round_trip(url, head, body);
+    const HttpResponse response = relay_round_trip(url, head, body);
     return Outcome{response.status, response.retry_after_s};
 }
 
@@ -145,7 +120,7 @@ LinkResponse execute_link(const RelayUrl& url, const LinkRequest& req, std::stri
     }
 
     const std::string head = build_request(method, url, path, bearer, {}, 0);
-    HttpResponse response = round_trip(url, head, {});
+    HttpResponse response = relay_round_trip(url, head, {});
     return LinkResponse{response.status, std::move(response.body), response.retry_after_s};
 }
 

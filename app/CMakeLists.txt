@@ -25,10 +25,14 @@ add_subdirectory(${BOREALIS_LIBRARY} borealis)
 file(GLOB_RECURSE APP_SOURCES CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/source/*.cpp)
 list(APPEND APP_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/lib/qrcodegen/qrcodegen.cpp
-    ${REPO_ROOT}/common/source/shared/discord_ids.cpp)
+    ${REPO_ROOT}/common/source/shared/discord_ids.cpp
+    ${REPO_ROOT}/common/source/shared/net_log.cpp
+    ${REPO_ROOT}/sysmodule/source/core/http.cpp
+    ${REPO_ROOT}/sysmodule/source/core/relay_url.cpp)
 if (PLATFORM_SWITCH)
     list(APPEND APP_SOURCES
         ${REPO_ROOT}/common/source/client_switch.cpp
+        ${REPO_ROOT}/common/source/shared/tls_transport.cpp
         ${BOREALIS_LIBRARY}/lib/platforms/switch/switch_wrapper.c)
 else ()
     list(APPEND APP_SOURCES ${REPO_ROOT}/common/source/client_fake.cpp)
@@ -41,7 +45,8 @@ set_target_properties(${PROJECT_NAME} PROPERTIES
     CXX_EXTENSIONS OFF)
 target_include_directories(${PROJECT_NAME} PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/source
-    ${REPO_ROOT}/common/include)
+    ${REPO_ROOT}/common/include
+    ${REPO_ROOT}/sysmodule/source)
 target_compile_options(${PROJECT_NAME} PRIVATE
     $<$<COMPILE_LANGUAGE:CXX>:-Wall -Wextra>
     -ffunction-sections -fdata-sections)

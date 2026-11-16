@@ -1,6 +1,7 @@
 #include "core/http.hpp"
 
 #include <algorithm>
+#include <array>
 #include <charconv>
 #include <optional>
 
@@ -179,7 +180,7 @@ void HttpResponseParser::parse_head() {
     if (chunked) {
         state_ = State::ChunkSize;
     } else if (length) {
-        if (*length > kHttpMaxBody) {
+        if (*length > max_body_) {
             state_ = State::Failed;
         } else {
             remaining_ = *length;
@@ -200,7 +201,7 @@ void HttpResponseParser::parse_chunk_size() {
         state_ = State::Failed;
     } else if (n == 0) {
         state_ = State::Trailer;
-    } else if (n > kHttpMaxBody - response_.body.size()) {
+    } else if (n > max_body_ - response_.body.size()) {
         state_ = State::Failed;
     } else {
         remaining_ = n;
@@ -210,11 +211,43 @@ void HttpResponseParser::parse_chunk_size() {
 }
 
 void HttpResponseParser::append_body(char c) {
-    if (response_.body.size() >= kHttpMaxBody) {
+    if (response_.body.size() >= max_body_) {
         state_ = State::Failed;
         return;
     }
     response_.body.push_back(c);
+}
+
+HttpResponse round_trip(Transport& t, const RelayUrl& url, std::string_view head, std::span<const uint8_t> body,
+                        size_t max_body, int read_timeout_ms) {
+    const auto network_error = [](const char* note) {
+        HttpResponse r;
+        r.note = note;
+        return r;
+    };
+    if (!t.connect(url.host, url.port)) return network_error("connection failed");
+    if (!t.write_all({reinterpret_cast<const uint8_t*>(head.data()), head.size()})) return network_error("write failed");
+    if (!body.empty() && !t.write_all(body)) return network_error("write failed");
+
+    HttpResponseParser parser(max_body);
+    std::array<uint8_t, 1024> buf;
+    while (!parser.done() && !parser.failed()) {
+        const int n = t.read(buf, read_timeout_ms);
+        if (n <= 0) break;
+        parser.feed({reinterpret_cast<const char*>(buf.data()), size_t(n)});
+    }
+    t.close();
+    if (!parser.done() && !parser.head_done()) {
+        return network_error(parser.failed() ? "invalid response" : "no response in time");
+    }
+    // A parsed head already says what the server decided, even when its body could not be read.
+    const bool complete = parser.done();
+    HttpResponse response = parser.take();
+    if (!complete) {
+        response.body.clear();
+        response.note = "response body incomplete";
+    }
+    return response;
 }
 
 }  // namespace drpc

@@ -1,4 +1,4 @@
-#include "platform/tls_transport.hpp"
+#include "drpc/tls_transport.hpp"
 
 #include <algorithm>
 #include <arpa/inet.h>
@@ -11,8 +11,7 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
-#include "platform/clock.hpp"
-#include "platform/log.hpp"
+#include "drpc/net_log.hpp"
 
 namespace drpc {
 namespace {
@@ -24,6 +23,11 @@ constexpr int64_t kWriteTimeoutMs = 10'000;
 // ssl module (123), description 204: the operation would block in SslIoMode_NonBlocking.
 // Not named in ssl.h; same value devkitPro curl's libnx backend compares against.
 constexpr Result kSslWouldBlock = MAKERESULT(123, 204);
+
+// Monotonic milliseconds since boot.
+int64_t mono_ms() {
+    return int64_t(armTicksToNs(armGetSystemTick()) / 1'000'000);
+}
 
 // Waits until fd has one of the events or the deadline passes; false on timeout or error.
 bool wait_fd(int fd, short events, int64_t deadline) {
@@ -46,12 +50,12 @@ int open_socket(const std::string& host, uint16_t port, std::optional<int64_t> o
     hints.ai_socktype = SOCK_STREAM;
     addrinfo* res = nullptr;
     if (getaddrinfo(host.c_str(), std::to_string(port).c_str(), &hints, &res) != 0 || !res) {
-        log::warn("DNS lookup failed for " + host);
+        net_log("DNS lookup failed for " + host);
         return -1;
     }
     if (overall_deadline && mono_ms() >= *overall_deadline) {
         freeaddrinfo(res);
-        log::warn("DNS lookup for " + host + " took too long");
+        net_log("DNS lookup for " + host + " took too long");
         return -1;
     }
     int fd = -1;
@@ -72,14 +76,14 @@ int open_socket(const std::string& host, uint16_t port, std::optional<int64_t> o
         fd = -1;
     }
     freeaddrinfo(res);
-    if (fd < 0) log::warn("TCP connect failed to " + host);
+    if (fd < 0) net_log("TCP connect failed to " + host);
     return fd;
 }
 
 void log_failure(const char* what, Result rc) {
     char buf[96];
     std::snprintf(buf, sizeof buf, "TLS %s failed: 0x%x", what, rc);
-    log::warn(buf);
+    net_log(buf);
 }
 
 }  // namespace
@@ -120,7 +124,7 @@ bool TlsTransport::connect(std::string_view host_view, uint16_t port) {
     if (ssl_fd >= 0) {
         ::close(ssl_fd);
     } else if (errno != ENOENT) {  // ENOENT: no descriptor handed back, expected with DoNotCloseSocket
-        log::warn("TLS socket descriptor failed");
+        net_log("TLS socket descriptor failed");
         close();
         return false;
     }

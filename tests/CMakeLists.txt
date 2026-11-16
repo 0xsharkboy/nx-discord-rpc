@@ -53,6 +53,7 @@ add_executable(nxdrpc_tests
   ../sysmodule/source/core/settings_saver.cpp
   ../common/source/client_fake.cpp
   ../common/source/shared/discord_ids.cpp
+  ../common/source/shared/net_log.cpp
   ../app/source/presentation.cpp
 )
 target_compile_options(nxdrpc_tests PRIVATE -Wall -Wextra)

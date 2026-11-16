@@ -1,11 +1,53 @@
 #include <doctest/doctest.h>
 
+#include <algorithm>
 #include <string>
+#include <vector>
 
 #include "core/http.hpp"
 #include "core/relay_url.hpp"
+#include "drpc/transport.hpp"
 
 namespace {
+
+// Serves a scripted byte string in 1000-byte reads, then reports the connection closed.
+class FakeTransport : public drpc::Transport {
+public:
+    explicit FakeTransport(std::string reply, bool connects = true) : reply_(std::move(reply)), connects_(connects) {}
+
+    bool connect(std::string_view host, uint16_t port) override {
+        host_ = std::string{host};
+        port_ = port;
+        return connects_;
+    }
+    int read(std::span<uint8_t> buf, int) override {
+        if (pos_ >= reply_.size()) return -1;
+        const size_t n = std::min({buf.size(), reply_.size() - pos_, size_t{1000}});
+        std::copy_n(reply_.data() + pos_, n, buf.data());
+        pos_ += n;
+        return int(n);
+    }
+    bool write_all(std::span<const uint8_t> data) override {
+        written_.append(reinterpret_cast<const char*>(data.data()), data.size());
+        return true;
+    }
+    void close() override {}
+
+    std::string host_;
+    uint16_t port_ = 0;
+    std::string written_;
+
+private:
+    std::string reply_;
+    bool connects_;
+    size_t pos_ = 0;
+};
+
+std::string ok_response(size_t body_size, char fill = '\0') {
+    return "HTTP/1.1 200 OK\r\nContent-Length: " + std::to_string(body_size) + "\r\n\r\n" + std::string(body_size, fill);
+}
+
+const drpc::RelayUrl kUrl{"cdn.example.com", 443, ""};
 
 drpc::HttpResponseParser parse(std::string_view raw) {
     drpc::HttpResponseParser p;
@@ -211,4 +253,61 @@ TEST_CASE("409 JSON body is captured") {
     const auto r = p.take();
     CHECK(r.status == 409);
     CHECK(r.body == "{\"error\":\"taken\"}");
+}
+
+TEST_CASE("a larger body limit accepts a binary body") {
+    drpc::HttpResponseParser p(262144);
+    p.feed(ok_response(200000));
+    REQUIRE(p.done());
+    CHECK(p.take().body.size() == 200000);
+}
+
+TEST_CASE("the default parser rejects a body over 4096 bytes") {
+    drpc::HttpResponseParser p;
+    p.feed(ok_response(4097, 'x'));
+    CHECK(p.failed());
+    drpc::HttpResponseParser fits;
+    fits.feed(ok_response(4096, 'x'));
+    CHECK(fits.done());
+}
+
+TEST_CASE("round_trip returns status and body for a complete response") {
+    FakeTransport t(ok_response(2500, 'x'));
+    const std::string head = "GET / HTTP/1.1\r\n\r\n";
+    const auto r = drpc::round_trip(t, kUrl, head, {}, 4096, 1000);
+    CHECK(r.status == 200);
+    CHECK(r.body == std::string(2500, 'x'));
+    CHECK(t.host_ == "cdn.example.com");
+    CHECK(t.port_ == 443);
+    CHECK(t.written_ == head);
+}
+
+TEST_CASE("round_trip writes the body after the head") {
+    FakeTransport t(ok_response(0));
+    const std::vector<uint8_t> body{'a', 'b'};
+    drpc::round_trip(t, kUrl, "H", body, 4096, 1000);
+    CHECK(t.written_ == "Hab");
+}
+
+TEST_CASE("round_trip reports status 0 when the connection fails") {
+    FakeTransport t(ok_response(5), false);
+    const auto r = drpc::round_trip(t, kUrl, "H", {}, 4096, 1000);
+    CHECK(r.status == 0);
+    CHECK(r.body.empty());
+}
+
+TEST_CASE("round_trip keeps the status and drops a cut body") {
+    std::string raw = ok_response(2500, 'x');
+    raw.resize(raw.size() - 100);
+    FakeTransport t(raw);
+    const auto r = drpc::round_trip(t, kUrl, "H", {}, 4096, 1000);
+    CHECK(r.status == 200);
+    CHECK(r.body.empty());
+}
+
+TEST_CASE("round_trip honours the body limit it is given") {
+    FakeTransport t(ok_response(200000));
+    const auto r = drpc::round_trip(t, kUrl, "H", {}, 262144, 1000);
+    CHECK(r.status == 200);
+    CHECK(r.body.size() == 200000);
 }
