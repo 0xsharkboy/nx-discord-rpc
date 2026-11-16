@@ -104,7 +104,7 @@ TEST_CASE("build_request with base path and port") {
     CHECK(drpc::build_request("PUT", *url, "/v1/presence", "key", "application/json", 98) ==
           "PUT /relay/v1/presence HTTP/1.1\r\n"
           "Host: h.example:8443\r\n"
-          "User-Agent: nx-discord-rpc/0.1.0\r\n"
+          "User-Agent: nx-discord-rpc/" NXDRPC_TEST_VERSION "\r\n"
           "Authorization: Bearer key\r\n"
           "Content-Type: application/json\r\n"
           "Content-Length: 98\r\n"
@@ -117,7 +117,7 @@ TEST_CASE("build_request default port without base path") {
     CHECK(drpc::build_request("PUT", *url, "/v1/presence", "key", "application/json", 98) ==
           "PUT /v1/presence HTTP/1.1\r\n"
           "Host: h.example\r\n"
-          "User-Agent: nx-discord-rpc/0.1.0\r\n"
+          "User-Agent: nx-discord-rpc/" NXDRPC_TEST_VERSION "\r\n"
           "Authorization: Bearer key\r\n"
           "Content-Type: application/json\r\n"
           "Content-Length: 98\r\n"
@@ -130,7 +130,7 @@ TEST_CASE("build_request DELETE has no body headers") {
     CHECK(drpc::build_request("DELETE", *url, "/v1/presence", "key", "", 0) ==
           "DELETE /v1/presence HTTP/1.1\r\n"
           "Host: h.example\r\n"
-          "User-Agent: nx-discord-rpc/0.1.0\r\n"
+          "User-Agent: nx-discord-rpc/" NXDRPC_TEST_VERSION "\r\n"
           "Authorization: Bearer key\r\n"
           "Content-Length: 0\r\n"
           "Connection: close\r\n\r\n");

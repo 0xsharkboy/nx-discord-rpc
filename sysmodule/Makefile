@@ -6,6 +6,8 @@ ifeq ($(strip $(DEVKITPRO)),)
 $(error "Please set DEVKITPRO in your environment. export DEVKITPRO=<path to>/devkitpro")
 endif
 
+NXDRPC_VERSION := $(shell cat $(abspath $(dir $(lastword $(MAKEFILE_LIST))))/../VERSION)
+
 TOPDIR ?= $(CURDIR)
 include $(DEVKITPRO)/libnx/switch_rules
 
@@ -55,7 +57,7 @@ ARCH	:=	-march=armv8-a+crc+crypto -mtune=cortex-a57 -mtp=soft -fPIE
 CFLAGS	:=	-g -Wall -Wextra -O2 -ffunction-sections \
 			$(ARCH) $(DEFINES)
 
-CFLAGS	+=	$(INCLUDE) -D__SWITCH__
+CFLAGS	+=	$(INCLUDE) -D__SWITCH__ -DNXDRPC_VERSION=\"$(NXDRPC_VERSION)\"
 
 CXXFLAGS	:= $(CFLAGS) -std=gnu++20 -fno-rtti -fno-exceptions
 

@@ -1,3 +1,4 @@
+VERSION := $(shell cat VERSION)
 APP_OUT := out/switch/nx-discord-rpc
 BOREALIS := app/lib/borealis/CMakeLists.txt
 BOREALIS_GLFW := app/lib/borealis/library/lib/extern/glfw/CMakeLists.txt
@@ -6,6 +7,9 @@ OVERLAY_OUT := out/switch/.overlays
 
 test:
 	cmake -S tests -B build/tests && cmake --build build/tests && ctest --test-dir build/tests --output-on-failure
+
+print-version:
+	@echo $(VERSION)
 
 sysmodule:
 	$(MAKE) -C sysmodule
@@ -44,4 +48,4 @@ compile_commands:
 clean:
 	rm -rf build out compile_commands.json overlay/build overlay/*.ovl overlay/*.elf overlay/*.nacp
 
-.PHONY: test sysmodule app overlay app-desktop dist compile_commands clean
+.PHONY: print-version test sysmodule app overlay app-desktop dist compile_commands clean

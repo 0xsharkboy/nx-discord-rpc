@@ -21,7 +21,7 @@ include $(DEVKITPRO)/libnx/switch_rules
 #---------------------------------------------------------------------------------
 
 APP_TITLE	:=	nx-discord-rpc
-APP_VERSION	:=	0.1.0
+APP_VERSION	:=	$(shell cat $(abspath $(dir $(lastword $(MAKEFILE_LIST))))/../VERSION)
 
 TARGET		:=	nx-discord-rpc
 BUILD		:=	build
@@ -38,7 +38,7 @@ ARCH	:=	-march=armv8-a+crc+crypto -mtune=cortex-a57 -mtp=soft -fPIE
 CFLAGS	:=	-g -Wall -Wextra -O2 -ffunction-sections \
 			$(ARCH) $(DEFINES)
 
-CFLAGS	+=	$(INCLUDE) -D__SWITCH__ -DOVERLAY_VERSION=\"$(APP_VERSION)\"
+CFLAGS	+=	$(INCLUDE) -D__SWITCH__ -DOVERLAY_VERSION=\"$(APP_VERSION)\" -DNXDRPC_VERSION=\"$(APP_VERSION)\"
 
 CXXFLAGS	:= $(CFLAGS) -fno-exceptions -std=c++20
 

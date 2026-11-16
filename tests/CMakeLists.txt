@@ -13,6 +13,8 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(doctest)
 
+file(STRINGS ../VERSION NXDRPC_VERSION LIMIT_COUNT 1)
+
 include_directories(../sysmodule/source ../common/include ../app/source)
 
 add_executable(nxdrpc_tests
@@ -31,6 +33,7 @@ add_executable(nxdrpc_tests
   ipc_dispatch_test.cpp
   settings_saver_test.cpp
   retry_test.cpp
+  version_test.cpp
   client_fake_test.cpp
   app_presentation_test.cpp
   ../sysmodule/source/core/json_writer.cpp
@@ -50,6 +53,9 @@ add_executable(nxdrpc_tests
   ../app/source/presentation.cpp
 )
 target_compile_options(nxdrpc_tests PRIVATE -Wall -Wextra)
+target_compile_definitions(nxdrpc_tests PRIVATE
+  NXDRPC_VERSION="${NXDRPC_VERSION}"
+  NXDRPC_TEST_VERSION="${NXDRPC_VERSION}")
 target_link_libraries(nxdrpc_tests PRIVATE doctest::doctest)
 
 enable_testing()

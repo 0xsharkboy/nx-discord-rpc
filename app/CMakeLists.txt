@@ -12,7 +12,7 @@ project(nx-discord-rpc C CXX)
 
 set(APP_TITLE "nx-discord-rpc")
 set(APP_AUTHOR "0xsharkboy")
-set(APP_VERSION "0.1.0")
+file(STRINGS ${CMAKE_CURRENT_SOURCE_DIR}/../VERSION APP_VERSION LIMIT_COUNT 1)
 set(APP_ICON ${CMAKE_CURRENT_SOURCE_DIR}/resources/icon.jpg)
 set(REPO_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/..)
 set(ROMFS_DIR ${CMAKE_CURRENT_BINARY_DIR}/resources)
@@ -51,7 +51,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE borealis ${APP_PLATFORM_LIB})
 get_target_property(BOREALIS_INCLUDES borealis INTERFACE_INCLUDE_DIRECTORIES)
 target_include_directories(${PROJECT_NAME} SYSTEM PRIVATE ${BOREALIS_INCLUDES})
 target_include_directories(${PROJECT_NAME} SYSTEM PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/lib/qrcodegen)
-target_compile_definitions(${PROJECT_NAME} PRIVATE APP_VERSION_STRING="${APP_VERSION}")
+target_compile_definitions(${PROJECT_NAME} PRIVATE APP_VERSION_STRING="${APP_VERSION}" NXDRPC_VERSION="${APP_VERSION}")
 
 set(BRLS_RES ${BOREALIS_DIR}/resources)
 set(STAGE_COMMANDS

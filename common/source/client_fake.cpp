@@ -187,7 +187,7 @@ public:
     bool status(ipc::Status& out) override {
         if (!connected_) return false;
         std::memset(&out, 0, sizeof out);
-        put(out.sysmodule_version, "0.1.0");
+        put(out.sysmodule_version, NXDRPC_VERSION);
         put(out.relay_host, sc_.relay_host);
         out.elapsed_s = -1;
         out.health = sc_.health;
