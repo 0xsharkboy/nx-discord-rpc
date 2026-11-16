@@ -32,6 +32,8 @@ public:
     void feed(std::string_view chunk);
     bool done() const { return state_ == State::Done; }
     bool failed() const { return state_ == State::Failed; }
+    // The status line and headers parsed, even if the body then failed.
+    bool head_done() const { return head_done_; }
     HttpResponse take();
 
 private:
@@ -48,6 +50,7 @@ private:
     std::string head_;
     HttpResponse response_;
     size_t remaining_ = 0;
+    bool head_done_ = false;
 };
 
 }  // namespace drpc

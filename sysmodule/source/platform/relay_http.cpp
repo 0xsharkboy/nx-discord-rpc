@@ -89,7 +89,11 @@ Outcome execute(const RelayUrl& url, const Request& req, std::string_view api_ke
         parser.feed({reinterpret_cast<const char*>(buf.data()), size_t(n)});
     }
     tls.close();
-    if (!parser.done()) return network_error(parser.failed() ? "invalid response" : "no response in time");
+    if (!parser.done() && !parser.head_done()) {
+        return network_error(parser.failed() ? "invalid response" : "no response in time");
+    }
+    // A parsed head already says what the relay decided, even when its body could not be read.
+    if (!parser.done()) log::debug("Relay request: response body incomplete");
 
     const HttpResponse response = parser.take();
     log::debug("Relay request: HTTP " + std::to_string(response.status));

@@ -158,13 +158,51 @@ TEST_CASE("Retry-After seconds") {
 }
 
 TEST_CASE("Retry-After other forms are ignored") {
-    for (const char* v : {"Wed, 21 Oct 2015 07:28:00 GMT", "-1", "86401", "", "1.5", "99999999999999"}) {
+    for (const char* v : {"Wed, 21 Oct 2015 07:28:00 GMT", "-1", "", "1.5", "+5", "5 s"}) {
         CAPTURE(v);
         auto p = parse(std::string("HTTP/1.1 503 Service Unavailable\r\nRetry-After: ") + v +
                        "\r\nContent-Length: 0\r\n\r\n");
         REQUIRE(p.done());
         CHECK_FALSE(p.take().retry_after_s);
     }
+}
+
+TEST_CASE("Retry-After beyond a day is clamped to a day") {
+    for (const char* v : {"86401", "99999999999999", "99999999999999999999999999"}) {
+        CAPTURE(v);
+        auto p = parse(std::string("HTTP/1.1 503 Service Unavailable\r\nRetry-After: ") + v +
+                       "\r\nContent-Length: 0\r\n\r\n");
+        REQUIRE(p.done());
+        const auto r = p.take();
+        REQUIRE(r.retry_after_s);
+        CHECK(*r.retry_after_s == 86400);
+    }
+}
+
+TEST_CASE("a head without a length leaves its status available") {
+    auto p = parse("HTTP/1.1 401 Unauthorized\r\nRetry-After: 7\r\n\r\n");
+    CHECK_FALSE(p.done());
+    CHECK(p.failed());
+    REQUIRE(p.head_done());
+    const auto r = p.take();
+    CHECK(r.status == 401);
+    REQUIRE(r.retry_after_s);
+    CHECK(*r.retry_after_s == 7);
+}
+
+TEST_CASE("a body over the limit leaves its status available") {
+    auto p = parse("HTTP/1.1 503 Service Unavailable\r\nContent-Length: 999999\r\n\r\n");
+    CHECK(p.failed());
+    REQUIRE(p.head_done());
+    CHECK(p.take().status == 503);
+}
+
+TEST_CASE("an incomplete or invalid head is not head_done") {
+    auto p = parse("HTTP/1.1 401 Unauthorized\r\nContent-Le");
+    CHECK_FALSE(p.head_done());
+    auto q = parse("garbage\r\n\r\n");
+    CHECK(q.failed());
+    CHECK_FALSE(q.head_done());
 }
 
 TEST_CASE("409 JSON body is captured") {

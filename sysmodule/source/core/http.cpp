@@ -1,5 +1,6 @@
 #include "core/http.hpp"
 
+#include <algorithm>
 #include <charconv>
 #include <optional>
 
@@ -33,6 +34,17 @@ bool parse_number(std::string_view s, T& out, int base = 10) {
     if (s.empty()) return false;
     const auto [end, ec] = std::from_chars(s.data(), s.data() + s.size(), out, base);
     return ec == std::errc{} && end == s.data() + s.size();
+}
+
+// Digits only; larger values saturate at kMaxRetryAfterS.
+std::optional<int> parse_seconds(std::string_view s) {
+    if (s.empty()) return std::nullopt;
+    int n = 0;
+    for (char c : s) {
+        if (c < '0' || c > '9') return std::nullopt;
+        n = std::min(n * 10 + (c - '0'), kMaxRetryAfterS);
+    }
+    return n;
 }
 
 }  // namespace
@@ -150,8 +162,7 @@ void HttpResponseParser::parse_head() {
         if (iequals(name, "transfer-encoding")) {
             chunked = iequals(value, "chunked");
         } else if (iequals(name, "retry-after")) {
-            int n = 0;
-            if (parse_number(value, n) && n >= 0 && n <= kMaxRetryAfterS) response_.retry_after_s = n;
+            if (const auto n = parse_seconds(value)) response_.retry_after_s = *n;
         } else if (iequals(name, "content-length")) {
             size_t n = 0;
             if (!parse_number(value, n)) {
@@ -163,6 +174,7 @@ void HttpResponseParser::parse_head() {
     }
     head_.clear();
     head_.shrink_to_fit();
+    head_done_ = true;
 
     if (chunked) {
         state_ = State::ChunkSize;
