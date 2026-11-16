@@ -488,3 +488,71 @@ TEST_CASE("forget: a linked view loses its username") {
     CHECK(c.view(5000).phase == LinkPhase::Idle);
     CHECK(c.view(5000).username.empty());
 }
+
+TEST_CASE("start: past the deadline, a Pending link expires and a new Start goes out") {
+    auto c = pending_at_zero();
+    c.start(300000);
+    auto req = c.next(300000);
+    REQUIRE(req);
+    CHECK(req->kind == Kind::Start);
+    CHECK(c.view(300000).phase == LinkPhase::Starting);
+}
+
+TEST_CASE("start: before the deadline, a Pending link stays and no Start goes out") {
+    auto c = pending_at_zero();
+    c.start(299999);
+    CHECK(c.view(299999).phase == LinkPhase::Pending);
+    auto req = c.next(299999);
+    REQUIRE(req);
+    CHECK(req->kind == Kind::Poll);
+}
+
+TEST_CASE("offline: an unsent Unlink fails and nothing is sent") {
+    LinkClient c;
+    c.unlink();
+    c.on_offline();
+    CHECK(c.unlink_result() == UnlinkResult::Failed);
+    CHECK_FALSE(c.next(0));
+}
+
+TEST_CASE("offline: an unsent Start fails as Unreachable and nothing is sent") {
+    LinkClient c;
+    c.start(0);
+    c.on_offline();
+    auto v = c.view(0);
+    CHECK(v.phase == LinkPhase::Failed);
+    CHECK(v.failure == LinkFailure::Unreachable);
+    CHECK_FALSE(c.next(0));
+}
+
+TEST_CASE("offline: a queued username fetch survives and goes out once back online") {
+    LinkClient c;
+    c.request_username();
+    c.on_offline();
+    auto fx = answer(c, 0, resp(200, R"({"username":"u"})"), Kind::FetchMe);
+    CHECK(fx.username == "u");
+}
+
+TEST_CASE("offline: Pending is untouched and still polls, then expires on its own") {
+    auto c = pending_at_zero();
+    c.on_offline();
+    CHECK(c.view(0).phase == LinkPhase::Pending);
+    auto req = c.next(5000);
+    REQUIRE(req);
+    CHECK(req->kind == Kind::Poll);
+    c.on_offline();
+    CHECK(c.view(300000).phase == LinkPhase::Expired);
+}
+
+TEST_CASE("offline: idle, linked and finished states are untouched") {
+    LinkClient c;
+    c.on_offline();
+    CHECK(c.view(0).phase == LinkPhase::Idle);
+    CHECK(c.unlink_result() == UnlinkResult::None);
+
+    LinkClient done;
+    done.unlink();
+    answer(done, 0, resp(204), Kind::Unlink);
+    done.on_offline();
+    CHECK(done.unlink_result() == UnlinkResult::Done);
+}

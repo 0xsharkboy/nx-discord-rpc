@@ -40,7 +40,8 @@ std::optional<int64_t> int_at(const json::Extractor& e, std::string_view path) {
 
 }  // namespace
 
-void LinkClient::start(int64_t) {
+void LinkClient::start(int64_t now_ms) {
+    if (phase_ == LinkPhase::Pending && expired(now_ms)) finish(LinkPhase::Expired);
     if (phase_ == LinkPhase::Starting || phase_ == LinkPhase::Pending) return;
     finish(LinkPhase::Starting);
     username_.clear();
@@ -58,6 +59,11 @@ void LinkClient::unlink() {
 
 void LinkClient::on_sleep() {
     if (phase_ == LinkPhase::Starting || phase_ == LinkPhase::Pending) fail(LinkFailure::Interrupted);
+}
+
+void LinkClient::on_offline() {
+    if (unlink_result_ == UnlinkResult::InProgress && !unlink_sent_) unlink_result_ = UnlinkResult::Failed;
+    if (phase_ == LinkPhase::Starting && !start_sent_) fail(LinkFailure::Unreachable);
 }
 
 void LinkClient::request_username() {

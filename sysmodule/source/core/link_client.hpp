@@ -37,7 +37,7 @@ struct LinkView {
 // Drives the relay's device flow and account calls. No I/O; time is a monotonic now_ms.
 class LinkClient {
 public:
-    // Ignored while Starting or Pending.
+    // Ignored while Starting, or while Pending before its deadline.
     void start(int64_t now_ms);
     // Starting/Pending -> Idle; no more link requests.
     void cancel();
@@ -45,6 +45,8 @@ public:
     void unlink();
     // Starting/Pending -> Failed(Interrupted).
     void on_sleep();
+    // No network: an unsent Unlink fails, an unsent Start fails as Unreachable. Pending expires on its own.
+    void on_offline();
     // One FetchMe, unless one is already queued or in flight.
     void request_username();
     // The key is gone: back to Idle, with no link, unlink or username fetch pending; late answers are ignored.

@@ -469,6 +469,8 @@ void publish(SharedState& shared, const Snapshot& s) {
                 }
                 client.on_outcome(*req, out, mono_ms());
             }
+        } else {
+            link.on_offline();
         }
 
         const int64_t after = mono_ms();
