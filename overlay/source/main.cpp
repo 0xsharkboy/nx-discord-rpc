@@ -16,6 +16,8 @@ namespace ipc = drpc::ipc;
 
 constexpr int64_t kRefreshMs = 1000;
 constexpr u16 kLineHeight = 40;
+constexpr u16 kLinkHeight = 64;
+constexpr s32 kPadding = 10;
 
 drpc::Client* g_client = nullptr;
 ConnectError g_connect_error = ConnectError::None;
@@ -28,7 +30,7 @@ std::string link_line(const ipc::Status& s) {
         case ipc::LinkState::Linked:
             return s.username[0] ? std::string("Linked as ") + s.username : std::string("Linked");
         case ipc::LinkState::NoKey:
-            return "Not linked — open the nx-discord-rpc app";
+            return "Not linked\nOpen the nx-discord-rpc app to link";
         case ipc::LinkState::Unauthorized:
             return "Relay rejected the key";
         case ipc::LinkState::LinkBroken:
@@ -44,10 +46,73 @@ std::string presence_line(const ipc::Status& s) {
     return line;
 }
 
+u32 text_width(tsl::gfx::Renderer* r, const std::string& text, float size) {
+    return r->drawString(text.c_str(), false, 0, 0, size, tsl::style::color::ColorTransparent).first;
+}
+
+std::string fit(tsl::gfx::Renderer* r, const std::string& text, float size, s32 max_width) {
+    if (static_cast<s32>(text_width(r, text, size)) <= max_width) return text;
+    return r->limitStringLength(text, false, size, max_width - static_cast<s32>(text_width(r, "…", size)));
+}
+
+void wrap_paragraph(tsl::gfx::Renderer* r, const std::string& text, float size, s32 max_width,
+                    std::vector<std::string>& lines) {
+    std::string line;
+    size_t start = 0;
+    while (start <= text.size()) {
+        size_t end = text.find(' ', start);
+        if (end == std::string::npos) end = text.size();
+        const std::string word = text.substr(start, end - start);
+        const std::string candidate = line.empty() ? word : line + " " + word;
+        if (!line.empty() && static_cast<s32>(text_width(r, candidate, size)) > max_width) {
+            lines.push_back(line);
+            line = word;
+        } else {
+            line = candidate;
+        }
+        start = end + 1;
+    }
+    if (!line.empty()) lines.push_back(line);
+}
+
+std::vector<std::string> wrap(tsl::gfx::Renderer* r, const std::string& text, float size, s32 max_width) {
+    std::vector<std::string> lines;
+    size_t start = 0;
+    while (start <= text.size()) {
+        size_t end = text.find('\n', start);
+        if (end == std::string::npos) end = text.size();
+        wrap_paragraph(r, text.substr(start, end - start), size, max_width, lines);
+        start = end + 1;
+    }
+    return lines;
+}
+
+s32 draw_wrapped(tsl::gfx::Renderer* r, const std::string& text, s32 x, s32 y, float size, s32 max_width,
+                 tsl::Color color, size_t max_lines = 0) {
+    std::vector<std::string> lines = wrap(r, text, size, max_width);
+    if (max_lines && lines.size() > max_lines) {
+        std::string rest = lines[max_lines - 1];
+        for (size_t i = max_lines; i < lines.size(); ++i) rest += " " + lines[i];
+        lines.resize(max_lines);
+        lines.back() = rest;
+    }
+    const s32 step = static_cast<s32>(size) + 4;
+    for (const std::string& line : lines) {
+        r->drawString(fit(r, line, size, max_width).c_str(), false, x, y, size, color);
+        y += step;
+    }
+    return y;
+}
+
 std::string unavailable_message(std::string& second) {
     if (g_connect_error == ConnectError::VersionMismatch) {
-        second = "Sysmodule protocol " + std::to_string(g_remote_version) + ", overlay protocol " +
-                 std::to_string(ipc::kProtocolVersion) + ": install the same release of both.";
+        const std::string remote = std::to_string(g_remote_version);
+        const std::string local = std::to_string(ipc::kProtocolVersion);
+        if (drpc::sysmodule_outdated(g_remote_version))
+            second = "Update the nx-discord-rpc sysmodule (protocol " + remote + ") to match this overlay (protocol " +
+                     local + ").";
+        else
+            second = "Update this overlay (protocol " + local + ") to match the sysmodule (protocol " + remote + ").";
         return "Version mismatch.";
     }
     second.clear();
@@ -60,30 +125,34 @@ public:
         auto* frame = new tsl::elm::OverlayFrame("nx-discord-rpc", OVERLAY_VERSION);
 
         if (g_connect_error != ConnectError::None) {
-            frame->setContent(new tsl::elm::CustomDrawer([](tsl::gfx::Renderer* r, s32 x, s32 y, s32, s32) {
+            frame->setContent(new tsl::elm::CustomDrawer([](tsl::gfx::Renderer* r, s32 x, s32 y, s32 w, s32) {
                 std::string second;
                 const std::string first = unavailable_message(second);
-                r->drawString(first.c_str(), false, x + 10, y + 40, 22, r->a(tsl::style::color::ColorText));
+                const s32 next = draw_wrapped(r, first, x + kPadding, y + 40, 22, w - 2 * kPadding,
+                                              r->a(tsl::style::color::ColorText));
                 if (!second.empty())
-                    r->drawString(second.c_str(), false, x + 10, y + 75, 18, r->a(tsl::style::color::ColorDescription));
+                    draw_wrapped(r, second, x + kPadding, next + 12, 18, w - 2 * kPadding,
+                                 r->a(tsl::style::color::ColorDescription));
             }));
             return frame;
         }
 
         ipc::Settings cur{};
         if (!g_client->settings(cur)) {
-            frame->setContent(new tsl::elm::CustomDrawer([](tsl::gfx::Renderer* r, s32 x, s32 y, s32, s32) {
-                r->drawString("Lost contact with nx-discord-rpc", false, x + 10, y + 40, 22, r->a(tsl::style::color::ColorText));
+            frame->setContent(new tsl::elm::CustomDrawer([](tsl::gfx::Renderer* r, s32 x, s32 y, s32 w, s32) {
+                draw_wrapped(r, "Lost contact with nx-discord-rpc", x + kPadding, y + 40, 22, w - 2 * kPadding,
+                             r->a(tsl::style::color::ColorText));
             }));
             return frame;
         }
 
         auto* list = new tsl::elm::List();
-        list->addItem(new tsl::elm::CustomDrawer([this](tsl::gfx::Renderer* r, s32 x, s32 y, s32, s32) {
-            r->drawString(link_text_.c_str(), false, x + 10, y + 28, 20, r->a(tsl::style::color::ColorText));
-        }), kLineHeight);
-        list->addItem(new tsl::elm::CustomDrawer([this](tsl::gfx::Renderer* r, s32 x, s32 y, s32, s32) {
-            r->drawString(presence_text_.c_str(), false, x + 10, y + 28, 18, r->a(tsl::style::color::ColorDescription));
+        list->addItem(new tsl::elm::CustomDrawer([this](tsl::gfx::Renderer* r, s32 x, s32 y, s32 w, s32) {
+            draw_wrapped(r, link_text_, x + kPadding, y + 28, 20, w - 2 * kPadding, r->a(tsl::style::color::ColorText), 2);
+        }), kLinkHeight);
+        list->addItem(new tsl::elm::CustomDrawer([this](tsl::gfx::Renderer* r, s32 x, s32 y, s32 w, s32) {
+            r->drawString(fit(r, presence_text_, 18, w - 2 * kPadding).c_str(), false, x + kPadding, y + 28, 18,
+                          r->a(tsl::style::color::ColorDescription));
         }), kLineHeight);
 
         add_toggle(list, "Enabled", cur.enabled, &ipc::Settings::enabled);

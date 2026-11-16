@@ -8,7 +8,8 @@
   },
   "blocking": {
     "not_running": "nx-discord-rpc is not running. Check that it is installed in atmosphere/contents/4200000000D15C0D and reboot.",
-    "mismatch": "The app (protocol {}) and the sysmodule (protocol {}) do not match. Install the same release of both."
+    "update_sysmodule": "Update the nx-discord-rpc sysmodule (protocol {}) to match this app (protocol {}).",
+    "update_app": "Update this app (protocol {}) to match the sysmodule (protocol {})."
   },
   "status": {
     "heading": "SHOWN ON DISCORD",

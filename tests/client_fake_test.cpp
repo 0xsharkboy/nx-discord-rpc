@@ -250,3 +250,17 @@ TEST_CASE("long-names fills the string fields") {
     REQUIRE(c->link(l));
     CHECK(std::strlen(l.verification_uri) == 127);
 }
+
+TEST_CASE("mismatch: an older sysmodule is the side to update, a newer one means updating the UI") {
+    CHECK(sysmodule_outdated(0));
+    CHECK(sysmodule_outdated(ipc::kProtocolVersion - 1));
+    CHECK_FALSE(sysmodule_outdated(ipc::kProtocolVersion + 1));
+    CHECK_FALSE(sysmodule_outdated(2));
+}
+
+TEST_CASE("mismatch-old scenario reports an older remote version") {
+    auto c = make_fake_client("mismatch-old");
+    REQUIRE(c);
+    CHECK(c->connect() == ConnectError::VersionMismatch);
+    CHECK(c->remote_version() == 0);
+}

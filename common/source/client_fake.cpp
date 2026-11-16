@@ -47,6 +47,7 @@ struct Scenario {
     uint32_t retry_after_s = 0;
     uint32_t pending_s = kPendingSeconds;
     bool unlink_fails = false;
+    uint32_t remote_version = ipc::kProtocolVersion + 1;
 };
 
 Scenario no_key(std::string_view name) {
@@ -94,6 +95,9 @@ const Scenario* find_scenario(std::string_view name) {
         missing.connect = ConnectError::NotRunning;
         Scenario mismatch = no_key("mismatch");
         mismatch.connect = ConnectError::VersionMismatch;
+        Scenario mismatch_old = mismatch;
+        mismatch_old.name = "mismatch-old";
+        mismatch_old.remote_version = 0;
 
         Scenario expired = link_outcome("link-expired", ipc::LinkPhase::Expired);
         expired.pending_s = kOutcomeAfterMs / 1000;
@@ -134,6 +138,7 @@ const Scenario* find_scenario(std::string_view name) {
             backoff,
             missing,
             mismatch,
+            mismatch_old,
             link_outcome("link-denied", ipc::LinkPhase::Denied),
             expired,
             rate_limited,
@@ -177,7 +182,7 @@ public:
     }
 
     uint32_t remote_version() const override {
-        return sc_.connect == ConnectError::VersionMismatch ? 2 : ipc::kProtocolVersion;
+        return sc_.connect == ConnectError::VersionMismatch ? sc_.remote_version : ipc::kProtocolVersion;
     }
 
     bool status(ipc::Status& out) override {

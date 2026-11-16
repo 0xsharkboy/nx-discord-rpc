@@ -45,7 +45,9 @@ std::string blocking_message(drpc::ConnectError error, uint32_t remote_version) 
         case drpc::ConnectError::NotRunning:
             return "app/blocking/not_running"_i18n;
         case drpc::ConnectError::VersionMismatch:
-            return brls::getStr("app/blocking/mismatch", drpc::ipc::kProtocolVersion, remote_version);
+            if (drpc::sysmodule_outdated(remote_version))
+                return brls::getStr("app/blocking/update_sysmodule", remote_version, drpc::ipc::kProtocolVersion);
+            return brls::getStr("app/blocking/update_app", drpc::ipc::kProtocolVersion, remote_version);
         case drpc::ConnectError::None:
             break;
     }
@@ -71,7 +73,7 @@ void AppWindow::show_blocking(const std::string& message) {
     label->setFontSize(28);
     label->setIsWrapping(true);
     label->setHorizontalAlign(brls::HorizontalAlign::CENTER);
-    label->setMaxWidth(900);
+    label->setMaxWidth(1040);
 
     auto* body = new brls::Box(brls::Axis::COLUMN);
     body->setJustifyContent(brls::JustifyContent::CENTER);

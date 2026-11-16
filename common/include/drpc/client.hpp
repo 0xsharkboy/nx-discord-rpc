@@ -10,6 +10,9 @@ namespace drpc {
 
 enum class ConnectError { None, NotRunning, VersionMismatch };
 
+// On a VersionMismatch: whether the sysmodule is the side to update.
+constexpr bool sysmodule_outdated(uint32_t remote_version) { return remote_version < ipc::kProtocolVersion; }
+
 class Client {
 public:
     virtual ~Client() = default;
@@ -27,7 +30,7 @@ public:
 
 std::unique_ptr<Client> make_switch_client();
 
-// Scenarios: "linked-game", "linked-home", "nokey", "link-flow", "backoff", "missing", "mismatch",
+// Scenarios: "linked-game", "linked-home", "nokey", "link-flow", "backoff", "missing", "mismatch", "mismatch-old",
 // "link-denied", "link-expired", "link-ratelimited", "link-unreachable", "link-interrupted", "link-cancelled",
 // "link-starting", "unauthorized", "broken", "offline", "nourl", "unlink-failed", "linked-unnamed", "long-names".
 // Returns nullptr for an unknown scenario.
