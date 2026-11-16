@@ -62,6 +62,26 @@ struct Link {
     char username[40];
 };
 
+template <size_t N>
+inline void terminate(char (&s)[N]) {
+    s[N - 1] = '\0';
+}
+
+inline void terminate_strings(Status& s) {
+    terminate(s.sysmodule_version);
+    terminate(s.username);
+    terminate(s.relay_host);
+    terminate(s.name);
+    terminate(s.details);
+    terminate(s.title_id);
+}
+
+inline void terminate_strings(Link& l) {
+    terminate(l.user_code);
+    terminate(l.verification_uri);
+    terminate(l.username);
+}
+
 static_assert(sizeof(Settings) == 8);
 static_assert(sizeof(Status) == 432);
 static_assert(offsetof(Status, elapsed_s) == 408);

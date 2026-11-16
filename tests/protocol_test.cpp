@@ -59,3 +59,19 @@ TEST_CASE("copy_str fits short strings and empty") {
     drpc::copy_str(buf, sizeof buf, "");
     CHECK(buf[0] == '\0');
 }
+
+TEST_CASE("terminate_strings ends every string field with a NUL") {
+    drpc::ipc::Status st;
+    std::memset(&st, 'x', sizeof st);
+    drpc::ipc::terminate_strings(st);
+    CHECK(std::strlen(st.name) == sizeof st.name - 1);
+    CHECK(std::strlen(st.relay_host) == sizeof st.relay_host - 1);
+    CHECK(std::strlen(st.title_id) == sizeof st.title_id - 1);
+
+    drpc::ipc::Link l;
+    std::memset(&l, 'x', sizeof l);
+    drpc::ipc::terminate_strings(l);
+    CHECK(std::strlen(l.verification_uri) == sizeof l.verification_uri - 1);
+    CHECK(std::strlen(l.user_code) == sizeof l.user_code - 1);
+    CHECK(std::strlen(l.username) == sizeof l.username - 1);
+}

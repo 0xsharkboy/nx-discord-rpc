@@ -33,8 +33,8 @@ public:
 
     uint32_t remote_version() const override { return version_; }
 
-    bool status(ipc::Status& out) override { return get_buffer(ipc::Cmd::GetStatus, out); }
-    bool link(ipc::Link& out) override { return get_buffer(ipc::Cmd::GetLink, out); }
+    bool status(ipc::Status& out) override { return get_strings(ipc::Cmd::GetStatus, out); }
+    bool link(ipc::Link& out) override { return get_strings(ipc::Cmd::GetLink, out); }
 
     bool settings(ipc::Settings& out) override {
         return open_ && R_SUCCEEDED(serviceDispatchOut(&srv_, static_cast<u32>(ipc::Cmd::GetSettings), out));
@@ -56,6 +56,13 @@ private:
         return R_SUCCEEDED(serviceDispatch(&srv_, static_cast<u32>(cmd),
                                            .buffer_attrs = {SfBufferAttr_HipcMapAlias | SfBufferAttr_Out},
                                            .buffers = {{&out, sizeof out}}));
+    }
+
+    template <typename T>
+    bool get_strings(ipc::Cmd cmd, T& out) {
+        if (!get_buffer(cmd, out)) return false;
+        ipc::terminate_strings(out);
+        return true;
     }
 
     bool simple(ipc::Cmd cmd) { return open_ && R_SUCCEEDED(serviceDispatch(&srv_, static_cast<u32>(cmd))); }

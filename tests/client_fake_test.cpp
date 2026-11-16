@@ -154,3 +154,99 @@ TEST_CASE("set_settings rejects non-boolean values") {
     REQUIRE(c->settings(back));
     CHECK(back.debug_log == 0);
 }
+
+TEST_CASE("linked-home has no elapsed time") {
+    auto c = make_fake_client("linked-home");
+    REQUIRE(c->connect() == ConnectError::None);
+    ipc::Status st;
+    REQUIRE(c->status(st));
+    CHECK(st.elapsed_s == -1);
+}
+
+TEST_CASE("link-ratelimited fails at start with a retry delay") {
+    set_fake_clock(fake_now);
+    g_now = 0;
+    auto c = make_fake_client("link-ratelimited");
+    REQUIRE(c->connect() == ConnectError::None);
+    REQUIRE(c->start_link());
+    ipc::Link l;
+    REQUIRE(c->link(l));
+    CHECK(l.phase == ipc::LinkPhase::Starting);
+    g_now += 2000;
+    REQUIRE(c->link(l));
+    CHECK(l.phase == ipc::LinkPhase::Failed);
+    CHECK(l.failure == ipc::LinkFailure::RateLimited);
+    CHECK(l.retry_after_s == 1500);
+    set_fake_clock(nullptr);
+}
+
+TEST_CASE("link-cancelled goes from Pending back to Idle") {
+    set_fake_clock(fake_now);
+    g_now = 0;
+    auto c = make_fake_client("link-cancelled");
+    REQUIRE(c->connect() == ConnectError::None);
+    REQUIRE(c->start_link());
+    ipc::Link l;
+    REQUIRE(c->link(l));
+    CHECK(l.phase == ipc::LinkPhase::Pending);
+    g_now += 9000;
+    REQUIRE(c->link(l));
+    CHECK(l.phase == ipc::LinkPhase::Idle);
+    set_fake_clock(nullptr);
+}
+
+TEST_CASE("unlink-failed reports InProgress then Failed and keeps the key") {
+    set_fake_clock(fake_now);
+    g_now = 0;
+    auto c = make_fake_client("unlink-failed");
+    REQUIRE(c->connect() == ConnectError::None);
+    REQUIRE(c->unlink());
+    ipc::Status st;
+    REQUIRE(c->status(st));
+    CHECK(st.unlink == ipc::UnlinkResult::InProgress);
+    g_now += 2500;
+    REQUIRE(c->status(st));
+    CHECK(st.unlink == ipc::UnlinkResult::Failed);
+    CHECK(st.link == ipc::LinkState::Linked);
+    REQUIRE(c->forget_key());
+    REQUIRE(c->status(st));
+    CHECK(st.link == ipc::LinkState::NoKey);
+    set_fake_clock(nullptr);
+}
+
+TEST_CASE("problem scenarios report their link state and health") {
+    struct Case {
+        const char* name;
+        ipc::LinkState link;
+        ipc::RelayHealth health;
+    };
+    const Case cases[] = {
+        {"unauthorized", ipc::LinkState::Unauthorized, ipc::RelayHealth::Ok},
+        {"broken", ipc::LinkState::LinkBroken, ipc::RelayHealth::Ok},
+        {"offline", ipc::LinkState::Linked, ipc::RelayHealth::Offline},
+        {"nourl", ipc::LinkState::NoKey, ipc::RelayHealth::NoUrl},
+    };
+    for (const auto& k : cases) {
+        CAPTURE(k.name);
+        auto c = make_fake_client(k.name);
+        REQUIRE(c);
+        REQUIRE(c->connect() == ConnectError::None);
+        ipc::Status st;
+        REQUIRE(c->status(st));
+        CHECK(st.link == k.link);
+        CHECK(st.health == k.health);
+    }
+}
+
+TEST_CASE("long-names fills the string fields") {
+    auto c = make_fake_client("long-names");
+    REQUIRE(c->connect() == ConnectError::None);
+    ipc::Status st;
+    REQUIRE(c->status(st));
+    CHECK(std::strlen(st.name) == 128);
+    CHECK(std::strlen(st.details) == 128);
+    REQUIRE(c->start_link());
+    ipc::Link l;
+    REQUIRE(c->link(l));
+    CHECK(std::strlen(l.verification_uri) == 127);
+}
