@@ -44,6 +44,9 @@
               pkgs.pkg-config
               pkgs.wayland-scanner
               pkgs.xvfb-run
+              pkgs.xorg.xwd
+              pkgs.imagemagick
+              pkgs.xdotool
             ];
             buildInputs = runtimeLibs ++ [
               pkgs.dbus
