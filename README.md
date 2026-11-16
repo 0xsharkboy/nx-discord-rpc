@@ -50,9 +50,9 @@ As a fallback, write an API key to `api_key.txt` (see below).
 
 ## Settings
 
-The app (Settings tab) and the overlay edit the same settings. Changes apply within about a second
-and are written to `config.ini` after about 2 seconds without further changes. The relay URL is not
-editable from either: change it in `config.ini`.
+The app (Settings tab) and the overlay edit the same settings; Debug log is only in the app. Changes
+apply within about a second and are written to `config.ini` after about 2 seconds without further
+changes. The relay URL is not editable from either: change it in `config.ini`.
 
 ## Configuration
 
