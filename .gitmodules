@@ -1,3 +1,6 @@
 [submodule "app/lib/borealis"]
 	path = app/lib/borealis
 	url = https://github.com/xfangfang/borealis
+[submodule "overlay/lib/libtesla"]
+	path = overlay/lib/libtesla
+	url = https://github.com/WerWolv/libtesla

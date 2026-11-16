@@ -1,6 +1,8 @@
 APP_OUT := out/switch/nx-discord-rpc
 BOREALIS := app/lib/borealis/CMakeLists.txt
 BOREALIS_GLFW := app/lib/borealis/library/lib/extern/glfw/CMakeLists.txt
+LIBTESLA := overlay/lib/libtesla/include/tesla.hpp
+OVERLAY_OUT := out/switch/.overlays
 
 test:
 	cmake -S tests -B build/tests && cmake --build build/tests && ctest --test-dir build/tests --output-on-failure
@@ -22,11 +24,20 @@ app: $(BOREALIS)
 	mkdir -p $(APP_OUT)
 	cp build/app/nx-discord-rpc.nro $(APP_OUT)/nx-discord-rpc.nro
 
+$(LIBTESLA):
+	git submodule update --init overlay/lib/libtesla
+
+overlay: $(LIBTESLA)
+	@test -n "$(DEVKITPRO)" || { echo "DEVKITPRO is not set: run 'nix develop -c make overlay'" >&2; exit 1; }
+	$(MAKE) -C overlay
+	mkdir -p $(OVERLAY_OUT)
+	cp overlay/nx-discord-rpc.ovl $(OVERLAY_OUT)/nx-discord-rpc.ovl
+
 app-desktop: $(BOREALIS_GLFW)
 	cmake -S app -B build/app-desktop -DPLATFORM_DESKTOP=ON -DCMAKE_BUILD_TYPE=RelWithDebInfo
 	cmake --build build/app-desktop --parallel
 
-dist: sysmodule app
+dist: sysmodule app overlay
 
 compile_commands:
 	cmake -S tests -B build/tests
@@ -34,6 +45,6 @@ compile_commands:
 	bear --append --output compile_commands.json -- cmake --build build/tests --clean-first
 
 clean:
-	rm -rf build out compile_commands.json
+	rm -rf build out compile_commands.json overlay/build overlay/*.ovl overlay/*.elf overlay/*.nacp
 
-.PHONY: test sysmodule app app-desktop dist compile_commands clean
+.PHONY: test sysmodule app overlay app-desktop dist compile_commands clean
