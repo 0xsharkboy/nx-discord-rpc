@@ -1,5 +1,6 @@
 #include "core/settings.hpp"
 
+#include <algorithm>
 #include <cstdio>
 
 namespace drpc {
@@ -54,6 +55,18 @@ std::optional<std::string> normalize_admin_key(std::string_view raw) {
     return std::string{raw};
 }
 
+std::string normalize_username(std::string_view raw) {
+    raw = unwrap(raw);
+    for (char c : raw) {
+        if (static_cast<unsigned char>(c) < 0x20 || c == 0x7F) return {};
+    }
+    size_t end = std::min<size_t>(raw.size(), 32);
+    if (end < raw.size()) {
+        while (end > 0 && (static_cast<unsigned char>(raw[end]) & 0xC0) == 0x80) --end;
+    }
+    return std::string{raw.substr(0, end)};
+}
+
 Settings parse_settings(std::string_view ini) {
     Settings s;
     ini = strip_bom(ini);
@@ -77,6 +90,7 @@ Settings parse_settings(std::string_view ini) {
         else if (key == "relay_url") s.relay_url = value;
         else if (key == "api_key") s.api_key = normalize_api_key(value).value_or(std::string{});
         else if (key == "admin_key") s.admin_key = normalize_admin_key(value).value_or(std::string{});
+        else if (key == "username") s.username = normalize_username(value);
     }
     return s;
 }
@@ -93,6 +107,7 @@ std::string serialize_settings(const Settings& s) {
     out += "relay_url = " + s.relay_url + "\n";
     out += "api_key = " + s.api_key + "\n";
     out += "admin_key = " + s.admin_key + "\n";
+    out += "username = " + s.username + "\n";
     return out;
 }
 

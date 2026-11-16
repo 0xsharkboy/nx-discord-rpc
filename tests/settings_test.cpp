@@ -113,3 +113,15 @@ TEST_CASE("invalid keys in config.ini read as empty") {
 TEST_CASE("unknown legacy keys are ignored") {
     CHECK(drpc::parse_settings("token = abc\napplication_id = 123\nicon_url_template = x\n") == drpc::Settings{});
 }
+
+TEST_CASE("username round trips and rejects control characters") {
+    drpc::Settings s;
+    s.username = "test_rpc";
+    CHECK(drpc::parse_settings(drpc::serialize_settings(s)).username == "test_rpc");
+    CHECK(drpc::parse_settings("username = bad\x01name\n").username.empty());
+    CHECK(drpc::parse_settings("username = " + std::string(40, 'a') + "\n").username == std::string(32, 'a'));
+}
+
+TEST_CASE("a username containing a newline normalizes to empty") {
+    CHECK(drpc::normalize_username("a\nb").empty());
+}

@@ -37,6 +37,7 @@ the root of the SD card.
 | `relay_url` | `https://nx-discord-rpc.0xsharkboy.dev` | The relay's base URL (https only). Empty uses the default; an invalid URL disables sending (logged), the API key never goes to another host |
 | `api_key` | empty | The API key issued by the relay |
 | `admin_key` | empty | Optional relay admin key, used only for icon uploads |
+| `username` | empty | The Discord username shown by the UIs; informational only, kept up to 32 bytes
 
 Settings are read at boot. To set the API key, write it to
 `sdmc:/config/nx-discord-rpc/api_key.txt`: it is imported at boot, or within 30 seconds while the
@@ -47,3 +48,9 @@ Title icons are uploaded to the relay automatically, once per title and session.
 private mode or on the HOME Menu.
 
 The log is `sdmc:/config/nx-discord-rpc/log.txt`. Keys are masked in it.
+
+## License
+
+SPDX-License-Identifier: GPL-3.0-or-later
+
+See [LICENSE](LICENSE).

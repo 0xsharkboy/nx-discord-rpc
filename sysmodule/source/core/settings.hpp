@@ -15,6 +15,7 @@ struct Settings {
          show_firmware = false, show_home_menu = false, debug_log = false;
     std::string relay_url{kDefaultRelayUrl};
     std::string api_key, admin_key;
+    std::string username;
     bool operator==(const Settings&) const = default;
 };
 
@@ -22,6 +23,8 @@ Settings parse_settings(std::string_view ini);
 std::string serialize_settings(const Settings& s);
 // Exactly 43 characters of [A-Za-z0-9_-].
 std::optional<std::string> normalize_api_key(std::string_view raw);
+// At most 32 bytes kept; empty if it holds a control character.
+std::string normalize_username(std::string_view raw);
 // 16 to 128 printable ASCII characters, no space.
 std::optional<std::string> normalize_admin_key(std::string_view raw);
 // Replaces every occurrence of each non-empty secret with "[secret]".

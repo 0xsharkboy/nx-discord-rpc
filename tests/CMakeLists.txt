@@ -13,12 +13,13 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(doctest)
 
-include_directories(../sysmodule/source)
+include_directories(../sysmodule/source ../common/include)
 
 add_executable(nxdrpc_tests
   main.cpp
   json_writer_test.cpp
   settings_test.cpp
+  protocol_test.cpp
   title_name_test.cpp
   http_test.cpp
   relay_url_test.cpp
@@ -32,6 +33,7 @@ add_executable(nxdrpc_tests
   ../sysmodule/source/core/relay_url.cpp
   ../sysmodule/source/core/report.cpp
   ../sysmodule/source/core/relay_client.cpp
+  ../sysmodule/source/core/ipc_convert.cpp
 )
 target_compile_options(nxdrpc_tests PRIVATE -Wall -Wextra)
 target_link_libraries(nxdrpc_tests PRIVATE doctest::doctest)
