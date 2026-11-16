@@ -15,6 +15,9 @@ jobs:
     steps:
       # No recursive submodules: the Makefile initialises what it needs.
       - uses: actions/checkout@v4
+      - name: Check tag matches VERSION
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: scripts/check-tag.sh "$GITHUB_REF_NAME"
       - uses: DeterminateSystems/nix-installer-action@v23
       - uses: DeterminateSystems/magic-nix-cache-action@v15
       - name: Test
@@ -25,6 +28,7 @@ jobs:
         with:
           name: nx-discord-rpc-out
           path: out/
+          include-hidden-files: true
           if-no-files-found: error
 
   release:
@@ -35,14 +39,26 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v4
+      - name: Fetch tag annotation
+        run: git fetch --force origin "+refs/tags/$GITHUB_REF_NAME:refs/tags/$GITHUB_REF_NAME"
       - name: Check tag matches VERSION
         run: scripts/check-tag.sh "$GITHUB_REF_NAME"
-      - uses: DeterminateSystems/nix-installer-action@v23
-      - uses: DeterminateSystems/magic-nix-cache-action@v15
+      - uses: actions/download-artifact@v4
+        with:
+          name: nx-discord-rpc-out
+          path: out
+      # zip and sha256sum are preinstalled on ubuntu-latest, so no Nix needed here.
       - name: Package
-        run: nix develop -c make release
+        run: scripts/package-release.sh
+      - name: Release notes
+        run: |
+          git tag -l --format='%(contents)' "$GITHUB_REF_NAME" > release/NOTES.md
+          if [ -z "$(tr -d '[:space:]' < release/NOTES.md)" ]; then
+            echo "See README for installation instructions." > release/NOTES.md
+          fi
       - uses: softprops/action-gh-release@v2
         with:
-          files: release/*
-          generate_release_notes: true
-          body: See README for installation instructions.
+          files: |
+            release/*.zip
+            release/SHA256SUMS
+          body_path: release/NOTES.md
