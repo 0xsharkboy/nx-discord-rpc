@@ -21,11 +21,11 @@ bool is_success(int status) { return status >= 200 && status < 300; }
 }  // namespace
 
 void RelayClient::Backoff::fail(const Outcome& out, int64_t now_ms) {
+    int64_t window_ms = delay_ms;
     if (out.retry_after_s) {
-        until_ms = now_ms + std::clamp<int64_t>(*out.retry_after_s, 0, kRetryAfterMaxS) * 1000;
-        return;
+        window_ms = std::max(window_ms, std::clamp<int64_t>(*out.retry_after_s, 0, kRetryAfterMaxS) * 1000);
     }
-    until_ms = now_ms + delay_ms;
+    until_ms = now_ms + window_ms;
     delay_ms = std::min(delay_ms * 2, kBackoffMaxMs);
 }
 

@@ -203,6 +203,27 @@ TEST_CASE("backoff: 429 with Retry-After 360 gives a 360 s window") {
     CHECK(c.next(360000));
 }
 
+TEST_CASE("backoff: Retry-After 0 still doubles from 5 s") {
+    auto c = keyed();
+    c.set_report(home(), std::nullopt);
+    answer(c, 0, status(503, 0));
+    CHECK_FALSE(c.next(4999));
+    answer(c, 5000, status(503, 0));
+    CHECK_FALSE(c.next(14999));
+    answer(c, 15000, status(503, 0));
+    CHECK_FALSE(c.next(34999));
+    CHECK(c.next(35000));
+}
+
+TEST_CASE("backoff: a Retry-After below the delay does not shorten the window") {
+    auto c = keyed();
+    c.set_report(home(), std::nullopt);
+    answer(c, 0, status(503));
+    answer(c, 5000, status(429, 1));
+    CHECK_FALSE(c.next(14999));
+    CHECK(c.next(15000));
+}
+
 TEST_CASE("backoff: a success resets it to 5 s") {
     auto c = keyed();
     c.set_report(home(), std::nullopt);
