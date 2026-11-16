@@ -1,6 +1,7 @@
 #pragma once
 
 #include <borealis.hpp>
+#include <chrono>
 #include <functional>
 
 #include "drpc/client.hpp"
@@ -10,14 +11,13 @@ namespace app {
 class QrView;
 class ResultBadge;
 
-std::string link_countdown(uint32_t seconds);
-uint32_t retry_minutes(uint32_t retry_after_s);
-
 class LinkView : public brls::Box {
 public:
     LinkView(drpc::Client& client, std::function<void()> on_close);
 
     static void open(drpc::Client& client, std::function<void()> on_close);
+
+    void willAppear(bool resetState = false) override;
 
 private:
     enum class Screen { None, Busy, Pending, Result };
@@ -27,13 +27,19 @@ private:
     void render(const drpc::ipc::Link& link);
     void show(Screen screen);
     void show_result(const drpc::ipc::Link& link);
+    void retry();
     void cancel();
     void close();
 
     drpc::Client& client_;
     std::function<void()> on_close_;
     Screen screen_ = Screen::None;
+    bool started_ = false;
+    bool seen_active_ = false;
     bool closing_ = false;
+    drpc::ipc::LinkPhase result_phase_ = drpc::ipc::LinkPhase::Idle;
+    drpc::ipc::LinkFailure result_failure_ = drpc::ipc::LinkFailure::None;
+    std::chrono::steady_clock::time_point retry_at_;
 
     brls::Box* busy_;
     brls::Button* busy_cancel_;

@@ -2,6 +2,7 @@
 
 #include <borealis.hpp>
 #include <cstdint>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -17,12 +18,15 @@ private:
     using Field = uint8_t drpc::ipc::Settings::*;
 
     void add_toggle(brls::Box* list, const std::string& title, Field field);
-    void apply(Field field, bool on);
+    void apply(brls::BooleanCell* cell, Field field, bool on);
+    void load();
     void sync();
 
     drpc::Client& client_;
     drpc::ipc::Settings settings_{};
+    bool loaded_ = false;
     std::vector<std::pair<brls::BooleanCell*, Field>> toggles_;
+    brls::RepeatingTimer retry_;
 };
 
 }  // namespace app

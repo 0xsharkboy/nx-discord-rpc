@@ -13,7 +13,7 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(doctest)
 
-include_directories(../sysmodule/source ../common/include)
+include_directories(../sysmodule/source ../common/include ../app/source)
 
 add_executable(nxdrpc_tests
   main.cpp
@@ -31,6 +31,7 @@ add_executable(nxdrpc_tests
   ipc_dispatch_test.cpp
   settings_saver_test.cpp
   client_fake_test.cpp
+  app_presentation_test.cpp
   ../sysmodule/source/core/json_writer.cpp
   ../sysmodule/source/core/settings.cpp
   ../sysmodule/source/core/title_name.cpp
@@ -45,6 +46,7 @@ add_executable(nxdrpc_tests
   ../sysmodule/source/core/ipc_dispatch.cpp
   ../sysmodule/source/core/settings_saver.cpp
   ../common/source/client_fake.cpp
+  ../app/source/presentation.cpp
 )
 target_compile_options(nxdrpc_tests PRIVATE -Wall -Wextra)
 target_link_libraries(nxdrpc_tests PRIVATE doctest::doctest)

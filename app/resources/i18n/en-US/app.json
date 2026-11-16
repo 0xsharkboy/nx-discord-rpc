@@ -35,6 +35,7 @@
     "advanced": "Advanced",
     "debug_log": "Debug log",
     "relay": "Relay: {}",
+    "relay_unset": "Relay: not set",
     "relay_hint": "edit relay_url in config.ini"
   },
   "account": {
@@ -69,6 +70,7 @@
     "expired_body": "The code was not used in time.",
     "failed_title": "Link failed",
     "rate_limited_body": "Too many attempts, try again in {} min",
+    "rate_limited_ready": "You can try again now.",
     "unreachable_body": "Could not reach the relay. Check the console's connection.",
     "interrupted_title": "Link interrupted",
     "interrupted_body": "Linking stopped, for example because the console went to sleep.",

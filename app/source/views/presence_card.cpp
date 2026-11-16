@@ -1,8 +1,7 @@
 #include "views/presence_card.hpp"
 
-#include <cstdio>
-
 #include "palette.hpp"
+#include "presentation.hpp"
 #include "title_icon.hpp"
 #include "views/bold_label.hpp"
 
@@ -19,6 +18,7 @@ brls::Image* make_icon() {
     image->setSize(brls::Size(kIconSide, kIconSide));
     image->setScalingType(brls::ImageScalingType::FILL);
     image->setCornerRadius(24);
+    image->setVisibility(brls::Visibility::GONE);
     return image;
 }
 
@@ -32,26 +32,15 @@ brls::Label* make_line(float size, NVGcolor color) {
 
 }  // namespace
 
-std::string format_elapsed(int64_t seconds) {
-    if (seconds < 0) seconds = 0;
-    const long long h = seconds / 3600, m = (seconds / 60) % 60, s = seconds % 60;
-    char buffer[32];
-    if (h > 0)
-        std::snprintf(buffer, sizeof buffer, "%lld:%02lld:%02lld", h, m, s);
-    else
-        std::snprintf(buffer, sizeof buffer, "%02lld:%02lld", m, s);
-    return brls::getStr("app/status/elapsed", std::string(buffer));
-}
-
 PresenceCard::PresenceCard() : brls::Box(brls::Axis::COLUMN) {
     setBackgroundColor(palette::card());
     setCornerRadius(16);
     setPadding(28, 32, 32, 32);
 
-    heading_ = make_line(15, palette::text_faint());
-    heading_->setText("app/status/heading"_i18n);
-    heading_->setMarginBottom(20);
-    addView(heading_);
+    auto* heading = make_line(15, palette::text_faint());
+    heading->setText("app/status/heading"_i18n);
+    heading->setMarginBottom(20);
+    addView(heading);
 
     auto* row = new brls::Box(brls::Axis::ROW);
     row->setAlignItems(brls::AlignItems::CENTER);
@@ -61,12 +50,15 @@ PresenceCard::PresenceCard() : brls::Box(brls::Axis::COLUMN) {
     frame->setSize(brls::Size(kIconSide, kIconSide));
     frame->setShrink(0);
     logo_ = make_icon();
-    logo_->setImageFromRes("img/switch_logo.png");
+    logo_->setImageFromRes("img/console.png");
+    idle_ = make_icon();
+    idle_->setImageFromRes("img/console_idle.png");
     icon_ = make_icon();
-    icon_->setVisibility(brls::Visibility::GONE);
     frame->addView(logo_);
+    frame->addView(idle_);
     frame->addView(icon_);
     row->addView(frame);
+    set_art(Art::Idle);
 
     auto* text = new brls::Box(brls::Axis::COLUMN);
     text->setMarginLeft(28);
@@ -98,24 +90,32 @@ PresenceCard::PresenceCard() : brls::Box(brls::Axis::COLUMN) {
     text->addView(timer_);
 }
 
-void PresenceCard::show_icon(const std::string& title_id) {
-    if (title_id == icon_title_) return;
-    icon_title_ = title_id;
-    const auto& jpeg = title_icon::get(title_id);
-    if (jpeg.empty()) {
-        icon_->setVisibility(brls::Visibility::GONE);
-        logo_->setVisibility(brls::Visibility::VISIBLE);
+void PresenceCard::set_art(Art art) {
+    logo_->setVisibility(art == Art::Logo ? brls::Visibility::VISIBLE : brls::Visibility::GONE);
+    idle_->setVisibility(art == Art::Idle ? brls::Visibility::VISIBLE : brls::Visibility::GONE);
+    icon_->setVisibility(art == Art::Icon ? brls::Visibility::VISIBLE : brls::Visibility::GONE);
+}
+
+void PresenceCard::show_art(bool shown, const std::string& title_id) {
+    if (!shown) {
+        set_art(Art::Idle);
         return;
     }
-    icon_->setImageFromMem(jpeg.data(), static_cast<int>(jpeg.size()));
-    logo_->setVisibility(brls::Visibility::GONE);
-    icon_->setVisibility(brls::Visibility::VISIBLE);
+    if (title_id != icon_title_) {
+        icon_title_ = title_id;
+        icon_ok_ = false;
+        const auto& jpeg = title_icon::get(title_id);
+        if (!jpeg.empty()) {
+            icon_->setImageFromMem(jpeg.data(), static_cast<int>(jpeg.size()));
+            icon_ok_ = icon_->getTexture() != 0;
+        }
+    }
+    set_art(icon_ok_ ? Art::Icon : Art::Logo);
 }
 
 void PresenceCard::update(const drpc::ipc::Status& status) {
     const bool shown = status.shown && status.name[0] != '\0';
-    show_icon(shown && status.is_game ? status.title_id : "");
-    logo_->setAlpha(shown ? 1.0f : 0.35f);
+    show_art(shown, shown && status.is_game ? status.title_id : "");
 
     if (!shown) {
         name_->setVisibility(brls::Visibility::GONE);
@@ -143,7 +143,7 @@ void PresenceCard::tick() {
     }
     const auto since = std::chrono::steady_clock::now() - fetched_at_;
     const int64_t seconds = elapsed_s_ + std::chrono::duration_cast<std::chrono::seconds>(since).count();
-    timer_->setText(format_elapsed(seconds));
+    timer_->setText(brls::getStr("app/status/elapsed", format_elapsed(seconds)));
     timer_->setVisibility(brls::Visibility::VISIBLE);
 }
 

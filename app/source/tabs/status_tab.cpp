@@ -1,6 +1,9 @@
 #include "tabs/status_tab.hpp"
 
+#include <string>
+
 #include "palette.hpp"
+#include "presentation.hpp"
 #include "views/presence_card.hpp"
 
 using namespace brls::literals;
@@ -11,27 +14,26 @@ namespace {
 
 constexpr brls::Time kRefreshMs = 1000;
 
-}  // namespace
-
-FooterLine footer_line(const drpc::ipc::Status& status) {
-    using drpc::ipc::LinkState;
-    using drpc::ipc::RelayHealth;
-    if (status.health == RelayHealth::NoUrl) return {"app/status/footer/nourl"_i18n, Tone::Bad};
-    if (status.health == RelayHealth::Offline) return {"app/status/footer/offline"_i18n, Tone::Warning};
-    switch (status.link) {
-        case LinkState::NoKey:
-            return {"app/status/footer/nokey"_i18n, Tone::Neutral};
-        case LinkState::LinkBroken:
-            return {"app/status/footer/broken"_i18n, Tone::Bad};
-        case LinkState::Unauthorized:
-            return {"app/status/footer/unauthorized"_i18n, Tone::Bad};
-        case LinkState::Linked:
+std::string footer_text(Footer kind, const drpc::ipc::Status& status) {
+    switch (kind) {
+        case Footer::NoUrl:
+            return "app/status/footer/nourl"_i18n;
+        case Footer::Offline:
+            return "app/status/footer/offline"_i18n;
+        case Footer::NoKey:
+            return "app/status/footer/nokey"_i18n;
+        case Footer::Broken:
+            return "app/status/footer/broken"_i18n;
+        case Footer::Unauthorized:
+            return "app/status/footer/unauthorized"_i18n;
+        case Footer::Backoff:
+            return brls::getStr("app/status/footer/backoff", status.backoff_s);
+        case Footer::OkUnnamed:
+            return "app/status/footer/ok_unnamed"_i18n;
+        case Footer::Ok:
             break;
     }
-    if (status.health == RelayHealth::Backoff)
-        return {brls::getStr("app/status/footer/backoff", status.backoff_s), Tone::Warning};
-    if (status.username[0] == '\0') return {"app/status/footer/ok_unnamed"_i18n, Tone::Good};
-    return {brls::getStr("app/status/footer/ok", std::string(status.username)), Tone::Good};
+    return brls::getStr("app/status/footer/ok", std::string(status.username));
 }
 
 NVGcolor tone_color(Tone tone) {
@@ -47,6 +49,8 @@ NVGcolor tone_color(Tone tone) {
     }
     return palette::text_faint();
 }
+
+}  // namespace
 
 StatusTab::StatusTab(drpc::Client& client) : brls::Box(brls::Axis::COLUMN), client_(client) {
     setPadding(48, 56, 40, 56);
@@ -87,7 +91,7 @@ void StatusTab::refresh() {
     }
     card_->update(status);
     const FooterLine line = footer_line(status);
-    footer_->setText(line.text);
+    footer_->setText(footer_text(line.kind, status));
     dot_->setBackgroundColor(tone_color(line.tone));
 }
 

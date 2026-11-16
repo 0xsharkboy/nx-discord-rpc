@@ -5,6 +5,7 @@
 #include <utility>
 
 #include "palette.hpp"
+#include "presentation.hpp"
 #include "views/bold_label.hpp"
 #include "views/qr_view.hpp"
 
@@ -99,18 +100,6 @@ brls::Box* make_screen() {
 
 }  // namespace
 
-std::string link_countdown(uint32_t seconds) {
-    char buffer[16];
-    std::snprintf(buffer, sizeof buffer, "%u:%02u", static_cast<unsigned>(seconds / 60),
-                  static_cast<unsigned>(seconds % 60));
-    return brls::getStr("app/link/expires", std::string(buffer));
-}
-
-uint32_t retry_minutes(uint32_t retry_after_s) {
-    const uint32_t minutes = (retry_after_s + 59) / 60;
-    return minutes == 0 ? 1 : minutes;
-}
-
 LinkView::LinkView(drpc::Client& client, std::function<void()> on_close)
     : brls::Box(brls::Axis::COLUMN), client_(client), on_close_(std::move(on_close)) {
     setGrow(1);
@@ -191,7 +180,7 @@ LinkView::LinkView(drpc::Client& client, std::function<void()> on_close)
     retry_ = make_button("app/link/retry"_i18n, &brls::BUTTONSTYLE_PRIMARY);
     retry_->setMarginRight(20);
     retry_->registerClickAction([this](brls::View*) {
-        start();
+        retry();
         return true;
     });
     buttons->addView(retry_);
@@ -215,6 +204,12 @@ LinkView::LinkView(drpc::Client& client, std::function<void()> on_close)
         },
         false, false, brls::SOUND_BACK);
 
+}
+
+void LinkView::willAppear(bool resetState) {
+    brls::Box::willAppear(resetState);
+    if (started_) return;
+    started_ = true;
     start();
     timer_.setCallback([this] { poll(); });
     timer_.start(kPollMs);
@@ -228,11 +223,18 @@ void LinkView::open(drpc::Client& client, std::function<void()> on_close) {
 
 void LinkView::start() {
     if (closing_) return;
+    seen_active_ = false;
     drpc::ipc::Link link{};
     const bool known = client_.link(link);
     const bool active = known && (link.phase == drpc::ipc::LinkPhase::Starting ||
                                   link.phase == drpc::ipc::LinkPhase::Pending);
-    if (!active) client_.start_link();
+    if (!active && !client_.start_link()) {
+        link = {};
+        link.phase = drpc::ipc::LinkPhase::Failed;
+        link.failure = drpc::ipc::LinkFailure::Other;
+        render(link);
+        return;
+    }
     poll();
 }
 
@@ -251,14 +253,26 @@ void LinkView::render(const drpc::ipc::Link& link) {
     using drpc::ipc::LinkPhase;
     switch (link.phase) {
         case LinkPhase::Idle:
+            if (screen_ == Screen::Result) break;
+            if (seen_active_) {
+                close();
+            } else {
+                drpc::ipc::Link failed{};
+                failed.phase = LinkPhase::Failed;
+                failed.failure = drpc::ipc::LinkFailure::Other;
+                show_result(failed);
+            }
+            break;
         case LinkPhase::Starting:
+            seen_active_ = true;
             show(Screen::Busy);
             break;
         case LinkPhase::Pending:
+            seen_active_ = true;
             qr_->set_text(link.verification_uri);
             uri_->setText(link.verification_uri);
             code_->setText(link.user_code);
-            expires_->setText(link_countdown(link.seconds_left));
+            expires_->setText(brls::getStr("app/link/expires", link_countdown(link.seconds_left)));
             show(Screen::Pending);
             break;
         case LinkPhase::Linked:
@@ -273,6 +287,13 @@ void LinkView::render(const drpc::ipc::Link& link) {
 void LinkView::show_result(const drpc::ipc::Link& link) {
     using drpc::ipc::LinkFailure;
     using drpc::ipc::LinkPhase;
+    const bool fresh =
+        screen_ != Screen::Result || link.phase != result_phase_ || link.failure != result_failure_;
+    result_phase_ = link.phase;
+    result_failure_ = link.failure;
+    const auto now = std::chrono::steady_clock::now();
+    if (fresh) retry_at_ = now;
+
     BadgeKind kind = BadgeKind::Error;
     std::string title = "app/link/failed_title"_i18n;
     std::string body;
@@ -293,10 +314,15 @@ void LinkView::show_result(const drpc::ipc::Link& link) {
             break;
         default:
             switch (link.failure) {
-                case LinkFailure::RateLimited:
+                case LinkFailure::RateLimited: {
                     kind = BadgeKind::Warning;
-                    body = brls::getStr("app/link/rate_limited_body", retry_minutes(link.retry_after_s));
+                    if (fresh) retry_at_ = now + std::chrono::seconds(link.retry_after_s);
+                    const auto left = std::chrono::duration_cast<std::chrono::seconds>(retry_at_ - now).count();
+                    body = left > 0 ? brls::getStr("app/link/rate_limited_body",
+                                                   retry_minutes(static_cast<uint32_t>(left)))
+                                    : "app/link/rate_limited_ready"_i18n;
                     break;
+                }
                 case LinkFailure::Unreachable:
                     body = "app/link/unreachable_body"_i18n;
                     break;
@@ -313,11 +339,19 @@ void LinkView::show_result(const drpc::ipc::Link& link) {
             break;
     }
     const bool success = link.phase == LinkPhase::Linked;
+    const bool can_retry = now >= retry_at_;
     badge_->set_kind(kind);
     result_title_->setText(title);
     result_body_->setText(body);
     retry_->setVisibility(success ? brls::Visibility::GONE : brls::Visibility::VISIBLE);
+    retry_->setState(can_retry ? brls::ButtonState::ENABLED : brls::ButtonState::DISABLED);
+    if (fresh) screen_ = Screen::None;
     show(Screen::Result);
+}
+
+void LinkView::retry() {
+    if (screen_ != Screen::Result || std::chrono::steady_clock::now() < retry_at_) return;
+    start();
 }
 
 void LinkView::show(Screen screen) {
@@ -328,7 +362,11 @@ void LinkView::show(Screen screen) {
     result_->setVisibility(screen == Screen::Result ? brls::Visibility::VISIBLE : brls::Visibility::GONE);
     brls::View* focus = busy_cancel_;
     if (screen == Screen::Pending) focus = cancel_;
-    if (screen == Screen::Result) focus = retry_->getVisibility() == brls::Visibility::VISIBLE ? retry_ : close_;
+    if (screen == Screen::Result) {
+        const bool retry_ready = retry_->getVisibility() == brls::Visibility::VISIBLE &&
+                                 std::chrono::steady_clock::now() >= retry_at_;
+        focus = retry_ready ? retry_ : close_;
+    }
     brls::Application::giveFocus(focus);
 }
 

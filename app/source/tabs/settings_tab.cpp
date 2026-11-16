@@ -8,6 +8,9 @@ namespace app {
 
 namespace {
 
+constexpr brls::Time kRetryMs = 1000;
+constexpr float kDisabledAlpha = 0.4f;
+
 brls::Header* make_header(const std::string& title) {
     auto* header = new brls::Header();
     header->setTitle(title);
@@ -19,8 +22,6 @@ brls::Header* make_header(const std::string& title) {
 SettingsTab::SettingsTab(drpc::Client& client) : client_(client) {
     auto* list = new brls::Box(brls::Axis::COLUMN);
     list->setPadding(32, 56, 40, 56);
-
-    client_.settings(settings_);
 
     list->addView(make_header("app/settings/presence"_i18n));
     add_toggle(list, "app/settings/enabled"_i18n, &drpc::ipc::Settings::enabled);
@@ -37,32 +38,53 @@ SettingsTab::SettingsTab(drpc::Client& client) : client_(client) {
     drpc::ipc::Status status{};
     client_.status(status);
     auto* relay = new brls::DetailCell();
-    relay->setText(brls::getStr("app/settings/relay", std::string(status.relay_host)));
+    relay->setText(status.relay_host[0] ? brls::getStr("app/settings/relay", std::string(status.relay_host))
+                                        : "app/settings/relay_unset"_i18n);
     relay->setDetailText("app/settings/relay_hint"_i18n);
     relay->setDetailTextColor(palette::text_faint());
     list->addView(relay);
 
     setContentView(list);
+
+    load();
+    if (!loaded_) {
+        retry_.setCallback([this] {
+            load();
+            if (loaded_) retry_.stop();
+        });
+        retry_.start(kRetryMs);
+    }
 }
 
 void SettingsTab::add_toggle(brls::Box* list, const std::string& title, Field field) {
     auto* cell = new brls::BooleanCell();
-    cell->init(title, settings_.*field != 0, [this, field](bool on) { apply(field, on); });
+    cell->init(title, false, [this, cell, field](bool on) { apply(cell, field, on); });
     list->addView(cell);
     toggles_.emplace_back(cell, field);
 }
 
-void SettingsTab::apply(Field field, bool on) {
-    drpc::ipc::Settings next = settings_;
-    next.*field = on ? 1 : 0;
-    if (client_.set_settings(next)) settings_ = next;
+void SettingsTab::load() {
+    drpc::ipc::Settings read{};
+    loaded_ = client_.settings(read);
+    if (loaded_) settings_ = read;
     sync();
 }
 
+void SettingsTab::apply(brls::BooleanCell* cell, Field field, bool on) {
+    if (!loaded_) {
+        cell->setOn(!on, false);
+        return;
+    }
+    drpc::ipc::Settings next = settings_;
+    next.*field = on ? 1 : 0;
+    client_.set_settings(next);
+    load();
+}
+
 void SettingsTab::sync() {
-    client_.settings(settings_);
     for (const auto& [cell, field] : toggles_) {
-        const bool on = settings_.*field != 0;
+        cell->setAlpha(loaded_ ? 1.0f : kDisabledAlpha);
+        const bool on = loaded_ && settings_.*field != 0;
         if (cell->isOn() != on) cell->setOn(on, false);
     }
 }
