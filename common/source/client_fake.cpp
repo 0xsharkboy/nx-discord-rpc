@@ -34,6 +34,7 @@ struct Scenario {
     ConnectError connect = ConnectError::None;
     bool key = true;
     const char* username = "test_rpc";
+    const char* discord_id = "";
     Presence presence = Presence::Game;
     ipc::LinkState link = ipc::LinkState::Linked;
     ipc::RelayHealth health = ipc::RelayHealth::Ok;
@@ -86,6 +87,7 @@ const Scenario* find_scenario(std::string_view name) {
     static const auto kScenarios = [] {
         Scenario linked_home{"linked-home"};
         linked_home.presence = Presence::Home;
+        linked_home.discord_id = "80351110224678912";
 
         Scenario backoff{"backoff"};
         backoff.health = ipc::RelayHealth::Backoff;
@@ -195,7 +197,10 @@ public:
         refresh_link();
         refresh_unlink();
         out.link = key_ ? state_ : ipc::LinkState::NoKey;
-        if (key_) put(out.username, username_.c_str());
+        if (key_) {
+            put(out.username, username_.c_str());
+            put(out.discord_id, sc_.discord_id);
+        }
         if (sc_.presence == Presence::Game) {
             put(out.name, sc_.long_names ? long_name().c_str() : "Monument Valley");
             put(out.details, sc_.long_names ? long_details().c_str() : "Playing");

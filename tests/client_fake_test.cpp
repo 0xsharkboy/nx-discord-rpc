@@ -48,6 +48,8 @@ TEST_CASE("linked-home is not a game") {
     REQUIRE(c->status(st));
     CHECK(st.is_game == 0);
     CHECK(st.link == ipc::LinkState::Linked);
+    CHECK(std::strcmp(st.discord_id, "80351110224678912") == 0);
+    CHECK(st.avatar[0] == '\0');
 }
 
 TEST_CASE("backoff scenario reports the relay backoff") {

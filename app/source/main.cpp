@@ -5,6 +5,10 @@
 #include <string_view>
 #include <utility>
 
+#ifdef __SWITCH__
+#include <switch.h>
+#endif
+
 #include "app_window.hpp"
 #include "drpc/client.hpp"
 #include "title_icon.hpp"
@@ -33,11 +37,25 @@ std::unique_ptr<drpc::Client> make_client(int argc, char* argv[]) {
 }
 #endif
 
+#ifdef __SWITCH__
+// Borealis brings up nifm and sockets only; the avatar download needs the ssl service too.
+struct SslSession {
+    SslSession() : ok(R_SUCCEEDED(sslInitialize(1))) {}
+    ~SslSession() {
+        if (ok) sslExit();
+    }
+    bool ok;
+};
+#endif
+
 }  // namespace
 
 int main(int argc, char* argv[]) {
     auto client = make_client(argc, argv);
     if (!client) return EXIT_FAILURE;
+#ifdef __SWITCH__
+    const SslSession ssl;
+#endif
 
     brls::Platform::APP_LOCALE_DEFAULT = brls::LOCALE_EN_US;
     if (!brls::Application::init()) {
