@@ -40,12 +40,15 @@ app-desktop: $(BOREALIS_GLFW)
 
 dist: sysmodule app overlay
 
+release: dist
+	scripts/package-release.sh
+
 compile_commands:
 	cmake -S tests -B build/tests
 	bear --output compile_commands.json -- $(MAKE) -B -C sysmodule
 	bear --append --output compile_commands.json -- cmake --build build/tests --clean-first
 
 clean:
-	rm -rf build out sysmodule/build compile_commands.json overlay/build overlay/*.ovl overlay/*.elf overlay/*.nacp
+	rm -rf build out release sysmodule/build compile_commands.json overlay/build overlay/*.ovl overlay/*.elf overlay/*.nacp
 
-.PHONY: print-version test sysmodule app overlay app-desktop dist compile_commands clean
+.PHONY: print-version test sysmodule app overlay app-desktop dist release compile_commands clean
