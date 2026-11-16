@@ -19,7 +19,7 @@ TEST_CASE("missing scenario reports NotRunning") {
 TEST_CASE("mismatch scenario reports the remote version") {
     auto c = make_fake_client("mismatch");
     CHECK(c->connect() == ConnectError::VersionMismatch);
-    CHECK(c->remote_version() == 2);
+    CHECK(c->remote_version() == 3);
 }
 
 TEST_CASE("unknown scenario yields no client") {

@@ -85,6 +85,8 @@ bool import_key(ConfigStore& store, Settings& settings, std::string key) {
     if (changed) {
         settings.api_key = std::move(key);
         settings.username.clear();
+        settings.discord_id.clear();
+        settings.avatar.clear();
         log::set_secrets(settings.api_key, settings.admin_key);
         log::info("API key imported");
     }
@@ -172,6 +174,8 @@ void save_now(Store& s, int64_t now_ms) {
 void clear_key(Store& s, RelayClient& client, int64_t now_ms) {
     s.settings.api_key.clear();
     s.settings.username.clear();
+    s.settings.discord_id.clear();
+    s.settings.avatar.clear();
     save_now(s, now_ms);
     client.set_key(false, !s.settings.admin_key.empty());
 }
@@ -296,6 +300,8 @@ void publish(SharedState& shared, const Snapshot& s) {
     ipc::Status st{};
     copy_str(st.sysmodule_version, sizeof st.sysmodule_version, kVersion);
     copy_str(st.username, sizeof st.username, s.settings.username);
+    copy_str(st.discord_id, sizeof st.discord_id, s.settings.discord_id);
+    copy_str(st.avatar, sizeof st.avatar, s.settings.avatar);
     if (s.url) copy_str(st.relay_host, sizeof st.relay_host, s.url->host);
     st.elapsed_s = -1;
     if (s.report) {

@@ -85,6 +85,8 @@ void SharedState::show_request(ipc::Cmd cmd) {
         case ipc::Cmd::ForgetKey:
             status_.link = ipc::LinkState::NoKey;
             status_.username[0] = '\0';
+            status_.discord_id[0] = '\0';
+            status_.avatar[0] = '\0';
             status_.unlink = ipc::UnlinkResult::None;
             link_ = ipc::Link{};
             break;

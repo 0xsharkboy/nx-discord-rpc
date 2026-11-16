@@ -43,12 +43,12 @@ void check_protocol_version(SharedState& state) {
     REQUIRE(r.raw_out.size() == sizeof(uint32_t));
     uint32_t version = 0;
     std::memcpy(&version, r.raw_out.data(), sizeof(version));
-    CHECK(version == 1);
+    CHECK(version == 2);
 }
 
 }  // namespace
 
-TEST_CASE("GetProtocolVersion returns 1") {
+TEST_CASE("GetProtocolVersion returns 2") {
     SharedState state;
     check_protocol_version(state);
 }

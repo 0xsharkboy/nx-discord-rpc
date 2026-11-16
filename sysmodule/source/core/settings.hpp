@@ -16,6 +16,7 @@ struct Settings {
     std::string relay_url{kDefaultRelayUrl};
     std::string api_key, admin_key;
     std::string username;
+    std::string discord_id, avatar;
     bool operator==(const Settings&) const = default;
 };
 

@@ -37,6 +37,7 @@ add_executable(nxdrpc_tests
   version_test.cpp
   client_fake_test.cpp
   app_presentation_test.cpp
+  discord_ids_test.cpp
   ../sysmodule/source/core/json_writer.cpp
   ../sysmodule/source/core/settings.cpp
   ../sysmodule/source/core/title_name.cpp
@@ -51,6 +52,7 @@ add_executable(nxdrpc_tests
   ../sysmodule/source/core/ipc_dispatch.cpp
   ../sysmodule/source/core/settings_saver.cpp
   ../common/source/client_fake.cpp
+  ../common/source/shared/discord_ids.cpp
   ../app/source/presentation.cpp
 )
 target_compile_options(nxdrpc_tests PRIVATE -Wall -Wextra)

@@ -7,7 +7,7 @@
 namespace drpc::ipc {
 
 inline constexpr char kServiceName[] = "drpc";
-inline constexpr uint32_t kProtocolVersion = 1;
+inline constexpr uint32_t kProtocolVersion = 2;
 
 enum class Cmd : uint32_t {
     GetProtocolVersion = 0,
@@ -35,6 +35,8 @@ struct Settings {
 struct Status {
     char sysmodule_version[16];
     char username[40];
+    char discord_id[24];
+    char avatar[40];
     char relay_host[64];
     char name[132];
     char details[132];
@@ -70,6 +72,8 @@ inline void terminate(char (&s)[N]) {
 inline void terminate_strings(Status& s) {
     terminate(s.sysmodule_version);
     terminate(s.username);
+    terminate(s.discord_id);
+    terminate(s.avatar);
     terminate(s.relay_host);
     terminate(s.name);
     terminate(s.details);
@@ -83,8 +87,10 @@ inline void terminate_strings(Link& l) {
 }
 
 static_assert(sizeof(Settings) == 8);
-static_assert(sizeof(Status) == 432);
-static_assert(offsetof(Status, elapsed_s) == 408);
+static_assert(sizeof(Status) == 496);
+static_assert(offsetof(Status, discord_id) == 56);
+static_assert(offsetof(Status, avatar) == 80);
+static_assert(offsetof(Status, elapsed_s) == 472);
 static_assert(sizeof(Link) == 196);
 static_assert(std::is_standard_layout_v<Settings> && std::is_trivial_v<Settings>);
 static_assert(std::is_standard_layout_v<Status> && std::is_trivial_v<Status>);

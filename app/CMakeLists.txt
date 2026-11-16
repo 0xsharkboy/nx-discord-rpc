@@ -23,7 +23,9 @@ set(BRLS_RESOURCES_DIR ${CMAKE_CURRENT_BINARY_DIR})
 add_subdirectory(${BOREALIS_LIBRARY} borealis)
 
 file(GLOB_RECURSE APP_SOURCES CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/source/*.cpp)
-list(APPEND APP_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/lib/qrcodegen/qrcodegen.cpp)
+list(APPEND APP_SOURCES
+    ${CMAKE_CURRENT_SOURCE_DIR}/lib/qrcodegen/qrcodegen.cpp
+    ${REPO_ROOT}/common/source/shared/discord_ids.cpp)
 if (PLATFORM_SWITCH)
     list(APPEND APP_SOURCES
         ${REPO_ROOT}/common/source/client_switch.cpp

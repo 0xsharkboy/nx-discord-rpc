@@ -3,6 +3,8 @@
 #include <algorithm>
 #include <cstdio>
 
+#include "drpc/discord_ids.hpp"
+
 namespace drpc {
 
 namespace {
@@ -90,6 +92,8 @@ Settings parse_settings(std::string_view ini) {
         else if (key == "api_key") s.api_key = normalize_api_key(value).value_or(std::string{});
         else if (key == "admin_key") s.admin_key = normalize_admin_key(value).value_or(std::string{});
         else if (key == "username") s.username = normalize_username(value);
+        else if (key == "discord_id") s.discord_id = valid_discord_id(value) ? std::string{value} : std::string{};
+        else if (key == "avatar") s.avatar = valid_avatar_hash(value) ? std::string{value} : std::string{};
     }
     return s;
 }
@@ -106,6 +110,8 @@ std::string serialize_settings(const Settings& s) {
     out += "api_key = " + s.api_key + "\n";
     out += "admin_key = " + s.admin_key + "\n";
     out += "username = " + s.username + "\n";
+    out += "discord_id = " + s.discord_id + "\n";
+    out += "avatar = " + s.avatar + "\n";
     return out;
 }
 

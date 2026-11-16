@@ -122,6 +122,18 @@ TEST_CASE("username round trips and rejects control characters") {
     CHECK(drpc::parse_settings("username = " + std::string(40, 'a') + "\n").username == std::string(32, 'a'));
 }
 
+TEST_CASE("discord id and avatar round trip and drop invalid values") {
+    drpc::Settings s;
+    s.discord_id = "80351110224678912";
+    s.avatar = "a_0123456789abcdef0123456789abcdef";
+    const drpc::Settings back = drpc::parse_settings(drpc::serialize_settings(s));
+    CHECK(back.discord_id == s.discord_id);
+    CHECK(back.avatar == s.avatar);
+    const drpc::Settings bad = drpc::parse_settings("discord_id = abc\navatar = ZZ\n");
+    CHECK(bad.discord_id.empty());
+    CHECK(bad.avatar.empty());
+}
+
 TEST_CASE("a username containing a newline normalizes to empty") {
     CHECK(drpc::normalize_username("a\nb").empty());
 }

@@ -10,6 +10,15 @@ TEST_CASE("ipc settings is 8 bytes") {
     CHECK(sizeof(drpc::ipc::Settings) == 8);
 }
 
+TEST_CASE("ipc status layout carries the Discord id and avatar (protocol 2)") {
+    using drpc::ipc::Status;
+    CHECK(drpc::ipc::kProtocolVersion == 2);
+    CHECK(sizeof(Status) == 496);
+    CHECK(offsetof(Status, discord_id) == 56);
+    CHECK(offsetof(Status, avatar) == 80);
+    CHECK(offsetof(Status, elapsed_s) == 472);
+}
+
 TEST_CASE("to_ipc and apply_ipc round trip the booleans") {
     drpc::Settings s;
     s.enabled = false;

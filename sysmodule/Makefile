@@ -45,7 +45,7 @@ include $(DEVKITPRO)/libnx/switch_rules
 #---------------------------------------------------------------------------------
 TARGET		:=	nx-discord-rpc
 BUILD		:=	build
-SOURCES		:=	source/core source/platform
+SOURCES		:=	source/core source/platform ../common/source/shared
 DATA		:=	data
 INCLUDES	:=	source ../common/include
 CONFIG_JSON	:=	sysmodule.json
