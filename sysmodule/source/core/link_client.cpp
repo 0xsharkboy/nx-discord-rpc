@@ -7,6 +7,7 @@
 #include "core/http.hpp"
 #include "core/json_extract.hpp"
 #include "core/settings.hpp"
+#include "drpc/discord_ids.hpp"
 
 namespace drpc {
 
@@ -36,6 +37,15 @@ std::optional<int64_t> int_at(const json::Extractor& e, std::string_view path) {
     auto [end, ec] = std::from_chars(c->value.data(), c->value.data() + c->value.size(), v);
     if (ec != std::errc{} || end != c->value.data() + c->value.size()) return std::nullopt;
     return v;
+}
+
+// Only a valid Discord id makes a profile; a missing, null or invalid avatar means none.
+std::optional<Profile> profile_from(const json::Extractor& e) {
+    auto id = string_at(e, "discord_id");
+    if (!id || !valid_discord_id(*id)) return std::nullopt;
+    std::string avatar = string_at(e, "avatar").value_or("");
+    if (!valid_avatar_hash(avatar)) avatar.clear();
+    return Profile{std::move(*id), std::move(avatar)};
 }
 
 }  // namespace
@@ -160,7 +170,7 @@ LinkEffect LinkClient::on_poll(const LinkResponse& resp, int64_t now_ms) {
         next_poll_ms_ = now_ms + wait_ms;
         return {};
     }
-    json::Extractor e({"state", "api_key", "username"});
+    json::Extractor e({"state", "api_key", "username", "discord_id", "avatar"});
     e.feed(resp.body);
     bool parsed = e.finish();
     auto state = string_at(e, "state");
@@ -189,7 +199,7 @@ LinkEffect LinkClient::on_poll(const LinkResponse& resp, int64_t now_ms) {
         std::string username = normalize_username(string_at(e, "username").value_or(""));
         finish(LinkPhase::Linked);
         username_ = username;
-        return LinkEffect{std::move(*key), std::move(username), false};
+        return LinkEffect{std::move(*key), std::move(username), false, profile_from(e)};
     }
     fail(LinkFailure::Other);
     return {};
@@ -200,7 +210,7 @@ LinkEffect LinkClient::on_unlink(const LinkResponse& resp) {
     if (resp.status == 204 || resp.status == 401) {
         unlink_result_ = UnlinkResult::Done;
         if (phase_ == LinkPhase::Linked) finish(LinkPhase::Idle);
-        return LinkEffect{std::nullopt, std::nullopt, true};
+        return LinkEffect{std::nullopt, std::nullopt, true, std::nullopt};
     }
     unlink_result_ = UnlinkResult::Failed;
     return {};
@@ -209,15 +219,18 @@ LinkEffect LinkClient::on_unlink(const LinkResponse& resp) {
 LinkEffect LinkClient::on_fetch_me(const LinkResponse& resp) {
     fetch_in_flight_ = false;
     if (resp.status != 200) return {};
-    json::Extractor e({"username"});
+    json::Extractor e({"username", "discord_id", "avatar"});
     e.feed(resp.body);
     if (!e.finish()) return {};
+    LinkEffect effect;
+    effect.profile = profile_from(e);
     auto raw = string_at(e, "username");
-    if (!raw) return {};
-    std::string username = normalize_username(*raw);
-    if (username.empty()) return {};
-    if (phase_ == LinkPhase::Linked) username_ = username;
-    return LinkEffect{std::nullopt, std::move(username), false};
+    std::string username = raw ? normalize_username(*raw) : std::string{};
+    if (!username.empty()) {
+        if (phase_ == LinkPhase::Linked) username_ = username;
+        effect.username = std::move(username);
+    }
+    return effect;
 }
 
 void LinkClient::fail(LinkFailure failure, int retry_after_s) {

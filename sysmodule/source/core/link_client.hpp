@@ -20,10 +20,16 @@ struct LinkResponse {
     std::optional<int> retry_after_s;
 };
 
+// avatar "" means no custom avatar.
+struct Profile {
+    std::string discord_id, avatar;
+};
+
 struct LinkEffect {
     std::optional<std::string> api_key;
     std::optional<std::string> username;
     bool clear_key = false;
+    std::optional<Profile> profile;
 };
 
 struct LinkView {
@@ -47,7 +53,7 @@ public:
     void on_sleep();
     // No network: an unsent Unlink fails, an unsent Start fails as Unreachable. Pending expires on its own.
     void on_offline();
-    // One FetchMe, unless one is already queued or in flight.
+    // One FetchMe (username and Discord profile), unless one is already queued or in flight.
     void request_username();
     // The key is gone: back to Idle, with no link, unlink or username fetch pending; late answers are ignored.
     void forget();

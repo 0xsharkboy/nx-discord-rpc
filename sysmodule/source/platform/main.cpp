@@ -36,6 +36,7 @@ constexpr int64_t kHeapLogIntervalMs = 60'000;
 constexpr int64_t kAsleepSliceMs = 100;
 constexpr int64_t kKeyCheckIntervalMs = 30'000;
 constexpr int64_t kIpcRetryMs = 5000;
+constexpr int64_t kProfileRefreshMs = 24 * 60 * 60 * 1000;
 
 void log_wake(const PowerNet::WakeReport& wake) {
     log::info("Console awake; sleep acknowledged after " + std::to_string(wake.ack_ms) + " ms" +
@@ -200,6 +201,12 @@ void apply_link_effect(const LinkEffect& effect, Store& s, RelayClient& client, 
         s.settings.username = *effect.username;
         save = true;
     }
+    if (effect.profile &&
+        (effect.profile->discord_id != s.settings.discord_id || effect.profile->avatar != s.settings.avatar)) {
+        s.settings.discord_id = effect.profile->discord_id;
+        s.settings.avatar = effect.profile->avatar;
+        save = true;
+    }
     if (save) save_now(s, now_ms);
 }
 
@@ -353,7 +360,7 @@ void publish(SharedState& shared, const Snapshot& s) {
     static LinkClient link;
     static SharedState shared;
     client.set_key(!settings.api_key.empty(), !settings.admin_key.empty());
-    if (!settings.api_key.empty() && settings.username.empty()) link.request_username();
+    if (!settings.api_key.empty()) link.request_username();
 
     SettingsSaver saver;
     Store persist{store, settings, saver, {}};
@@ -374,6 +381,7 @@ void publish(SharedState& shared, const Snapshot& s) {
     LinkState shown_link = client.link_state();
     int64_t next_heap_log = 0;
     int64_t next_key_check = mono_ms() + kKeyCheckIntervalMs;
+    int64_t next_profile_ms = mono_ms() + kProfileRefreshMs;
 
     for (;;) {
         // One short-lived connection per request: none is ever open between ticks.
@@ -461,6 +469,10 @@ void publish(SharedState& shared, const Snapshot& s) {
         }
 
         const bool online = url && power.online();
+        if (online && client.link_state() == LinkState::Ok && now >= next_profile_ms) {
+            link.request_username();
+            next_profile_ms = now + kProfileRefreshMs;
+        }
         // Before the request, which can block for 8 s: the UIs see what this tick took.
         publish(shared, Snapshot{settings, url, online, report, elapsed.seconds(), client, link, mono_ms()});
 

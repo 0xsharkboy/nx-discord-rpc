@@ -556,3 +556,64 @@ TEST_CASE("offline: idle, linked and finished states are untouched") {
     done.on_offline();
     CHECK(done.unlink_result() == UnlinkResult::Done);
 }
+
+namespace {
+
+constexpr const char* kId = "80351110224678912";
+constexpr const char* kHash = "0123456789abcdef0123456789abcdef";
+
+LinkEffect fetch_me(const std::string& body) {
+    LinkClient c;
+    c.request_username();
+    return answer(c, 0, resp(200, body), Kind::FetchMe);
+}
+
+}  // namespace
+
+TEST_CASE("profile: a linked poll carries the Discord id and avatar") {
+    auto c = pending_at_zero();
+    auto fx = answer(c, 5000,
+                     resp(200, R"({"state":"linked","api_key":")" + kKey + R"(","username":"u","discord_id":")" + kId +
+                                   R"(","avatar":")" + kHash + R"("})"),
+                     Kind::Poll);
+    REQUIRE(fx.profile);
+    CHECK(fx.profile->discord_id == kId);
+    CHECK(fx.profile->avatar == kHash);
+}
+
+TEST_CASE("profile: a linked poll without discord_id has no profile, key and username still apply") {
+    auto c = pending_at_zero();
+    auto fx = answer(c, 5000, resp(200, R"({"state":"linked","api_key":")" + kKey + R"(","username":"u"})"), Kind::Poll);
+    CHECK_FALSE(fx.profile);
+    REQUIRE(fx.api_key);
+    CHECK(*fx.api_key == kKey);
+    REQUIRE(fx.username);
+    CHECK(*fx.username == "u");
+}
+
+TEST_CASE("profile: /v1/me with a null avatar gives an empty avatar") {
+    auto fx = fetch_me(std::string(R"({"username":"u","discord_id":")") + kId + R"(","avatar":null})");
+    REQUIRE(fx.profile);
+    CHECK(fx.profile->discord_id == kId);
+    CHECK(fx.profile->avatar.empty());
+    REQUIRE(fx.username);
+}
+
+TEST_CASE("profile: /v1/me with an invalid discord_id has no profile") {
+    auto fx = fetch_me(R"({"username":"u","discord_id":"x","avatar":null})");
+    CHECK_FALSE(fx.profile);
+    REQUIRE(fx.username);
+}
+
+TEST_CASE("profile: /v1/me with an invalid avatar gives an empty avatar") {
+    auto fx = fetch_me(std::string(R"({"username":"u","discord_id":")") + kId + R"(","avatar":"nope"})");
+    REQUIRE(fx.profile);
+    CHECK(fx.profile->avatar.empty());
+}
+
+TEST_CASE("profile: /v1/me with a valid profile but an empty username still returns the profile") {
+    auto fx = fetch_me(std::string(R"({"username":"","discord_id":")") + kId + R"(","avatar":")" + kHash + R"("})");
+    CHECK_FALSE(fx.username);
+    REQUIRE(fx.profile);
+    CHECK(fx.profile->avatar == kHash);
+}
