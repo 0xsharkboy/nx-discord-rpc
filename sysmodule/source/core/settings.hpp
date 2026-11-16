@@ -11,7 +11,7 @@ namespace drpc {
 inline constexpr std::string_view kDefaultRelayUrl = "https://nx-discord-rpc.0xsharkboy.dev";
 
 struct Settings {
-    bool enabled = true, private_mode = false, show_elapsed = true,
+    bool enabled = true, private_mode = false,
          show_firmware = false, show_home_menu = false, debug_log = false;
     std::string relay_url{kDefaultRelayUrl};
     std::string api_key, admin_key;

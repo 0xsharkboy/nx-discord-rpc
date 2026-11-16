@@ -26,7 +26,6 @@ SettingsTab::SettingsTab(drpc::Client& client) : client_(client) {
     list->addView(make_header("app/settings/presence"_i18n));
     add_toggle(list, "app/settings/enabled"_i18n, &drpc::ipc::Settings::enabled);
     add_toggle(list, "app/settings/private_mode"_i18n, &drpc::ipc::Settings::private_mode);
-    add_toggle(list, "app/settings/show_elapsed"_i18n, &drpc::ipc::Settings::show_elapsed);
     add_toggle(list, "app/settings/show_firmware"_i18n, &drpc::ipc::Settings::show_firmware);
     add_toggle(list, "app/settings/show_home_menu"_i18n, &drpc::ipc::Settings::show_home_menu);
 

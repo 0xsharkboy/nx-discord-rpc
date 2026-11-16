@@ -157,7 +157,6 @@ public:
 
         add_toggle(list, "Enabled", cur.enabled, &ipc::Settings::enabled);
         add_toggle(list, "Private mode", cur.private_mode, &ipc::Settings::private_mode);
-        add_toggle(list, "Show elapsed time", cur.show_elapsed, &ipc::Settings::show_elapsed);
         add_toggle(list, "Show firmware", cur.show_firmware, &ipc::Settings::show_firmware);
         add_toggle(list, "Show HOME Menu", cur.show_home_menu, &ipc::Settings::show_home_menu);
 

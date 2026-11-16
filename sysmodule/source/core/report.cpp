@@ -26,7 +26,6 @@ std::optional<Report> render_report(const SceneInput& in, const Settings& settin
     if (!settings.enabled) return std::nullopt;
 
     Report r;
-    r.show_elapsed = settings.show_elapsed;
 
     if (in.scene == Scene::HomeMenu) {
         if (!settings.show_home_menu) return std::nullopt;
@@ -56,7 +55,7 @@ std::string report_json(const Report& report, std::optional<int64_t> elapsed_s) 
     w.begin_object();
     w.key("name").value(report.name);
     w.key("details").value(report.details);
-    if (report.show_elapsed && elapsed_s) {
+    if (elapsed_s) {
         w.key("elapsed_s").value(std::clamp<int64_t>(*elapsed_s, 0, kMaxElapsedSeconds));
     }
     if (report.title_id) w.key("title_id").value(*report.title_id);

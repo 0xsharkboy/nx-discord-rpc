@@ -31,7 +31,6 @@ drpc::ipc::Settings valid_settings() {
     drpc::ipc::Settings s{};
     s.enabled = 1;
     s.private_mode = 0;
-    s.show_elapsed = 1;
     s.show_firmware = 0;
     s.show_home_menu = 1;
     s.debug_log = 1;
@@ -144,6 +143,17 @@ TEST_CASE("a valid SetSettings is taken once") {
     REQUIRE(taken.has_value());
     CHECK(std::memcmp(&*taken, &s, sizeof(s)) == 0);
     CHECK_FALSE(state.take_settings().has_value());
+}
+
+TEST_CASE("SetSettings ignores the reserved byte and stores it as 0") {
+    SharedState state;
+    drpc::ipc::Settings s = valid_settings();
+    s.reserved0 = 0xAB;
+    const std::vector<uint8_t> in = bytes_of(s);
+    REQUIRE(call(state, Cmd::SetSettings, in).rc == 0);
+    const auto taken = state.take_settings();
+    REQUIRE(taken.has_value());
+    CHECK(taken->reserved0 == 0);
 }
 
 TEST_CASE("SetSettings accepts trailing padding after the struct") {

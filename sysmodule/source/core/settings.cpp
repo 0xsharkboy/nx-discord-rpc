@@ -83,7 +83,6 @@ Settings parse_settings(std::string_view ini) {
 
         if (key == "enabled") parse_bool(value, s.enabled);
         else if (key == "private_mode") parse_bool(value, s.private_mode);
-        else if (key == "show_elapsed") parse_bool(value, s.show_elapsed);
         else if (key == "show_firmware") parse_bool(value, s.show_firmware);
         else if (key == "show_home_menu") parse_bool(value, s.show_home_menu);
         else if (key == "debug_log") parse_bool(value, s.debug_log);
@@ -100,7 +99,6 @@ std::string serialize_settings(const Settings& s) {
     std::string out;
     out += std::string("enabled = ") + b(s.enabled) + "\n";
     out += std::string("private_mode = ") + b(s.private_mode) + "\n";
-    out += std::string("show_elapsed = ") + b(s.show_elapsed) + "\n";
     out += std::string("show_firmware = ") + b(s.show_firmware) + "\n";
     out += std::string("show_home_menu = ") + b(s.show_home_menu) + "\n";
     out += std::string("debug_log = ") + b(s.debug_log) + "\n";

@@ -28,10 +28,11 @@ DispatchResult set_settings(std::span<const uint8_t> in_raw, SharedState& state)
     ipc::Settings s;
     if (in_raw.size() < sizeof(s)) return {kRcBadInput, {}};
     std::memcpy(&s, in_raw.data(), sizeof(s));
-    if (!is_bool(s.enabled) || !is_bool(s.private_mode) || !is_bool(s.show_elapsed) ||
+    if (!is_bool(s.enabled) || !is_bool(s.private_mode) ||
         !is_bool(s.show_firmware) || !is_bool(s.show_home_menu) || !is_bool(s.debug_log)) {
         return {kRcBadInput, {}};
     }
+    s.reserved0 = 0;
     std::memset(s.reserved, 0, sizeof(s.reserved));
     state.set_settings(s);
     return {0, {}};

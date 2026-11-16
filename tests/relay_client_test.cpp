@@ -15,7 +15,6 @@ Report game(const char* name = "Zelda", const char* title_id = "0100A0D02127E000
     r.name = name;
     r.details = "Playing";
     r.title_id = std::string{title_id};
-    r.show_elapsed = true;
     return r;
 }
 

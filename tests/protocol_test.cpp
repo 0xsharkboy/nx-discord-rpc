@@ -14,7 +14,6 @@ TEST_CASE("to_ipc and apply_ipc round trip the booleans") {
     drpc::Settings s;
     s.enabled = false;
     s.private_mode = true;
-    s.show_elapsed = false;
     s.show_firmware = true;
     s.show_home_menu = true;
     s.debug_log = true;

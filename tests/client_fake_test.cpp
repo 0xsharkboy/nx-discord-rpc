@@ -68,12 +68,10 @@ TEST_CASE("nokey settings round-trip") {
     ipc::Settings s;
     REQUIRE(c->settings(s));
     s.private_mode = 1;
-    s.show_elapsed = 0;
     REQUIRE(c->set_settings(s));
     ipc::Settings back;
     REQUIRE(c->settings(back));
     CHECK(back.private_mode == 1);
-    CHECK(back.show_elapsed == 0);
 }
 
 TEST_CASE("link-flow counts down then links") {

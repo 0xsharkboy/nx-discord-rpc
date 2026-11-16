@@ -19,7 +19,6 @@ Settings base() {
     Settings s;
     s.enabled = true;
     s.private_mode = false;
-    s.show_elapsed = true;
     s.show_firmware = false;
     s.show_home_menu = false;
     return s;
@@ -44,7 +43,6 @@ TEST_CASE("game scene") {
     CHECK(r->name == "Zelda");
     CHECK(r->details == "on Nintendo Switch");
     CHECK(r->title_id == std::optional<std::string>{"0100A0D02127E000"});
-    CHECK(r->show_elapsed);
 }
 
 TEST_CASE("private mode masks the game") {
@@ -94,14 +92,19 @@ TEST_CASE("firmware suffix") {
     CHECK(render_report(in, s)->details == "In the HOME Menu \xC2\xB7 19.0.1");
 }
 
-TEST_CASE("elapsed omitted when disabled") {
-    Settings s = base();
-    s.show_elapsed = false;
+TEST_CASE("elapsed is always included when given") {
+    auto r = render_report(game(), base());
+    REQUIRE(r);
+    CHECK(report_json(*r, 10).find("\"elapsed_s\":10") != std::string::npos);
+    CHECK(report_json(*r, std::nullopt).find("elapsed_s") == std::string::npos);
+}
+
+TEST_CASE("a leftover show_elapsed = false in config.ini still yields elapsed_s") {
+    const Settings s = parse_settings("show_elapsed = false\n");
     auto r = render_report(game(), s);
     REQUIRE(r);
-    CHECK(report_json(*r, 10).find("elapsed_s") == std::string::npos);
-    auto on = render_report(game(), base());
-    CHECK(report_json(*on, std::nullopt).find("elapsed_s") == std::string::npos);
+    CHECK(report_json(*r, 10).find("\"elapsed_s\":10") != std::string::npos);
+    CHECK(serialize_settings(s).find("show_elapsed") == std::string::npos);
 }
 
 TEST_CASE("truncation on a UTF-8 boundary") {

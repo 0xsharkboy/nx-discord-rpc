@@ -62,7 +62,6 @@ changes. The relay URL is not editable from either: change it in `config.ini`.
 | --- | --- | --- |
 | `enabled` | `true` | Report the presence at all |
 | `private_mode` | `false` | Show "Playing a game" instead of the title |
-| `show_elapsed` | `true` | Show the time spent on the current title |
 | `show_firmware` | `false` | Append the firmware version |
 | `show_home_menu` | `false` | Report the HOME Menu too |
 | `debug_log` | `false` | Write debug lines to the log |

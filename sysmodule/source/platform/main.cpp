@@ -302,7 +302,7 @@ void publish(SharedState& shared, const Snapshot& s) {
             st.is_game = 1;
             copy_str(st.title_id, sizeof st.title_id, *s.report->title_id);
         }
-        if (s.report->show_elapsed) st.elapsed_s = std::max<int64_t>(s.elapsed_s, 0);
+        st.elapsed_s = std::max<int64_t>(s.elapsed_s, 0);
     }
     st.link = ipc_link_state(s.client.link_state());
     if (!s.url) {

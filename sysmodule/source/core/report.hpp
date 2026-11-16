@@ -22,7 +22,6 @@ struct SceneInput {
 struct Report {
     std::string name, details;
     std::optional<std::string> title_id;
-    bool show_elapsed = false;
     bool operator==(const Report&) const = default;
 };
 
