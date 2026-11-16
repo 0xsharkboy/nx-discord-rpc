@@ -45,6 +45,11 @@ The app then shows "Linked as" followed by your Discord username, and the game y
 appears on your profile within a few seconds. The Status tab shows what is currently shown on
 Discord and the state of the relay.
 
+As a fallback, you can link without the app: write the API key issued by the relay to
+`sdmc:/config/nx-discord-rpc/api_key.txt`. The sysmodule imports it at boot, or within 30 seconds
+while it has no working key, saves it to `config.ini`, then deletes the file. After a rejected key
+or a broken Discord link, a new `api_key.txt` is needed.
+
 ![Account tab of the app](docs/images/account.png)
 
 ## Settings
@@ -52,13 +57,14 @@ Discord and the state of the relay.
 The Settings tab of the app and the overlay edit the same settings. A change applies within about a
 second and is written to `config.ini` after about 2 seconds without further changes. The app has
 Enabled, Private mode, Show firmware version, Show HOME Menu and Debug log. The overlay has the same
-toggles except Debug log. The relay URL cannot be changed from either: edit `relay_url` in
-`config.ini`.
+toggles except Debug log, and labels the firmware one "Show firmware". The relay URL cannot be changed
+from either: edit `relay_url` in `config.ini`.
 
 ![Settings tab of the app](docs/images/settings.png)
 
 The file is `sdmc:/config/nx-discord-rpc/config.ini`, one `key = value` per line. The sysmodule
-reads it at boot, so edit it with the SD card in a PC rather than on a running console.
+reads it at boot and rewrites it whenever a setting changes from the app or the overlay, so edit it
+while the console is off (SD card in a PC), never on a running console.
 
 | Key | Default | Meaning |
 | --- | --- | --- |
