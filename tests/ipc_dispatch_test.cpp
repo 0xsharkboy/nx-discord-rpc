@@ -230,3 +230,84 @@ TEST_CASE("seed_settings does not overwrite a SetSettings not yet taken") {
     CHECK(taken->private_mode == 1);
     CHECK(state.settings().private_mode == 1);
 }
+
+namespace {
+
+drpc::ipc::Link published_link(drpc::ipc::LinkPhase phase) {
+    drpc::ipc::Link link{};
+    link.phase = phase;
+    link.failure = drpc::ipc::LinkFailure::RateLimited;
+    link.seconds_left = 120;
+    link.retry_after_s = 30;
+    std::strcpy(link.user_code, "ABCD-EFGH");
+    std::strcpy(link.verification_uri, "https://example.test/x");
+    return link;
+}
+
+}  // namespace
+
+TEST_CASE("request(StartLink) is served as Starting at once, with the old code cleared") {
+    SharedState state;
+    state.publish(drpc::ipc::Status{}, published_link(drpc::ipc::LinkPhase::Failed));
+    state.request(Cmd::StartLink);
+    const auto link = state.link();
+    CHECK(link.phase == drpc::ipc::LinkPhase::Starting);
+    CHECK(link.failure == drpc::ipc::LinkFailure::None);
+    CHECK(link.seconds_left == 0);
+    CHECK(link.retry_after_s == 0);
+    CHECK(link.user_code[0] == '\0');
+    CHECK(link.verification_uri[0] == '\0');
+}
+
+TEST_CASE("request(StartLink) leaves a pending link as it is") {
+    SharedState state;
+    state.publish(drpc::ipc::Status{}, published_link(drpc::ipc::LinkPhase::Pending));
+    state.request(Cmd::StartLink);
+    const auto link = state.link();
+    CHECK(link.phase == drpc::ipc::LinkPhase::Pending);
+    CHECK(std::strcmp(link.user_code, "ABCD-EFGH") == 0);
+}
+
+TEST_CASE("request(CancelLink) is served as Idle at once") {
+    SharedState state;
+    state.publish(drpc::ipc::Status{}, published_link(drpc::ipc::LinkPhase::Pending));
+    state.request(Cmd::CancelLink);
+    const auto link = state.link();
+    CHECK(link.phase == drpc::ipc::LinkPhase::Idle);
+    CHECK(link.user_code[0] == '\0');
+}
+
+TEST_CASE("request(Unlink) is served as InProgress at once") {
+    SharedState state;
+    state.request(Cmd::Unlink);
+    CHECK(state.status().unlink == drpc::ipc::UnlinkResult::InProgress);
+}
+
+TEST_CASE("request(ForgetKey) is served as NoKey with no username at once") {
+    SharedState state;
+    drpc::ipc::Status status{};
+    status.link = drpc::ipc::LinkState::Linked;
+    std::strcpy(status.username, "test_rpc");
+    status.unlink = drpc::ipc::UnlinkResult::Failed;
+    state.publish(status, published_link(drpc::ipc::LinkPhase::Linked));
+    state.request(Cmd::ForgetKey);
+    CHECK(state.status().link == drpc::ipc::LinkState::NoKey);
+    CHECK(state.status().username[0] == '\0');
+    CHECK(state.status().unlink == drpc::ipc::UnlinkResult::None);
+    CHECK(state.link().phase == drpc::ipc::LinkPhase::Idle);
+}
+
+TEST_CASE("a publish made before a request is taken keeps showing the request") {
+    SharedState state;
+    state.request(Cmd::StartLink);
+    state.request(Cmd::Unlink);
+    state.publish(drpc::ipc::Status{}, drpc::ipc::Link{});
+    CHECK(state.link().phase == drpc::ipc::LinkPhase::Starting);
+    CHECK(state.status().unlink == drpc::ipc::UnlinkResult::InProgress);
+
+    REQUIRE(state.take_request(Cmd::StartLink));
+    REQUIRE(state.take_request(Cmd::Unlink));
+    state.publish(drpc::ipc::Status{}, drpc::ipc::Link{});
+    CHECK(state.link().phase == drpc::ipc::LinkPhase::Idle);
+    CHECK(state.status().unlink == drpc::ipc::UnlinkResult::None);
+}

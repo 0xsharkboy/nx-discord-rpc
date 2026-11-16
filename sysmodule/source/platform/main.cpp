@@ -148,39 +148,51 @@ private:
     int64_t start_mono_ms_ = 0;
 };
 
-void save_now(ConfigStore& store, const Settings& settings, SettingsSaver& saver) {
-    if (!store.save(settings)) log::error("config.ini could not be saved");
-    saver.saved();
+// What a config.ini write touches.
+struct Store {
+    ConfigStore& config;
+    Settings& settings;
+    SettingsSaver& saver;
+};
+
+// A failed write is retried by the debounce.
+void save_now(Store& s, int64_t now_ms) {
+    if (s.config.save(s.settings)) {
+        s.saver.saved();
+    } else {
+        log::error("config.ini could not be saved; retrying");
+        s.saver.changed(now_ms);
+    }
 }
 
-void forget_key(ConfigStore& store, Settings& settings, SettingsSaver& saver, RelayClient& client) {
-    settings.api_key.clear();
-    settings.username.clear();
-    save_now(store, settings, saver);
-    client.set_key(false, !settings.admin_key.empty());
+void clear_key(Store& s, RelayClient& client, int64_t now_ms) {
+    s.settings.api_key.clear();
+    s.settings.username.clear();
+    save_now(s, now_ms);
+    client.set_key(false, !s.settings.admin_key.empty());
 }
 
-void apply_link_effect(const LinkEffect& effect, ConfigStore& store, Settings& settings, SettingsSaver& saver,
-                       RelayClient& client) {
+void apply_link_effect(const LinkEffect& effect, Store& s, RelayClient& client, LinkClient& link, int64_t now_ms) {
     if (effect.clear_key) {
-        forget_key(store, settings, saver, client);
+        clear_key(s, client, now_ms);
         return;
     }
     bool save = false;
     if (effect.api_key) {
-        if (*effect.api_key != settings.api_key) {
-            settings.api_key = *effect.api_key;
-            log::set_secrets(settings.api_key, settings.admin_key);
+        if (*effect.api_key != s.settings.api_key) {
+            s.settings.api_key = *effect.api_key;
+            log::set_secrets(s.settings.api_key, s.settings.admin_key);
             log::info("API key imported");
         }
-        client.set_key(true, !settings.admin_key.empty());
+        client.set_key(true, !s.settings.admin_key.empty());
+        if (!effect.username || effect.username->empty()) link.request_username();
         save = true;
     }
-    if (effect.username && *effect.username != settings.username) {
-        settings.username = *effect.username;
+    if (effect.username && *effect.username != s.settings.username) {
+        s.settings.username = *effect.username;
         save = true;
     }
-    if (save) save_now(store, settings, saver);
+    if (save) save_now(s, now_ms);
 }
 
 const char* failure_text(ipc::LinkFailure failure) {
@@ -334,11 +346,14 @@ void publish(SharedState& shared, const Snapshot& s) {
     if (!settings.api_key.empty() && settings.username.empty()) link.request_username();
 
     SettingsSaver saver;
+    Store persist{store, settings, saver};
     LinkLog link_log;
     shared.seed_settings(to_ipc(settings));
-    publish(shared, Snapshot{settings, url, false, std::nullopt, 0, client, link, mono_ms()});
+    publish(shared, Snapshot{settings, url, url && power.online(), std::nullopt, 0, client, link, mono_ms()});
     if (!ipc_server_start(shared)) log::error("drpc service could not start; running without IPC");
     Result shown_ipc_error = 0;
+    // An answer that came back after sleep began: applied on the first awake tick.
+    std::optional<LinkEffect> deferred;
 
     bool polled = false;
     std::optional<uint64_t> shown_id;
@@ -376,19 +391,25 @@ void publish(SharedState& shared, const Snapshot& s) {
         }
 
         const int64_t now = mono_ms();
+        if (deferred) {
+            apply_link_effect(*deferred, persist, client, link, now);
+            deferred.reset();
+        }
         if (const auto changed = shared.take_settings()) {
+            const Settings before = settings;
             apply_ipc(*changed, settings);
             log::set_debug(settings.debug_log);
             shared.seed_settings(to_ipc(settings));
-            saver.changed(now);
+            if (settings != before) saver.changed(now);
         }
-        if (saver.due(now)) save_now(store, settings, saver);
+        if (saver.due(now)) save_now(persist, now);
 
         if (shared.take_request(ipc::Cmd::StartLink)) link.start(now);
         if (shared.take_request(ipc::Cmd::CancelLink)) link.cancel();
         if (shared.take_request(ipc::Cmd::Unlink)) link.unlink();
         if (shared.take_request(ipc::Cmd::ForgetKey)) {
-            forget_key(store, settings, saver, client);
+            link.forget();
+            clear_key(persist, client, now);
             log::info("Forgot the API key locally");
         }
 
@@ -422,28 +443,44 @@ void publish(SharedState& shared, const Snapshot& s) {
         }
 
         const bool online = url && power.online();
-        if (online) {
+        // Before the request, which can block for 8 s: the UIs see what this tick took.
+        publish(shared, Snapshot{settings, url, online, report, elapsed.seconds(), client, link, mono_ms()});
+
+        if (!url) {
+            if (const auto lreq = link.next(now)) {
+                apply_link_effect(link.on_response(*lreq, LinkResponse{}, now), persist, client, link, now);
+            }
+        } else if (online) {
             if (const auto lreq = link.next(now)) {
                 const LinkResponse resp = execute_link(*url, *lreq, settings.api_key);
-                apply_link_effect(link.on_response(*lreq, resp, mono_ms()), store, settings, saver, client);
+                const LinkEffect effect = link.on_response(*lreq, resp, mono_ms());
+                if (power.asleep()) {
+                    deferred = effect;
+                } else {
+                    apply_link_effect(effect, persist, client, link, mono_ms());
+                }
             } else if (const auto req = client.next(mono_ms())) {
                 const Outcome out = execute(*url, *req, settings.api_key, settings.admin_key);
-                if (req->kind == Request::Kind::PutIcon && req->use_admin_key && out.status == 401) {
-                    log::warn("Relay rejected the admin key; icons use the API key until reboot");
+                if (!power.asleep()) {
+                    if (req->kind == Request::Kind::PutIcon && req->use_admin_key && out.status == 401) {
+                        log::warn("Relay rejected the admin key; icons use the API key until reboot");
+                    }
+                    unexpected.observe(*req, out.status);
                 }
-                unexpected.observe(*req, out.status);
                 client.on_outcome(*req, out, mono_ms());
             }
         }
+
+        const int64_t after = mono_ms();
+        publish(shared, Snapshot{settings, url, online, report, elapsed.seconds(), client, link, after});
+        // Sleep began during the request: no log or SD access until the console wakes.
+        if (power.asleep()) continue;
 
         if (client.link_state() != shown_link) {
             shown_link = client.link_state();
             log_link_state(shown_link);
         }
-
-        const int64_t after = mono_ms();
         link_log.observe(link.view(after), link.unlink_result(), settings.username);
-        publish(shared, Snapshot{settings, url, online, report, elapsed.seconds(), client, link, after});
 
         if (now >= next_heap_log) {
             log_heap();

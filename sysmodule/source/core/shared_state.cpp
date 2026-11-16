@@ -22,6 +22,9 @@ void SharedState::publish(const ipc::Status& status, const ipc::Link& link) {
     std::lock_guard lock(mutex_);
     status_ = status;
     link_ = link;
+    for (size_t i = 0; i < kCmdSlots; ++i) {
+        if (requests_[i]) show_request(static_cast<ipc::Cmd>(i));
+    }
 }
 
 ipc::Status SharedState::status() const {
@@ -61,6 +64,33 @@ void SharedState::request(ipc::Cmd cmd) {
     if (!is_request(cmd)) return;
     std::lock_guard lock(mutex_);
     requests_[static_cast<size_t>(cmd)] = true;
+    show_request(cmd);
+}
+
+void SharedState::show_request(ipc::Cmd cmd) {
+    const bool linking = link_.phase == ipc::LinkPhase::Starting || link_.phase == ipc::LinkPhase::Pending;
+    switch (cmd) {
+        case ipc::Cmd::StartLink:
+            if (!linking) {
+                link_ = ipc::Link{};
+                link_.phase = ipc::LinkPhase::Starting;
+            }
+            break;
+        case ipc::Cmd::CancelLink:
+            if (linking) link_ = ipc::Link{};
+            break;
+        case ipc::Cmd::Unlink:
+            status_.unlink = ipc::UnlinkResult::InProgress;
+            break;
+        case ipc::Cmd::ForgetKey:
+            status_.link = ipc::LinkState::NoKey;
+            status_.username[0] = '\0';
+            status_.unlink = ipc::UnlinkResult::None;
+            link_ = ipc::Link{};
+            break;
+        default:
+            break;
+    }
 }
 
 bool SharedState::take_request(ipc::Cmd cmd) {

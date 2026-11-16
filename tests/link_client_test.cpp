@@ -435,3 +435,56 @@ TEST_CASE("unlink: after a failure, unlink() sends a new Unlink") {
     CHECK(fx.clear_key);
     CHECK(c.unlink_result() == UnlinkResult::Done);
 }
+
+TEST_CASE("forget: a pending link goes Idle and nothing more is sent") {
+    auto c = pending_at_zero();
+    c.forget();
+    auto v = c.view(0);
+    CHECK(v.phase == LinkPhase::Idle);
+    CHECK(v.user_code.empty());
+    CHECK(v.verification_uri.empty());
+    CHECK_FALSE(first_due(c, 0, 600000));
+}
+
+TEST_CASE("forget: a queued unlink is dropped") {
+    LinkClient c;
+    c.unlink();
+    c.forget();
+    CHECK(c.unlink_result() == UnlinkResult::None);
+    CHECK_FALSE(c.next(0));
+}
+
+TEST_CASE("forget: an unlink answered after forget has no effect") {
+    LinkClient c;
+    c.unlink();
+    auto req = c.next(0);
+    REQUIRE(req);
+    REQUIRE(req->kind == Kind::Unlink);
+    c.forget();
+    auto fx = c.on_response(*req, resp(204), 0);
+    CHECK_FALSE(fx.clear_key);
+    CHECK(c.unlink_result() == UnlinkResult::None);
+}
+
+TEST_CASE("forget: a username fetch answered after forget has no effect") {
+    LinkClient c;
+    c.request_username();
+    auto req = c.next(0);
+    REQUIRE(req);
+    REQUIRE(req->kind == Kind::FetchMe);
+    c.forget();
+    auto fx = c.on_response(*req, resp(200, R"({"username":"u"})"), 0);
+    CHECK_FALSE(fx.username);
+    CHECK_FALSE(c.next(0));
+}
+
+TEST_CASE("forget: a linked view loses its username") {
+    auto c = pending_at_zero();
+    auto fx = answer(c, 5000, resp(200, R"({"state":"linked","api_key":")" + kKey + R"(","username":"test_rpc"})"),
+                     Kind::Poll);
+    REQUIRE(fx.api_key);
+    REQUIRE(c.view(5000).username == "test_rpc");
+    c.forget();
+    CHECK(c.view(5000).phase == LinkPhase::Idle);
+    CHECK(c.view(5000).username.empty());
+}

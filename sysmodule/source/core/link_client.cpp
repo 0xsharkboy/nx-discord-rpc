@@ -64,6 +64,14 @@ void LinkClient::request_username() {
     if (!fetch_in_flight_) fetch_wanted_ = true;
 }
 
+void LinkClient::forget() {
+    finish(LinkPhase::Idle);
+    unlink_result_ = UnlinkResult::None;
+    unlink_sent_ = false;
+    fetch_wanted_ = false;
+    fetch_in_flight_ = false;
+}
+
 std::optional<LinkRequest> LinkClient::next(int64_t now_ms) {
     if (unlink_result_ == UnlinkResult::InProgress && !unlink_sent_) {
         unlink_sent_ = true;
@@ -94,9 +102,11 @@ LinkEffect LinkClient::on_response(const LinkRequest& req, const LinkResponse& r
             if (phase_ == LinkPhase::Pending && req.link_id == link_id_) return on_poll(resp, now_ms);
             return {};
         case LinkRequest::Kind::Unlink:
-            return on_unlink(resp);
+            if (unlink_result_ == UnlinkResult::InProgress && unlink_sent_) return on_unlink(resp);
+            return {};
         case LinkRequest::Kind::FetchMe:
-            return on_fetch_me(resp);
+            if (fetch_in_flight_) return on_fetch_me(resp);
+            return {};
     }
     return {};
 }

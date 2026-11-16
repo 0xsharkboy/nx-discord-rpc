@@ -47,6 +47,8 @@ public:
     void on_sleep();
     // One FetchMe, unless one is already queued or in flight.
     void request_username();
+    // The key is gone: back to Idle, with no link, unlink or username fetch pending; late answers are ignored.
+    void forget();
     // At most once per tick, one request in flight: answer it with on_response() before calling next() again.
     std::optional<LinkRequest> next(int64_t now_ms);
     LinkEffect on_response(const LinkRequest& req, const LinkResponse& resp, int64_t now_ms);

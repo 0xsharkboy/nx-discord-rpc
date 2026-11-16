@@ -26,11 +26,15 @@ public:
     std::optional<ipc::Settings> take_settings();
 
     // Only StartLink, CancelLink, Unlink and ForgetKey; anything else is ignored.
+    // Status and Link reflect a request from the moment it is made, even across a publish, until it is taken.
     // Repeated requests coalesce until taken.
     void request(ipc::Cmd cmd);
     bool take_request(ipc::Cmd cmd);
 
 private:
+    // What a request will do once the main loop takes it, shown at once. Called with mutex_ held.
+    void show_request(ipc::Cmd cmd);
+
     static constexpr size_t kCmdSlots = static_cast<size_t>(ipc::Cmd::ForgetKey) + 1;
 
     mutable std::mutex mutex_;
