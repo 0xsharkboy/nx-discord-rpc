@@ -14,6 +14,7 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(doctest)
 
 file(STRINGS ../VERSION NXDRPC_VERSION LIMIT_COUNT 1)
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/../VERSION)
 
 include_directories(../sysmodule/source ../common/include ../app/source)
 

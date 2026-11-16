@@ -6,7 +6,11 @@ ifeq ($(strip $(DEVKITPRO)),)
 $(error "Please set DEVKITPRO in your environment. export DEVKITPRO=<path to>/devkitpro")
 endif
 
-NXDRPC_VERSION := $(shell cat $(abspath $(dir $(lastword $(MAKEFILE_LIST))))/../VERSION)
+VERSION_FILE := $(abspath $(dir $(firstword $(MAKEFILE_LIST)))/../VERSION)
+NXDRPC_VERSION := $(strip $(shell cat $(VERSION_FILE)))
+ifeq ($(NXDRPC_VERSION),)
+$(error "empty version: could not read $(VERSION_FILE)")
+endif
 
 TOPDIR ?= $(CURDIR)
 include $(DEVKITPRO)/libnx/switch_rules
@@ -183,8 +187,11 @@ clean:
 #---------------------------------------------------------------------------------
 else
 .PHONY:	all
+.DEFAULT_GOAL := all
 
 DEPENDS	:=	$(OFILES:.o=.d)
+
+$(OFILES): $(VERSION_FILE)
 
 #---------------------------------------------------------------------------------
 # main targets

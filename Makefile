@@ -12,7 +12,7 @@ print-version:
 	@echo $(VERSION)
 
 sysmodule:
-	$(MAKE) -C sysmodule
+	$(MAKE) -C sysmodule VERSION=$(VERSION)
 
 $(BOREALIS) $(LIBTESLA) &:
 	git submodule update --init app/lib/borealis overlay/lib/libtesla
@@ -30,7 +30,7 @@ app: $(BOREALIS)
 
 overlay: $(LIBTESLA)
 	@test -n "$(DEVKITPRO)" || { echo "DEVKITPRO is not set: run 'nix develop -c make overlay'" >&2; exit 1; }
-	$(MAKE) -C overlay
+	$(MAKE) -C overlay VERSION=$(VERSION)
 	mkdir -p $(OVERLAY_OUT)
 	cp overlay/nx-discord-rpc.ovl $(OVERLAY_OUT)/nx-discord-rpc.ovl
 
@@ -46,6 +46,6 @@ compile_commands:
 	bear --append --output compile_commands.json -- cmake --build build/tests --clean-first
 
 clean:
-	rm -rf build out compile_commands.json overlay/build overlay/*.ovl overlay/*.elf overlay/*.nacp
+	rm -rf build out sysmodule/build compile_commands.json overlay/build overlay/*.ovl overlay/*.elf overlay/*.nacp
 
 .PHONY: print-version test sysmodule app overlay app-desktop dist compile_commands clean

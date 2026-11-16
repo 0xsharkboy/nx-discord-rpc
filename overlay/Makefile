@@ -6,6 +6,7 @@ ifeq ($(strip $(DEVKITPRO)),)
 $(error "Please set DEVKITPRO in your environment. export DEVKITPRO=<path to>/devkitpro")
 endif
 
+VERSION_FILE := $(abspath $(dir $(firstword $(MAKEFILE_LIST)))/../VERSION)
 TOPDIR ?= $(CURDIR)
 include $(DEVKITPRO)/libnx/switch_rules
 
@@ -21,7 +22,10 @@ include $(DEVKITPRO)/libnx/switch_rules
 #---------------------------------------------------------------------------------
 
 APP_TITLE	:=	nx-discord-rpc
-APP_VERSION	:=	$(shell cat $(abspath $(dir $(lastword $(MAKEFILE_LIST))))/../VERSION)
+APP_VERSION	:=	$(strip $(shell cat $(VERSION_FILE)))
+ifeq ($(APP_VERSION),)
+$(error "empty version: could not read $(VERSION_FILE)")
+endif
 
 TARGET		:=	nx-discord-rpc
 BUILD		:=	build
@@ -119,8 +123,11 @@ clean:
 #---------------------------------------------------------------------------------
 else
 .PHONY:	all
+.DEFAULT_GOAL := all
 
 DEPENDS	:=	$(OFILES:.o=.d)
+
+$(OFILES) $(OUTPUT).nacp: $(VERSION_FILE)
 
 #---------------------------------------------------------------------------------
 # main targets
