@@ -4,8 +4,8 @@ Run on the console before trusting a build. Tick each box only when the expected
 
 1. [ ] Back up `sdmc:/config/nx-discord-rpc/` to the PC. Expected: a copy of `config.ini` (if any) exists off the console.
 2. [ ] Delete `api_key` and `username` from `config.ini`, and `api_key.txt`. Copy `out/` to the SD card and reboot. Expected: the console boots normally.
-3. [ ] Open the app from the Album or a title takeover. Expected: tabs Status, Settings, Account, About; the Status footer says "Not linked — open Account".
-4. [ ] Check the special characters in the app (Switch shared font): the em dash in "Not linked — open Account" (Status, not linked), the ellipsis in "Requesting a code…" (Account, while linking) and in "Unlinking…", the middle dot in "Linked as <name> · relay OK" (Status, once linked). Expected: no boxes or question marks.
+3. [ ] Open the app from the Album or a title takeover. Expected: tabs Status, Settings, Account, About; the Status footer says "Not linked. Open Account".
+4. [ ] Check the special characters in the app (Switch shared font): the ellipsis in "Requesting a code…" (Account, while linking) and in "Unlinking…", the middle dot in "Linked as <name> · relay OK" (Status, once linked). Expected: no boxes or question marks.
 5. [ ] Account tab: start a link, scan the QR code. Expected: the relay page opens, the code matches the one on the console.
 6. [ ] Enter the code on the phone. Expected: the app shows the linked Discord username within a few seconds and Discord shows the presence.
 7. [ ] Wait at least a minute after the link, then read the `Heap:` lines in `sdmc:/config/nx-discord-rpc/log.txt` (one per minute). Expected: "KB in use" stays well under the 1024 KB heap, with no steady growth from one line to the next.

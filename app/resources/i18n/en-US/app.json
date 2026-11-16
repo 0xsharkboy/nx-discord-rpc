@@ -19,9 +19,9 @@
       "ok": "Linked as {} · relay OK",
       "ok_unnamed": "Linked · relay OK",
       "backoff": "Relay unreachable, retrying in {}s",
-      "nokey": "Not linked — open Account",
-      "broken": "Discord link broken — link again",
-      "unauthorized": "Relay rejected the key — link again",
+      "nokey": "Not linked. Open Account",
+      "broken": "Discord link broken. Link again",
+      "unauthorized": "Relay rejected the key. Link again",
       "offline": "Console is offline",
       "nourl": "relay_url in config.ini is invalid"
     }
@@ -43,8 +43,8 @@
     "not_linked": "Not linked",
     "linked": "Linked to Discord",
     "nokey": "Link your Discord account to show what you play.",
-    "broken": "Discord link broken — link again",
-    "unauthorized": "Relay rejected the key — link again",
+    "broken": "Discord link broken. Link again",
+    "unauthorized": "Relay rejected the key. Link again",
     "unlinking": "Unlinking…",
     "link": "Link with Discord",
     "unlink": "Unlink",
