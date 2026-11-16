@@ -13,9 +13,11 @@ constexpr PowerAction power_action(uint32_t psc_state) {
         case 5:  // ReadyShutdown
             return PowerAction::CloseThenAck;
         case 3:  // ReadySleepCritical
+        case 1:  // ReadyAwaken (MinimumAwake)
+        case 4:  // ReadyAwakenCritical (EssentialServicesAwake)
+            // Background wakes (downloads, notifications) stop here with the display off.
             return PowerAction::Ack;
         default:
-            // Waking goes through several states; any of them means the network may come back.
             return PowerAction::WakeThenAck;
     }
 }

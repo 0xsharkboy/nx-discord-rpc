@@ -16,6 +16,9 @@ public:
     struct WakeReport {
         int64_t ack_ms;
         bool closed_in_time;
+        // Intermediate waking steps seen while asleep, and every state seen, since the last report.
+        uint32_t ignored_wakes;
+        uint32_t states_seen;
     };
 
     PowerNet();
@@ -60,6 +63,8 @@ private:
     std::atomic<uint32_t> wakes_{0};
     std::atomic<int64_t> ack_ms_{0};
     std::atomic<bool> closed_in_time_{false};
+    std::atomic<uint32_t> ignored_wakes_{0};
+    std::atomic<uint32_t> states_seen_{0};
     std::atomic<Result> error_{0};
     std::atomic<bool> released_{false};
 

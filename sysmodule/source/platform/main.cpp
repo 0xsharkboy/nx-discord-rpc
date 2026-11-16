@@ -30,6 +30,9 @@ constexpr int64_t kKeyCheckIntervalMs = 30'000;
 void log_wake(const PowerNet::WakeReport& wake) {
     log::info("Console awake; sleep acknowledged after " + std::to_string(wake.ack_ms) + " ms" +
               (wake.closed_in_time ? "" : " without waiting for the main loop"));
+    char buf[96];
+    std::snprintf(buf, sizeof buf, "Waking steps while asleep: %u; PSC states seen: 0x%x", wake.ignored_wakes, wake.states_seen);
+    log::debug(buf);
 }
 
 void log_heap() {

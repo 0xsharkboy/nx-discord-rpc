@@ -13,9 +13,12 @@ TEST_CASE("the critical sleep step keeps the console asleep") {
     CHECK(power_action(3) == PowerAction::Ack);  // ReadySleepCritical
 }
 
-TEST_CASE("every waking step and unknown states count as awake") {
+TEST_CASE("only the full wake and unknown states count as awake") {
     CHECK(power_action(0) == PowerAction::WakeThenAck);  // Awake
-    CHECK(power_action(1) == PowerAction::WakeThenAck);  // ReadyAwaken
-    CHECK(power_action(4) == PowerAction::WakeThenAck);  // ReadyAwakenCritical
     CHECK(power_action(42) == PowerAction::WakeThenAck);
+}
+
+TEST_CASE("intermediate waking steps keep the console asleep") {
+    CHECK(power_action(1) == PowerAction::Ack);  // ReadyAwaken, also reached by background wakes
+    CHECK(power_action(4) == PowerAction::Ack);  // ReadyAwakenCritical
 }

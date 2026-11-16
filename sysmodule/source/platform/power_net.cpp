@@ -14,8 +14,8 @@ static_assert(power_action(PscPmState_ReadySleep) == PowerAction::CloseThenAck);
 static_assert(power_action(PscPmState_ReadyShutdown) == PowerAction::CloseThenAck);
 static_assert(power_action(PscPmState_ReadySleepCritical) == PowerAction::Ack);
 static_assert(power_action(PscPmState_Awake) == PowerAction::WakeThenAck);
-static_assert(power_action(PscPmState_ReadyAwaken) == PowerAction::WakeThenAck);
-static_assert(power_action(PscPmState_ReadyAwakenCritical) == PowerAction::WakeThenAck);
+static_assert(power_action(PscPmState_ReadyAwaken) == PowerAction::Ack);
+static_assert(power_action(PscPmState_ReadyAwakenCritical) == PowerAction::Ack);
 
 // Not assigned to any system module (the known ids stop at Spsm = 127 with gaps
 // in between); 126 is avoided because other homebrew sysmodules commonly take it.
@@ -130,7 +130,7 @@ std::optional<PowerNet::WakeReport> PowerNet::take_wake_report() {
     const uint32_t wakes = wakes_;
     if (wakes == wakes_seen_) return std::nullopt;
     wakes_seen_ = wakes;
-    return WakeReport{ack_ms_, closed_in_time_};
+    return WakeReport{ack_ms_, closed_in_time_, ignored_wakes_.exchange(0), states_seen_.exchange(0)};
 }
 
 // Runs on the psc thread: no logging, SD, network or other service that can block.
@@ -171,6 +171,7 @@ void PowerNet::handle_requests() {
 }
 
 void PowerNet::handle(PscPmState state) {
+    if (static_cast<uint32_t>(state) < 32) states_seen_ |= 1u << static_cast<uint32_t>(state);
     switch (power_action(state)) {
         case PowerAction::CloseThenAck: {
             asleep_ = true;
@@ -197,6 +198,7 @@ void PowerNet::handle(PscPmState state) {
             break;
         }
         case PowerAction::Ack:
+            if (asleep_ && (state == PscPmState_ReadyAwaken || state == PscPmState_ReadyAwakenCritical)) ++ignored_wakes_;
             break;
         case PowerAction::WakeThenAck:
             if (asleep_.exchange(false)) ++wakes_;
