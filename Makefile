@@ -10,8 +10,8 @@ test:
 sysmodule:
 	$(MAKE) -C sysmodule
 
-$(BOREALIS):
-	git submodule update --init app/lib/borealis
+$(BOREALIS) $(LIBTESLA) &:
+	git submodule update --init app/lib/borealis overlay/lib/libtesla
 
 $(BOREALIS_GLFW): $(BOREALIS)
 	git -C app/lib/borealis submodule update --init library/lib/extern/glfw
@@ -23,9 +23,6 @@ app: $(BOREALIS)
 	cmake --build build/app --parallel
 	mkdir -p $(APP_OUT)
 	cp build/app/nx-discord-rpc.nro $(APP_OUT)/nx-discord-rpc.nro
-
-$(LIBTESLA):
-	git submodule update --init overlay/lib/libtesla
 
 overlay: $(LIBTESLA)
 	@test -n "$(DEVKITPRO)" || { echo "DEVKITPRO is not set: run 'nix develop -c make overlay'" >&2; exit 1; }
