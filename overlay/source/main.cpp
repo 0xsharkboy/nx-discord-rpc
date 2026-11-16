@@ -5,6 +5,7 @@
 #include <cstring>
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "drpc/client.hpp"
 
@@ -70,7 +71,12 @@ public:
         }
 
         ipc::Settings cur{};
-        const bool have_settings = g_client->settings(cur);
+        if (!g_client->settings(cur)) {
+            frame->setContent(new tsl::elm::CustomDrawer([](tsl::gfx::Renderer* r, s32 x, s32 y, s32, s32) {
+                r->drawString("Lost contact with nx-discord-rpc", false, x + 10, y + 40, 22, r->a(tsl::style::color::ColorText));
+            }));
+            return frame;
+        }
 
         auto* list = new tsl::elm::List();
         list->addItem(new tsl::elm::CustomDrawer([this](tsl::gfx::Renderer* r, s32 x, s32 y, s32, s32) {
@@ -80,11 +86,11 @@ public:
             r->drawString(presence_text_.c_str(), false, x + 10, y + 28, 18, r->a(tsl::style::color::ColorDescription));
         }), kLineHeight);
 
-        add_toggle(list, "Enabled", have_settings && cur.enabled, &ipc::Settings::enabled);
-        add_toggle(list, "Private mode", have_settings && cur.private_mode, &ipc::Settings::private_mode);
-        add_toggle(list, "Show elapsed time", have_settings && cur.show_elapsed, &ipc::Settings::show_elapsed);
-        add_toggle(list, "Show firmware", have_settings && cur.show_firmware, &ipc::Settings::show_firmware);
-        add_toggle(list, "Show HOME Menu", have_settings && cur.show_home_menu, &ipc::Settings::show_home_menu);
+        add_toggle(list, "Enabled", cur.enabled, &ipc::Settings::enabled);
+        add_toggle(list, "Private mode", cur.private_mode, &ipc::Settings::private_mode);
+        add_toggle(list, "Show elapsed time", cur.show_elapsed, &ipc::Settings::show_elapsed);
+        add_toggle(list, "Show firmware", cur.show_firmware, &ipc::Settings::show_firmware);
+        add_toggle(list, "Show HOME Menu", cur.show_home_menu, &ipc::Settings::show_home_menu);
 
         frame->setContent(list);
         refresh();
@@ -111,6 +117,7 @@ private:
             if (!g_client->set_settings(s)) item->setState(!state);
         });
         list->addItem(item);
+        toggles_.push_back({item, field});
     }
 
     void refresh() {
@@ -123,8 +130,21 @@ private:
         }
         link_text_ = link_line(s);
         presence_text_ = presence_line(s);
+
+        ipc::Settings cur{};
+        if (!g_client->settings(cur)) return;
+        for (const Toggle& t : toggles_) {
+            const bool want = cur.*t.field != 0;
+            if (t.item->getState() != want) t.item->setState(want);
+        }
     }
 
+    struct Toggle {
+        tsl::elm::ToggleListItem* item;
+        uint8_t ipc::Settings::*field;
+    };
+
+    std::vector<Toggle> toggles_;
     std::string link_text_;
     std::string presence_text_;
     int64_t last_refresh_ms_ = -1;

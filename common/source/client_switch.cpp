@@ -53,9 +53,12 @@ private:
     template <typename T>
     bool get_buffer(ipc::Cmd cmd, T& out) {
         if (!open_) return false;
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wmissing-field-initializers"
         return R_SUCCEEDED(serviceDispatch(&srv_, static_cast<u32>(cmd),
                                            .buffer_attrs = {SfBufferAttr_HipcMapAlias | SfBufferAttr_Out},
                                            .buffers = {{&out, sizeof out}}));
+#pragma GCC diagnostic pop
     }
 
     template <typename T>
