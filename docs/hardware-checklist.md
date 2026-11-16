@@ -12,8 +12,8 @@ Run on the console before trusting a build. Tick each box only when the expected
 8. [ ] Start a second link or press the link button repeatedly. Expected: no second request while one is pending; if the relay rate limit (10 per hour) is hit, a rate limit message with a wait time appears.
 9. [ ] Start a link, then put the console to sleep and wake it. Expected: the link screen says "Link interrupted", not stuck on the code.
 10. [ ] Unlink from the Account tab, then link again. Expected: Discord presence disappears after unlink; the second link works and the username returns.
-11. [ ] Turn Wi-Fi off and start a link. Expected: within a few seconds, "Link failed" with "Could not reach the relay. Check the console's connection." and a Retry button.
-12. [ ] With Wi-Fi still off, unlink. Expected: within a few seconds, a dialog offering "Forget locally"; choosing it clears the key and username on the console.
+11. [ ] Turn Wi-Fi off and unlink. Expected: within a few seconds, a dialog offering "Forget locally"; choosing it clears the key and username on the console.
+12. [ ] With Wi-Fi still off, start a link. Expected: within a few seconds, "Link failed" with "Could not reach the relay. Check the console's connection." and a Retry button. Then turn Wi-Fi on, press Retry and finish the link.
 13. [ ] In a game, open the app. Expected: the Status card shows the real game icon and name (matching the NACP icon).
 14. [ ] At the HOME Menu, open the app. Expected: the Status card shows the neutral glyph, not a game icon.
 15. [ ] Settings tab: toggle each setting (Enabled, Private mode, Show elapsed time, Show firmware version, Show HOME Menu, Debug log). Expected: the Status tab reflects it within about 1 s; Discord within about 5 s.
