@@ -5,12 +5,17 @@
 #include <optional>
 #include <string>
 
+#include "core/relay_client.hpp"
+#include "core/relay_url.hpp"
+#include "core/report.hpp"
 #include "core/settings.hpp"
 #include "platform/clock.hpp"
 #include "platform/config_store.hpp"
+#include "platform/firmware.hpp"
 #include "platform/init.hpp"
 #include "platform/log.hpp"
 #include "platform/power_net.hpp"
+#include "platform/relay_http.hpp"
 #include "platform/title_monitor.hpp"
 
 namespace drpc {
@@ -19,6 +24,7 @@ namespace {
 constexpr int64_t kLoopMs = 250;
 constexpr int64_t kHeapLogIntervalMs = 60'000;
 constexpr int64_t kAsleepSliceMs = 100;
+constexpr int64_t kKeyCheckIntervalMs = 30'000;
 
 void log_wake(const PowerNet::WakeReport& wake) {
     log::info("Console awake; sleep acknowledged after " + std::to_string(wake.ack_ms) + " ms" +
@@ -41,26 +47,104 @@ void log_title_change(const std::optional<RunningTitle>& title) {
     }
 }
 
+void log_link_state(LinkState state) {
+    switch (state) {
+        case LinkState::Unauthorized:
+            log::warn("Relay rejected the API key; link again (import api_key.txt)");
+            break;
+        case LinkState::LinkBroken:
+            log::warn("Discord link is broken; link again (import api_key.txt)");
+            break;
+        case LinkState::NoKey:
+        case LinkState::Ok:
+            break;
+    }
+}
+
+bool needs_key(LinkState state) {
+    return state == LinkState::NoKey || state == LinkState::Unauthorized || state == LinkState::LinkBroken;
+}
+
+// Returns false when the key is the one in use. api_key.txt is deleted only once config.ini holds the key.
+bool import_key(ConfigStore& store, Settings& settings, std::string key) {
+    const bool changed = key != settings.api_key;
+    if (changed) {
+        settings.api_key = std::move(key);
+        log::set_secrets(settings.api_key, settings.admin_key);
+        log::info("API key imported");
+    }
+    if (store.save(settings)) {
+        store.delete_api_key_file();
+    } else {
+        log::error("config.ini could not be saved; api_key.txt kept for the next start");
+    }
+    return changed;
+}
+
+Settings load_settings(ConfigStore& store) {
+    Settings s = store.load();
+    log::set_secrets(s.api_key, s.admin_key);
+    if (auto key = store.import_api_key_file()) import_key(store, s, std::move(*key));
+    if (s.api_key.empty()) log::warn("No API key configured; link the console and import api_key.txt");
+    return s;
+}
+
+RelayUrl relay_url(const Settings& settings) {
+    if (auto url = parse_relay_url(settings.relay_url)) return std::move(*url);
+    log::error("relay_url is invalid; using the default");
+    return *parse_relay_url(kDefaultRelayUrl);
+}
+
+// Seconds on the current title. The wall clock keeps counting across sleep, like the console's play timer.
+class Elapsed {
+public:
+    void restart() {
+        start_unix_ms_ = unix_ms();
+        start_mono_ms_ = mono_ms();
+    }
+
+    int64_t seconds() const {
+        const int64_t now_unix = unix_ms();
+        if (start_unix_ms_ != 0 && now_unix != 0) return (now_unix - start_unix_ms_) / 1000;
+        return (mono_ms() - start_mono_ms_) / 1000;
+    }
+
+private:
+    int64_t start_unix_ms_ = 0;
+    int64_t start_mono_ms_ = 0;
+};
+
 [[noreturn]] void run() {
     log::info("nx-discord-rpc starting");
     ConfigStore store;
-    const Settings settings = store.load();
+    Settings settings = load_settings(store);
     log::set_debug(settings.debug_log);
+    const RelayUrl url = relay_url(settings);
+    const std::string firmware = firmware_display_version();
 
     static PowerNet power;
+    static RelayClient client;
+    client.set_key(!settings.api_key.empty(), !settings.admin_key.empty());
 
     bool polled = false;
     std::optional<uint64_t> shown_id;
+    Elapsed elapsed;
+    LinkState shown_link = client.link_state();
     int64_t next_heap_log = 0;
+    int64_t next_key_check = mono_ms() + kKeyCheckIntervalMs;
 
     for (;;) {
+        // One short-lived connection per request: none is ever open between ticks.
         if (power.take_close_request()) power.connection_closed();
-        // Until the console wakes: no log or title polling, either may block while asleep.
+        // Until the console wakes: no log, title polling or network, any of them may block while asleep.
         if (power.asleep()) {
             svcSleepThread(kAsleepSliceMs * 1'000'000);
             continue;
         }
-        if (const auto wake = power.take_wake_report()) log_wake(*wake);
+        if (const auto wake = power.take_wake_report()) {
+            log_wake(*wake);
+            client.on_wake();
+        }
         if (const Result rc = power.take_error()) {
             char buf[64];
             std::snprintf(buf, sizeof buf, "Power state request failed: 0x%x", rc);
@@ -73,10 +157,42 @@ void log_title_change(const std::optional<RunningTitle>& title) {
         if (!polled || id != shown_id) {
             polled = true;
             shown_id = id;
+            elapsed.restart();
             log_title_change(title);
         }
 
+        SceneInput scene;
+        scene.firmware = firmware;
+        if (title) {
+            scene.scene = Scene::Game;
+            scene.title_id = title->title_id;
+            scene.game_name = title->name;
+        }
+        client.set_report(render_report(scene, settings), elapsed.seconds());
+
         const int64_t now = mono_ms();
+        if (needs_key(client.link_state()) && now >= next_key_check) {
+            next_key_check = now + kKeyCheckIntervalMs;
+            if (auto key = store.import_api_key_file()) {
+                if (import_key(store, settings, std::move(*key))) client.set_key(true, !settings.admin_key.empty());
+            }
+        }
+
+        if (power.online()) {
+            if (const auto req = client.next(mono_ms())) {
+                const Outcome out = execute(url, *req, settings.api_key, settings.admin_key);
+                if (req->kind == Request::Kind::PutIcon && req->use_admin_key && out.status == 401) {
+                    log::warn("Relay rejected the admin key; icons use the API key until reboot");
+                }
+                client.on_outcome(*req, out, mono_ms());
+            }
+        }
+
+        if (client.link_state() != shown_link) {
+            shown_link = client.link_state();
+            log_link_state(shown_link);
+        }
+
         if (now >= next_heap_log) {
             log_heap();
             next_heap_log = now + kHeapLogIntervalMs;

@@ -14,7 +14,7 @@
 namespace drpc {
 namespace {
 
-// The request runs on the main loop; it must stay well below the ~41 s Gateway heartbeat interval.
+// The request blocks the main loop.
 constexpr int64_t kBudgetMs = 8'000;
 
 bool parse_title_id(std::string_view s, uint64_t& out) {
