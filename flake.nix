@@ -17,10 +17,43 @@
       in
       {
         devShells.default = pkgs.mkShell.override { stdenv = pkgs.devkitNix.stdenvA64; } {
-          buildInputs = [ pkgs.cmake pkgs.gnumake pkgs.gcc pkgs.bear pkgs.clang-tools ];
+          buildInputs = [ pkgs.cmake pkgs.gnumake pkgs.gcc pkgs.bear pkgs.clang-tools pkgs.pkg-config ];
           shellHook = ''
             export PATH="$DEVKITPRO/devkitA64/bin:$PATH"
           '';
         };
+
+        devShells.desktop =
+          let
+            runtimeLibs = [
+              pkgs.libGL
+              pkgs.libxkbcommon
+              pkgs.wayland
+              pkgs.libx11
+              pkgs.libxcursor
+              pkgs.libxext
+              pkgs.libxi
+              pkgs.libxinerama
+              pkgs.libxrandr
+            ];
+          in
+          pkgs.mkShell {
+            nativeBuildInputs = [
+              pkgs.cmake
+              pkgs.gnumake
+              pkgs.pkg-config
+              pkgs.wayland-scanner
+              pkgs.xvfb-run
+            ];
+            buildInputs = runtimeLibs ++ [
+              pkgs.dbus
+              pkgs.wayland-protocols
+              pkgs.libxrender
+              pkgs.xorgproto
+            ];
+            shellHook = ''
+              export LD_LIBRARY_PATH="${pkgs.lib.makeLibraryPath runtimeLibs}''${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+            '';
+          };
       });
 }
