@@ -29,7 +29,8 @@ receives and keeps.
 
 1. Download `nx-discord-rpc-X.Y.Z.zip` from the
    [Releases](https://github.com/0xsharkboy/nx-discord-rpc/releases) page.
-2. Extract it at the root of the SD card. It holds two folders, `atmosphere` and `switch`, and puts
+2. Extract it at the root of the SD card. It holds two folders, `atmosphere` and `switch`, plus
+   `THIRD_PARTY_NOTICES.md` (licenses, safe to delete), and puts
    the sysmodule, the app (`switch/nx-discord-rpc/nx-discord-rpc.nro`) and the overlay
    (`switch/.overlays/nx-discord-rpc.ovl`) in place.
 3. Reboot the console so the sysmodule starts.
@@ -83,14 +84,15 @@ in private mode or on the HOME Menu.
 
 ## Privacy
 
-- **What the relay receives:** your Discord link (to show the presence on your account), the name of
-  the game you are playing, the elapsed time and the game's icon.
+- **What the relay receives:** your Discord link (to show the presence on your account), the name and
+  title id of the game you are playing, the details line, the elapsed time and the game's icon.
 - **What it keeps:** no play history. The current game is held in memory only, to send it to
   Discord. Your Discord OAuth tokens are encrypted at rest. The
   [how it works](https://github.com/0xsharkboy/nx-discord-rpc-relay/blob/main/docs/how-it-works.md)
   page lists everything else the relay stores, such as your Discord user id and username, and icon
   votes for about 30 days.
-- **Unlinking:** choose Unlink in the Account tab. You can also revoke "NX RPC" in Discord, under
+- **Unlinking:** choose Unlink in the Account tab. Revoking NX RPC in Discord stops the presence;
+  Unlink in the app also deletes your data on the relay. You can revoke it in Discord, under
   User Settings > Authorized Apps.
 - **Who runs it:** the relay is operated by the author of this project. Its code is public at
   [nx-discord-rpc-relay](https://github.com/0xsharkboy/nx-discord-rpc-relay), and you can run your own:
@@ -125,7 +127,22 @@ Everything comes from the Nix flake.
 
 The README screenshots come from `nix develop .#desktop -c make screenshots`. Before trusting a
 build on a console, run the [hardware checklist](docs/hardware-checklist.md). The wire protocol is
-described in [docs/protocol.md](docs/protocol.md).
+described in [docs/protocol.md](docs/protocol.md), a copy of
+[nx-discord-rpc-relay/docs/protocol.md](https://github.com/0xsharkboy/nx-discord-rpc-relay/blob/main/docs/protocol.md).
+
+## Third-party code
+
+The binaries include the following. Full license texts and notices are in
+[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md), which is also at the root of the release zip.
+
+- [Borealis](https://github.com/xfangfang/borealis) (xfangfang fork), Apache-2.0, in the app. Its
+  NOTICE credits the borealis contributors. It bundles Yoga, tweeny, {fmt}, libromfs and libpulsar
+  (MIT), nanovg (zlib) and Material icons (Apache-2.0), all covered in the notices file.
+- [libtesla](https://github.com/WerWolv/libtesla), GPL-2.0-or-later, in the overlay.
+- [Nayuki QR Code generator](https://github.com/nayuki/QR-Code-generator), MIT
+  (`app/lib/qrcodegen/LICENSE`), in the app.
+- [libnx](https://github.com/switchbrew/libnx), ISC, in the sysmodule, app and overlay.
+- [deko3d](https://github.com/devkitPro/deko3d), zlib, linked by the app (`USE_DEKO3D=ON`).
 
 ## License
 
