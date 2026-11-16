@@ -1,0 +1,33 @@
+#pragma once
+
+#include <cstddef>
+#include <cstdint>
+#include <optional>
+#include <string>
+#include <string_view>
+
+#include "core/settings.hpp"
+
+namespace drpc {
+
+enum class Scene { HomeMenu, Game };
+
+struct SceneInput {
+    Scene scene = Scene::HomeMenu;
+    uint64_t title_id = 0;
+    std::string game_name;
+    std::string firmware;
+};
+
+struct Report {
+    std::string name, details;
+    std::optional<std::string> title_id;
+    bool show_elapsed = false;
+    bool operator==(const Report&) const = default;
+};
+
+std::optional<Report> render_report(const SceneInput& in, const Settings& settings);
+std::string report_json(const Report& report, std::optional<int64_t> elapsed_s);
+std::string truncate_utf8(std::string_view s, size_t max_bytes);
+
+}  // namespace drpc

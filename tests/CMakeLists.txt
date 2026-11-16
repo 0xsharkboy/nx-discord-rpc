@@ -23,11 +23,13 @@ add_executable(nxdrpc_tests
   http_test.cpp
   relay_url_test.cpp
   power_state_test.cpp
+  report_test.cpp
   ../sysmodule/source/core/json_writer.cpp
   ../sysmodule/source/core/settings.cpp
   ../sysmodule/source/core/title_name.cpp
   ../sysmodule/source/core/http.cpp
   ../sysmodule/source/core/relay_url.cpp
+  ../sysmodule/source/core/report.cpp
 )
 target_compile_options(nxdrpc_tests PRIVATE -Wall -Wextra)
 target_link_libraries(nxdrpc_tests PRIVATE doctest::doctest)
