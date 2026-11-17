@@ -35,3 +35,11 @@ Run on the console before trusting a build. Tick each box only when the expected
 31. [ ] Settings tab: turn Start at boot off, then reboot and open the app. Expected: `boot2.flag` is gone from `atmosphere/contents/4200000000D15C0D/flags/` and the app shows the not-running screen with a Start now button.
 32. [ ] Press Start now. Expected: within a few seconds the app opens normally on the Status tab; Start at boot is still off in Settings.
 33. [ ] Turn Start at boot on, then reboot. Expected: `boot2.flag` is back, the sysmodule runs and the app opens normally.
+34. [ ] With Show paused games on, play a game, press HOME, and wait for Discord. Expected: the details read "Paused · HOME Menu". Repeat from the eShop and the Album (details "Paused · Nintendo eShop", "Paused · Album"), and the User page ("Paused · User page"). Note whether Discord hides or keeps its timer while paused (the console sends no elapsed time then): ______.
+35. [ ] Return to the game. Expected: the details return to normal and the elapsed time resumes. Open the on-screen keyboard in a game. Expected: it still shows as playing.
+36. [ ] Turn Show paused games off, then press HOME in a game. Expected: the game keeps showing as playing.
+37. [ ] Turn Show docked or handheld on, then dock and undock the console. Expected: the details end with "Docked" or "Handheld" within a few seconds.
+38. [ ] Turn Show total playtime on. Expected: the details end with a total (for example "45 min total") that matches the playtime on the console's profile page for the current profile.
+39. [ ] Start a game through a forwarder. Expected: its icon shows on Discord at once.
+40. [ ] Play the same game on a second console. Expected: the image is reused, and the relay log shows no second upload.
+41. [ ] Run a v0.3 console against the new relay. Expected: it still shows icons.

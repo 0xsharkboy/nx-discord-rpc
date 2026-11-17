@@ -11,7 +11,8 @@ Show the game you are playing on your Nintendo Switch as your Discord status.
 ## What it does
 
 NX Discord RPC shows the game being played on your Switch as Discord Rich Presence, with the game
-name, the elapsed time and the game's icon. It has three parts:
+name, the elapsed time and the hash of the game's icon.
+  The icon image is sent only when the relay does not have it yet. It has three parts:
 
 - a sysmodule that runs in the background, starts at boot and reports the running game;
 - an app, started from the Homebrew Menu, that shows the status, edits the settings and links your
@@ -62,8 +63,9 @@ or a broken Discord link, a new `api_key.txt` is needed.
 
 The Settings tab of the app and the overlay edit the same settings. A change applies within about a
 second and is written to `config.ini` after about 2 seconds without further changes. The app has
-Enabled, Private mode, Show firmware version, Show HOME Menu and Debug log. The overlay has the same
-toggles except Debug log, and labels the firmware one "Show firmware". The relay URL cannot be changed
+Enabled, Private mode, Show firmware version, Show HOME Menu, Show paused games, Show docked or
+handheld, Show total playtime and Debug log. The overlay has the same toggles except Debug log, and
+labels them "Show firmware", "Show paused", "Show docked" and "Show playtime". The relay URL cannot be changed
 from either: edit `relay_url` in `config.ini`.
 
 The app also has Start at boot, which is not stored in `config.ini`: it adds or removes the
@@ -82,20 +84,32 @@ while the console is off (SD card in a PC), never on a running console.
 | `private_mode` | `false` | Show "Playing a game" instead of the title |
 | `show_firmware` | `false` | Append the firmware version |
 | `show_home_menu` | `false` | Report the HOME Menu too |
+| `show_paused` | `true` | Show a game as paused while another screen is in front |
+| `show_docked` | `false` | Append Docked or Handheld |
+| `show_playtime` | `false` | Append the total playtime of the current profile on this console |
 | `debug_log` | `false` | Write debug lines to the log |
 | `relay_url` | `https://nx-discord-rpc.0xsharkboy.dev` | The relay's base URL (https only), editable in `config.ini` only. Empty uses the default. An invalid URL disables sending, and the API key never goes to another host |
 | `api_key` | empty | The API key issued by the relay when you link. Written by the sysmodule, not meant to be edited |
-| `admin_key` | empty | Optional relay admin key, used only for icon uploads. Leave it empty |
+| `admin_key` | empty | No longer used. Icons always use the API key. Leave it empty |
 | `username` | empty | The Discord username shown by the app and the overlay. Informational only |
 | `discord_id`, `avatar` | empty | Your Discord user id and avatar hash, used to show your picture. Written by the sysmodule, not meant to be edited |
 
-Title icons are uploaded to the relay automatically, once per title and session. None are uploaded
-in private mode or on the HOME Menu.
+With Show paused games on, a game shows "Paused · HOME Menu", "Paused · Nintendo eShop",
+"Paused · Album" or "Paused · User page" while one of those screens is in front. Other screens a
+game opens, such as the keyboard, still count as playing. While paused, no elapsed time is sent.
+Show docked or handheld adds "Docked" or "Handheld" to the details. Show total playtime adds your
+total playtime in this game on this console, for example "45 min total" or "152 h total". With
+Show HOME Menu on, the HOME Menu shows "on Nintendo Switch".
+
+Title icons are sent automatically. The console sends the icon's hash, and the relay asks for the
+image only if it does not have it yet. None are uploaded in private mode or on the HOME Menu.
 
 ## Privacy
 
 - **What the relay receives:** your Discord link (to show the presence on your account), the name and
   title id of the game you are playing, the details line, the elapsed time and the game's icon.
+- **Icons:** each image is stored once, with no link to you or to a title. The console reads your
+  playtime and sends only the text.
 - **What it keeps:** no play history. The current game is held in memory only, to send it to
   Discord. Your Discord OAuth tokens are encrypted at rest. The
   [how it works](https://github.com/0xsharkboy/nx-discord-rpc-relay/blob/main/docs/how-it-works.md)
@@ -123,6 +137,8 @@ in private mode or on the HOME Menu.
 - If the app says "NX Discord RPC is not running", press Start now and turn Start at boot back on in
   Settings if it is off. If it does not start, check that the sysmodule is installed in
   `atmosphere/contents/4200000000D15C0D` on the SD card, then reboot.
+- Nothing shows on my profile: in Discord, User Settings > Activity Privacy, turn on sharing your
+  activity.
 - If the Status tab says "Relay rejected the key. Link again" or "Discord link broken. Link again",
   go to the Account tab and choose Link with Discord again.
 - If Unlink cannot reach the relay, the app offers Forget locally. It only clears the key on the
