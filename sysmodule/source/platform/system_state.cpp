@@ -32,6 +32,8 @@ std::optional<Focus> query_focus(uint64_t app_program_id) {
 
     s32 total = 0, first = 0, last = 0;
     if (R_FAILED(pdmqryGetAvailablePlayEventRange(&total, &first, &last)) || total <= 0) return std::nullopt;
+    // end_entry_index is taken as inclusive (as switch-discord-activity does). If it is exclusive, the window
+    // holds 63 events and the newest one still comes last, which is all the replay needs.
     const s32 from = last - (kFocusWindow - 1) < first ? first : last - (kFocusWindow - 1);
 
     // About 3.5 KB and 1.5 KB: static, off the small main thread stack.

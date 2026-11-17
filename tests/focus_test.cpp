@@ -54,12 +54,38 @@ TEST_CASE("album_and_user_page_screens") {
     CHECK(p->screen == Screen::UserPage);
 }
 
-TEST_CASE("other_applet_is_paused_unknown") {
+TEST_CASE("other_applet_keeps_game_in_front") {
+    // Software keyboard (0x11) opened by the game: the game is still played.
     const std::vector<FocusEvent> events{app(kGame, true), app(kGame, false), applet(0x11, true)};
     const auto focus = replay_focus(events, kGame);
     REQUIRE(focus);
+    CHECK(focus->app_in_front);
+}
+
+TEST_CASE("game_home_then_swkbd_is_paused_home") {
+    const std::vector<FocusEvent> events{app(kGame, true), app(kGame, false), applet(kAppletHomeMenu, true),
+                                         applet(0x11, true)};
+    const auto focus = replay_focus(events, kGame);
+    REQUIRE(focus);
     CHECK_FALSE(focus->app_in_front);
-    CHECK(focus->screen == Screen::Unknown);
+    CHECK(focus->screen == Screen::HomeMenu);
+}
+
+TEST_CASE("stale_unlisted_applet_does_not_hide_home") {
+    const std::vector<FocusEvent> events{applet(0x0E, true), app(kGame, true), app(kGame, false),
+                                         applet(kAppletHomeMenu, true)};
+    const auto focus = replay_focus(events, kGame);
+    REQUIRE(focus);
+    CHECK_FALSE(focus->app_in_front);
+    CHECK(focus->screen == Screen::HomeMenu);
+}
+
+TEST_CASE("launch_before_in_focus_is_not_paused") {
+    // HOME out of focus, then our Launch (in_focus false) before its InFocus: no flash of Paused.
+    const std::vector<FocusEvent> events{applet(kAppletHomeMenu, true), applet(kAppletHomeMenu, false),
+                                         app(kGame, false)};
+    const auto focus = replay_focus(events, kGame);
+    CHECK((!focus || focus->app_in_front));
 }
 
 TEST_CASE("overlay_applet_is_ignored") {
@@ -90,11 +116,13 @@ TEST_CASE("app_never_seen_is_nullopt") {
 }
 
 TEST_CASE("other_program_ignored") {
-    const std::vector<FocusEvent> events{app(kGame, true), app(kGame, false), app(kOtherGame, true)};
+    // Another application on top does not count as front: the HOME Menu under it decides.
+    const std::vector<FocusEvent> events{app(kGame, true), app(kGame, false), applet(kAppletHomeMenu, true),
+                                         app(kOtherGame, true)};
     const auto focus = replay_focus(events, kGame);
     REQUIRE(focus);
     CHECK_FALSE(focus->app_in_front);
-    CHECK(focus->screen == Screen::Unknown);
+    CHECK(focus->screen == Screen::HomeMenu);
 }
 
 TEST_CASE("stale_foreign_app_under_home_menu") {

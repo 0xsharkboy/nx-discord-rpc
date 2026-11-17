@@ -18,13 +18,15 @@ bool same(const Holder& h, const FocusEvent& e) {
     return h.applet_id == e.applet_id && (e.applet_id != kAppletApplication || h.program_id == e.program_id);
 }
 
-Screen screen_of(uint32_t applet_id) {
+// The screens that pause the game. Any other applet (keyboard, controller, error, web...) is skipped like the
+// overlay: the game opened it, or it is too brief to matter, so the game stays in front.
+std::optional<Screen> paused_screen(uint32_t applet_id) {
     switch (applet_id) {
         case kAppletHomeMenu: return Screen::HomeMenu;
         case kAppletShop: return Screen::Shop;
         case kAppletPhotoViewer: return Screen::Album;
         case kAppletMyPage: return Screen::UserPage;
-        default: return Screen::Unknown;
+        default: return std::nullopt;
     }
 }
 
@@ -38,7 +40,7 @@ std::optional<Focus> replay_focus(std::span<const FocusEvent> events, uint64_t a
     bool app_seen = false;
 
     for (const FocusEvent& e : events) {
-        if (e.applet_id == kAppletOverlay) continue;
+        if (e.applet_id != kAppletApplication && !paused_screen(e.applet_id)) continue;
         if (e.applet_id == kAppletApplication && e.program_id == app_program_id) app_seen = true;
 
         // An applet holds at most one place: the newest event for it decides whether it has focus.
@@ -64,9 +66,10 @@ std::optional<Focus> replay_focus(std::span<const FocusEvent> events, uint64_t a
             if (h.program_id == app_program_id) return Focus{true, Screen::Unknown};
             continue;  // another application's stale entry
         }
-        return Focus{false, screen_of(h.applet_id)};
+        return Focus{false, *paused_screen(h.applet_id)};
     }
-    return Focus{false, Screen::Unknown};
+    // Seen but nothing listed in front (between its launch and its first in-focus event): in front.
+    return Focus{true, Screen::Unknown};
 }
 
 }  // namespace drpc

@@ -41,6 +41,8 @@ constexpr int64_t kKeyCheckIntervalMs = 30'000;
 constexpr int64_t kIpcRetryMs = 5000;
 constexpr int64_t kProfileRefreshMs = 24 * 60 * 60 * 1000;
 constexpr int64_t kPlaytimeRefreshMs = 600'000;
+// A game may open its user after launch: one early re-read replaces the previous profile's playtime.
+constexpr int64_t kPlaytimeFirstRefreshMs = 30'000;
 
 void log_wake(const PowerNet::WakeReport& wake) {
     log::info("Console awake; sleep acknowledged after " + std::to_string(wake.ack_ms) + " ms" +
@@ -459,10 +461,11 @@ void publish(SharedState& shared, const Snapshot& s) {
             }
             if (settings.show_docked) scene.docked = query_docked();
             if (settings.show_playtime) {
-                if (playtime_title != title->title_id || now >= next_playtime_ms) {
+                const bool new_title = playtime_title != title->title_id;
+                if (new_title || now >= next_playtime_ms) {
                     playtime_title = title->title_id;
                     playtime_s = query_playtime_s(title->title_id);
-                    next_playtime_ms = now + kPlaytimeRefreshMs;
+                    next_playtime_ms = now + (new_title ? kPlaytimeFirstRefreshMs : kPlaytimeRefreshMs);
                 }
                 scene.playtime_s = playtime_s;
             }

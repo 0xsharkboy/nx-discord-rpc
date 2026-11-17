@@ -17,6 +17,8 @@ inline constexpr uint32_t kAppletPhotoViewer = 0x15;        // AppletId_LibraryA
 inline constexpr uint32_t kAppletMyPage = 0x1A;             // AppletId_LibraryAppletMyPage
 
 // One applet event from the play event log. in_focus is false for every other kind (out of focus, launch, exit).
+// Only applications and the HOME Menu, eShop, Album and User page applets count; every other applet
+// (overlay, keyboard, controller, error, web...) is ignored, so the game stays in front.
 struct FocusEvent {
     uint32_t applet_id;
     uint64_t program_id;
@@ -29,7 +31,7 @@ struct Focus {
 };
 
 // Replays focus changes (oldest first) to find what is in front of the application app_program_id.
-// nullopt when the events say nothing about focus: none besides the overlay, or none for that application.
+// nullopt when the events say nothing about focus: none for that application in the window.
 std::optional<Focus> replay_focus(std::span<const FocusEvent> events, uint64_t app_program_id);
 
 }  // namespace drpc
