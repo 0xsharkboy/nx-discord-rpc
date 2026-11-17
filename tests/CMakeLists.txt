@@ -41,6 +41,7 @@ add_executable(nxdrpc_tests
   discord_ids_test.cpp
   avatar_cache_test.cpp
   boot_flag_test.cpp
+  focus_test.cpp
   ../sysmodule/source/core/json_writer.cpp
   ../sysmodule/source/core/settings.cpp
   ../sysmodule/source/core/title_name.cpp
@@ -54,6 +55,7 @@ add_executable(nxdrpc_tests
   ../sysmodule/source/core/shared_state.cpp
   ../sysmodule/source/core/ipc_dispatch.cpp
   ../sysmodule/source/core/settings_saver.cpp
+  ../sysmodule/source/core/focus.cpp
   ../common/source/client_fake.cpp
   ../common/source/shared/discord_ids.cpp
   ../common/source/shared/net_log.cpp

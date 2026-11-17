@@ -14,7 +14,7 @@
 	"filesystem_access":	{
 		"permissions":	"0xffffffffffffffff"
 	},
-	"service_access":	["sm:", "fsp-srv", "set:sys", "pm:dmnt", "pm:info", "ns:am2", "bsd:u", "sfdnsres", "ssl", "nifm:u", "psc:m", "time:u"],
+	"service_access":	["sm:", "fsp-srv", "set:sys", "pm:dmnt", "pm:info", "ns:am2", "bsd:u", "sfdnsres", "ssl", "nifm:u", "psc:m", "time:u", "pdm:qry", "acc:u1", "apm"],
 	"service_host":	["drpc"],
 	"kernel_capabilities":	[{
 			"type":	"kernel_flags",

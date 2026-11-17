@@ -30,6 +30,7 @@ struct ServiceInit {
 Result init_socket() { return socketInitialize(&kSocketConfig); }
 Result init_ssl() { return sslInitialize(1); }
 Result init_nifm() { return nifmInitialize(NifmServiceType_User); }
+Result init_account() { return accountInitialize(AccountServiceType_System); }
 
 ServiceInit g_services[] = {
     {"time", timeInitialize, timeExit, false},
@@ -41,12 +42,31 @@ ServiceInit g_services[] = {
     {"nifm", init_nifm, nifmExit, false},
 };
 
+// Optional, in OptionalService order: a failure only disables focus, docked or playtime detection.
+ServiceInit g_optional[] = {
+    {"pdm:qry", pdmqryInitialize, pdmqryExit, false},
+    {"acc:u1", init_account, accountExit, false},
+    {"apm", apmInitialize, apmExit, false},
+};
+static_assert(std::size(g_optional) == static_cast<size_t>(drpc::OptionalService::Count));
+
+drpc::InitFailure g_optional_failures[std::size(g_optional)];
+size_t g_optional_failure_count = 0;
+
 std::optional<drpc::InitFailure> g_failure;
 
 }  // namespace
 
 std::optional<drpc::InitFailure> drpc::init_failure() {
     return g_failure;
+}
+
+bool drpc::service_up(OptionalService service) {
+    return g_optional[static_cast<size_t>(service)].up;
+}
+
+std::span<const drpc::InitFailure> drpc::optional_init_failures() {
+    return {g_optional_failures, g_optional_failure_count};
 }
 
 extern "C" {
@@ -86,9 +106,21 @@ void __appInit(void) {
         }
         s.up = true;
     }
+    for (ServiceInit& s : g_optional) {
+        rc = s.init();
+        if (R_FAILED(rc)) {
+            g_optional_failures[g_optional_failure_count++] = drpc::InitFailure{s.name, rc};
+            continue;
+        }
+        s.up = true;
+    }
 }
 
 void __appExit(void) {
+    for (size_t i = std::size(g_optional); i-- > 0;) {
+        if (g_optional[i].up) g_optional[i].exit();
+        g_optional[i].up = false;
+    }
     for (size_t i = std::size(g_services); i-- > 0;) {
         if (g_services[i].up) g_services[i].exit();
         g_services[i].up = false;

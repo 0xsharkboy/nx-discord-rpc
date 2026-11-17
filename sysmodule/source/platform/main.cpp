@@ -28,6 +28,7 @@
 #include "platform/log.hpp"
 #include "platform/power_net.hpp"
 #include "platform/relay_http.hpp"
+#include "platform/system_state.hpp"
 #include "platform/title_monitor.hpp"
 
 namespace drpc {
@@ -39,6 +40,7 @@ constexpr int64_t kAsleepSliceMs = 100;
 constexpr int64_t kKeyCheckIntervalMs = 30'000;
 constexpr int64_t kIpcRetryMs = 5000;
 constexpr int64_t kProfileRefreshMs = 24 * 60 * 60 * 1000;
+constexpr int64_t kPlaytimeRefreshMs = 600'000;
 
 void log_wake(const PowerNet::WakeReport& wake) {
     log::info("Console awake; sleep acknowledged after " + std::to_string(wake.ack_ms) + " ms" +
@@ -366,6 +368,10 @@ void publish(SharedState& shared, const Snapshot& s) {
     int64_t next_heap_log = 0;
     int64_t next_key_check = mono_ms() + kKeyCheckIntervalMs;
     int64_t next_profile_ms = mono_ms() + kProfileRefreshMs;
+    bool focus_warned = false;
+    std::optional<uint64_t> playtime_title;
+    std::optional<uint64_t> playtime_s;
+    int64_t next_playtime_ms = 0;
 
     for (;;) {
         // One short-lived connection per request: none is ever open between ticks.
@@ -434,13 +440,42 @@ void publish(SharedState& shared, const Snapshot& s) {
 
         SceneInput scene;
         scene.firmware = firmware;
+        bool paused = false;
         if (title) {
             scene.scene = Scene::Game;
             scene.title_id = title->title_id;
             scene.game_name = title->name;
+            if (settings.show_paused) {
+                const std::optional<Focus> focus = query_focus(title->title_id);
+                if (!focus && !focus_warned) {
+                    focus_warned = true;
+                    log::warn("Focus unknown from the play log; the open game counts as in front");
+                }
+                if (focus && !focus->app_in_front) {
+                    paused = true;
+                    scene.scene = Scene::Paused;
+                    scene.paused_screen = focus->screen;
+                }
+            }
+            if (settings.show_docked) scene.docked = query_docked();
+            if (settings.show_playtime) {
+                if (playtime_title != title->title_id || now >= next_playtime_ms) {
+                    playtime_title = title->title_id;
+                    playtime_s = query_playtime_s(title->title_id);
+                    next_playtime_ms = now + kPlaytimeRefreshMs;
+                }
+                scene.playtime_s = playtime_s;
+            }
+        }
+        if (!title || !settings.show_playtime) playtime_title.reset();
+        // After the title change restart: a pause never carries over to the next title.
+        if (paused) {
+            elapsed.pause();
+        } else {
+            elapsed.resume();
         }
         const std::optional<Report> report = render_report(scene, settings);
-        client.set_report(report, elapsed.seconds());
+        client.set_report(report, paused ? std::nullopt : std::optional<int64_t>{elapsed.seconds()});
 
         if (needs_key(client.link_state()) && now >= next_key_check) {
             next_key_check = now + kKeyCheckIntervalMs;
@@ -517,6 +552,11 @@ int main(int, char**) {
         std::snprintf(buf, sizeof buf, "Service %s failed to start: 0x%x; exiting", failure->service, failure->rc);
         drpc::log::error(buf);
         return 0;
+    }
+    for (const drpc::InitFailure& failure : drpc::optional_init_failures()) {
+        char buf[112];
+        std::snprintf(buf, sizeof buf, "Service %s failed to start: 0x%x; its details stay hidden", failure.service, failure.rc);
+        drpc::log::warn(buf);
     }
     drpc::run();
 }
