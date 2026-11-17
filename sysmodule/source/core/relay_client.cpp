@@ -1,9 +1,11 @@
 #include "core/relay_client.hpp"
 
 #include <algorithm>
+#include <iterator>
 #include <utility>
 
 #include "core/http.hpp"
+#include "core/json_extract.hpp"
 
 namespace drpc {
 
@@ -13,12 +15,28 @@ constexpr int64_t kHeartbeatMs = 60000;
 constexpr int64_t kRelayTimeoutMs = 150000;
 constexpr int64_t kBackoffMaxMs = 300000;
 constexpr int64_t kRetryAfterMaxS = 3600;
-constexpr int kIconMaxAttempts = 3;
+constexpr int kIconMaxRateLimited = 3;
+// After an upload success, a need_icon is honoured again only after this long.
+constexpr int64_t kIconReuploadMs = 600000;
+// Upload retries after a network error or a 5xx; the last one repeats.
+constexpr int64_t kIconRetryMs[] = {60000, 300000, 900000};
+constexpr int kIconRetrySteps = int(std::size(kIconRetryMs));
 
 bool is_retryable(int status) { return status == 0 || is_transient_http_status(status); }
 bool is_success(int status) { return status >= 200 && status < 300; }
 
 }  // namespace
+
+std::optional<bool> parse_need_icon(std::string_view body) {
+    json::Extractor e({"need_icon"}, 8);
+    e.feed(body);
+    if (!e.finish()) return std::nullopt;
+    const json::Capture* c = e.find("need_icon");
+    if (!c || c->is_string) return std::nullopt;
+    if (c->value == "true") return true;
+    if (c->value == "false") return false;
+    return std::nullopt;
+}
 
 void RelayClient::Backoff::fail(const Outcome& out, int64_t now_ms) {
     int64_t window_ms = delay_ms;
@@ -29,8 +47,7 @@ void RelayClient::Backoff::fail(const Outcome& out, int64_t now_ms) {
     delay_ms = std::min(delay_ms * 2, kBackoffMaxMs);
 }
 
-void RelayClient::set_key(bool has_api_key, bool has_admin_key) {
-    has_admin_key_ = has_admin_key;
+void RelayClient::set_key(bool has_api_key) {
     if (!has_api_key) {
         link_ = LinkState::NoKey;
         return;
@@ -64,19 +81,20 @@ std::optional<Request> RelayClient::next(int64_t now_ms) {
                    now_ms - *heartbeat_from_ms_ >= kHeartbeatMs;
         if (due) {
             sent_ = desired_;
-            return Request{Request::Kind::PutPresence, report_json(*desired_, elapsed_s_), {}, false};
+            return Request{Request::Kind::PutPresence, report_json(*desired_, elapsed_s_), {}};
         }
     } else if (shown_) {
         if (last_put_204_ms_ && now_ms - *last_put_204_ms_ >= kRelayTimeoutMs) {
             forget_shown();
         } else {
-            return Request{Request::Kind::DeletePresence, {}, {}, false};
+            return Request{Request::Kind::DeletePresence, {}, {}};
         }
     }
 
-    if (!icon_queue_.empty() && !icon_backoff_.open(now_ms)) {
-        return Request{Request::Kind::PutIcon, {}, icon_queue_.front(),
-                       has_admin_key_ && !admin_key_dropped_};
+    if (icon_backoff_.open(now_ms)) return std::nullopt;
+    // The first queued title out of its retry window: one failing title does not hold back the others.
+    for (const std::string& title_id : icon_queue_) {
+        if (now_ms >= icons_[title_id].retry_ms) return Request{Request::Kind::PutIcon, {}, title_id};
     }
     return std::nullopt;
 }
@@ -116,9 +134,31 @@ void RelayClient::on_presence_outcome(const Outcome& out, int64_t now_ms) {
 
     last_put_204_ms_ = now_ms;
     shown_ = true;
-    if (sent_ && sent_->title_id && icon_seen_.insert(*sent_->title_id).second) {
-        icon_queue_.push_back(*sent_->title_id);
+    if (!sent_ || !sent_->title_id) return;
+    const std::string& title_id = *sent_->title_id;
+    if (out.need_icon) {
+        if (*out.need_icon) on_need_icon(title_id, now_ms);
+    } else if (out.status == 204 && sent_->icon && icon_seen_.insert(title_id).second) {
+        // A relay older than v0.4.0 ignores the hash: one upload per title per session.
+        if (!icons_[title_id].stopped) queue_icon(title_id);
     }
+}
+
+void RelayClient::on_need_icon(const std::string& title_id, int64_t now_ms) {
+    const TitleIcon& icon = icons_[title_id];
+    if (icon.stopped) return;
+    if (icon.uploaded_ms && now_ms - *icon.uploaded_ms < kIconReuploadMs) return;
+    queue_icon(title_id);
+}
+
+void RelayClient::queue_icon(const std::string& title_id) {
+    if (std::find(icon_queue_.begin(), icon_queue_.end(), title_id) == icon_queue_.end()) {
+        icon_queue_.push_back(title_id);
+    }
+}
+
+void RelayClient::unqueue_icon(const std::string& title_id) {
+    icon_queue_.erase(std::remove(icon_queue_.begin(), icon_queue_.end(), title_id), icon_queue_.end());
 }
 
 void RelayClient::on_delete_outcome(const Outcome& out, int64_t now_ms) {
@@ -137,34 +177,44 @@ void RelayClient::on_delete_outcome(const Outcome& out, int64_t now_ms) {
 }
 
 void RelayClient::on_icon_outcome(const Request& req, const Outcome& out, int64_t now_ms) {
-    if (icon_queue_.empty() || icon_queue_.front() != req.title_id) return;
+    if (std::find(icon_queue_.begin(), icon_queue_.end(), req.title_id) == icon_queue_.end()) return;
     if (out.status == 401) {
-        if (req.use_admin_key) {
-            admin_key_dropped_ = true;
-        } else {
-            link_ = LinkState::Unauthorized;
+        link_ = LinkState::Unauthorized;
+        return;
+    }
+    if (out.status == 429) {
+        icon_backoff_.fail(out, now_ms);
+        if (++icon_attempts_ >= kIconMaxRateLimited) {
+            icon_attempts_ = 0;
+            unqueue_icon(req.title_id);
         }
         return;
     }
+    icon_attempts_ = 0;
+    icon_backoff_.reset();
+
+    TitleIcon& icon = icons_[req.title_id];
     if (is_retryable(out.status)) {
-        icon_backoff_.fail(out, now_ms);
-        if (++icon_attempts_ >= kIconMaxAttempts) pop_icon();
+        // Network error or 5xx (503 storage_full included): the title stays queued until its window ends.
+        icon.retry_ms = now_ms + kIconRetryMs[std::min(icon.failures, kIconRetrySteps - 1)];
+        ++icon.failures;
         return;
     }
-    // 409 included: link_broken accounts can still vote for icons.
-    icon_backoff_.reset();
-    pop_icon();
+    if (is_success(out.status)) {
+        icon.uploaded_ms = now_ms;
+        icon.failures = 0;
+        icon.retry_ms = 0;
+    } else {
+        // 400 invalid_icon or blocked, 413 too_large, -1 no icon on the console, or any other final answer.
+        icon.stopped = true;
+    }
+    unqueue_icon(req.title_id);
 }
 
 void RelayClient::forget_shown() {
     shown_ = false;
     acked_.reset();
     heartbeat_from_ms_.reset();
-}
-
-void RelayClient::pop_icon() {
-    icon_queue_.pop_front();
-    icon_attempts_ = 0;
 }
 
 }  // namespace drpc

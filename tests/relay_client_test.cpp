@@ -4,17 +4,21 @@
 
 #include <optional>
 #include <string>
+#include <vector>
 
 using namespace drpc;
 using Kind = Request::Kind;
 
 namespace {
 
+constexpr const char* kHash = "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08";
+
 Report game(const char* name = "Zelda", const char* title_id = "0100A0D02127E000") {
     Report r;
     r.name = name;
     r.details = "Playing";
     r.title_id = std::string{title_id};
+    r.icon = std::string{kHash};
     return r;
 }
 
@@ -25,14 +29,34 @@ Report home() {
     return r;
 }
 
-RelayClient keyed(bool admin = false) {
+RelayClient keyed() {
     RelayClient c;
-    c.set_key(true, admin);
+    c.set_key(true);
     return c;
 }
 
 Outcome status(int s, std::optional<int> retry_after_s = std::nullopt) {
-    return Outcome{s, retry_after_s};
+    Outcome out;
+    out.status = s;
+    out.retry_after_s = retry_after_s;
+    return out;
+}
+
+// A 200 presence answer from a relay that reads the icon hash.
+Outcome need(bool need_icon) {
+    Outcome out;
+    out.status = 200;
+    out.need_icon = need_icon;
+    return out;
+}
+
+// A heartbeat PUT at `t` answered with `out`, then whatever comes next at t + 1.
+std::optional<Request> heartbeat(RelayClient& c, int64_t t, const Outcome& out) {
+    auto req = c.next(t);
+    REQUIRE(req);
+    REQUIRE(req->kind == Kind::PutPresence);
+    c.on_outcome(*req, out, t);
+    return c.next(t + 1);
 }
 
 // Sends whatever is due at `now` and answers it with `out`; returns the request.
@@ -245,7 +269,7 @@ TEST_CASE("401 on PUT: Unauthorized until a new key") {
     c.set_report(game(), std::nullopt);
     CHECK_FALSE(first_due(c, 200000, 400000));
 
-    c.set_key(true, false);
+    c.set_key(true);
     CHECK(c.link_state() == LinkState::Ok);
     auto put = c.next(400001);
     REQUIRE(put);
@@ -259,7 +283,7 @@ TEST_CASE("a new key resends the same report at once and clears the backoff") {
     answer(c, 0, status(204));
     answer(c, 60000, status(503));
     answer(c, 65000, status(401));
-    c.set_key(true, false);
+    c.set_key(true);
     auto put = c.next(65001);
     REQUIRE(put);
     CHECK(put->kind == Kind::PutPresence);
@@ -284,7 +308,7 @@ TEST_CASE("409 on PUT: LinkBroken until a new key") {
     c.set_report(game(), std::nullopt);
     CHECK_FALSE(first_due(c, 200000, 400000));
 
-    c.set_key(true, false);
+    c.set_key(true);
     CHECK(c.link_state() == LinkState::Ok);
     auto put = c.next(400001);
     REQUIRE(put);
@@ -294,7 +318,7 @@ TEST_CASE("409 on PUT: LinkBroken until a new key") {
 TEST_CASE("set_key without an API key: NoKey") {
     auto c = keyed();
     c.set_report(home(), std::nullopt);
-    c.set_key(false, true);
+    c.set_key(false);
     CHECK(c.link_state() == LinkState::NoKey);
     CHECK_FALSE(first_due(c, 0, 400000));
 }
@@ -313,32 +337,160 @@ TEST_CASE("400 on PUT: the same report is not resent, the heartbeat goes on") {
     CHECK(put->body == report_json(game(), std::nullopt));
 }
 
-TEST_CASE("icons: one PutIcon after a 204 PUT for a title, never again after 202") {
+// Runs the client from `from` to `to` in `step` ms steps, answering presence PUTs with `presence` and icon
+// uploads with `icon`; returns the instants of the icon uploads.
+std::vector<int64_t> icon_uploads(RelayClient& c, int64_t from, int64_t to, const Outcome& presence, const Outcome& icon,
+                                  int64_t step = 1000) {
+    std::vector<int64_t> at;
+    for (int64_t t = from; t <= to; t += step) {
+        for (int i = 0; i < 4; ++i) {
+            auto req = c.next(t);
+            if (!req) break;
+            if (req->kind == Kind::PutIcon) at.push_back(t);
+            c.on_outcome(*req, req->kind == Kind::PutIcon ? icon : presence, t);
+        }
+    }
+    return at;
+}
+
+TEST_CASE("need_icon_true_queues_upload") {
     auto c = keyed();
     c.set_report(game(), std::nullopt);
-    answer(c, 0, status(204));
-    auto icon = c.next(1);
+    auto icon = heartbeat(c, 0, need(true));
     REQUIRE(icon);
     CHECK(icon->kind == Kind::PutIcon);
     CHECK(icon->title_id == "0100A0D02127E000");
-    CHECK_FALSE(icon->use_admin_key);
-    c.on_outcome(*icon, status(202), 1);
+}
+
+TEST_CASE("need_icon_false_queues_nothing") {
+    auto c = keyed();
+    c.set_report(game(), std::nullopt);
+    CHECK(icon_uploads(c, 0, 700000, need(false), status(200)).empty());
+}
+
+TEST_CASE("icons: a 200 presence answer without need_icon queues nothing") {
+    auto c = keyed();
+    c.set_report(game(), std::nullopt);
+    CHECK(icon_uploads(c, 0, 700000, status(200), status(200)).empty());
+}
+
+TEST_CASE("success_then_need_icon_within_10_min_is_ignored") {
+    auto c = keyed();
+    c.set_report(game(), std::nullopt);
+    CHECK(icon_uploads(c, 0, 599999, need(true), status(200)) == std::vector<int64_t>{0});
+}
+
+TEST_CASE("success_then_need_icon_after_10_min_reuploads") {
+    auto c = keyed();
+    c.set_report(game(), std::nullopt);
+    CHECK(icon_uploads(c, 0, 600000, need(true), status(200)) == std::vector<int64_t>{0, 600000});
+}
+
+TEST_CASE("need_icon_after_503_waits_for_backoff") {
+    auto c = keyed();
+    c.set_report(game(), std::nullopt);
+    // Windows of 60 s, 300 s, 900 s, then 900 s each; a need_icon every heartbeat does not shorten them.
+    CHECK(icon_uploads(c, 0, 2160000, need(true), status(503)) ==
+          std::vector<int64_t>{0, 60000, 360000, 1260000, 2160000});
+    // To the millisecond: nothing between the failure and the end of the first window.
+    auto d = keyed();
+    d.set_report(game(), std::nullopt);
+    CHECK(icon_uploads(d, 0, 60000, need(true), status(503), 1) == std::vector<int64_t>{0, 60000});
+}
+
+TEST_CASE("icons: network errors back off like a 5xx and keep retrying") {
+    auto c = keyed();
+    c.set_report(game(), std::nullopt);
+    CHECK(icon_uploads(c, 0, 1260000, need(true), status(0)) == std::vector<int64_t>{0, 60000, 360000, 1260000});
+}
+
+TEST_CASE("icons: a success after failures resets the backoff") {
+    auto c = keyed();
+    c.set_report(game(), std::nullopt);
+    CHECK(icon_uploads(c, 0, 60000, need(true), status(503)) == std::vector<int64_t>{0, 60000});
+    CHECK(icon_uploads(c, 61000, 360000, need(true), status(200)) == std::vector<int64_t>{360000});
+    CHECK(icon_uploads(c, 361000, 960000, need(true), status(503)) == std::vector<int64_t>{960000});
+    CHECK(icon_uploads(c, 961000, 1020000, need(true), status(503)) == std::vector<int64_t>{1020000});
+}
+
+TEST_CASE("upload_400_stops_title") {
+    for (int s : {400, 413}) {
+        CAPTURE(s);
+        auto c = keyed();
+        c.set_report(game(), std::nullopt);
+        CHECK(icon_uploads(c, 0, 1300000, need(true), status(s)) == std::vector<int64_t>{0});
+        CHECK(c.link_state() == LinkState::Ok);
+
+        c.set_report(game("Mario", "0100000000010000"), std::nullopt);
+        auto other = heartbeat(c, 1300001, need(true));
+        REQUIRE(other);
+        CHECK(other->title_id == "0100000000010000");
+        c.on_outcome(*other, status(200), 1300002);
+
+        c.set_report(game(), std::nullopt);
+        CHECK(icon_uploads(c, 1300003, 2000000, need(true), status(200)).empty());
+    }
+}
+
+TEST_CASE("icons: any other final answer also stops the title") {
+    for (int s : {404, 409, 422, -1}) {
+        CAPTURE(s);
+        auto c = keyed();
+        c.set_report(game(), std::nullopt);
+        CHECK(icon_uploads(c, 0, 700000, need(true), status(s)) == std::vector<int64_t>{0});
+        CHECK(c.link_state() == LinkState::Ok);
+    }
+}
+
+TEST_CASE("icons: a failing title does not hold back another one") {
+    auto c = keyed();
+    c.set_report(game(), std::nullopt);
+    CHECK(answer(c, 0, need(true)).kind == Kind::PutPresence);
+    CHECK(answer(c, 1, status(503)).kind == Kind::PutIcon);
+    c.set_report(game("Mario", "0100000000010000"), std::nullopt);
+    CHECK(answer(c, 2, need(true)).kind == Kind::PutPresence);
+    auto other = c.next(3);
+    REQUIRE(other);
+    CHECK(other->kind == Kind::PutIcon);
+    CHECK(other->title_id == "0100000000010000");
+}
+
+TEST_CASE("204_with_icon_falls_back_to_once_per_session") {
+    auto c = keyed();
+    c.set_report(game(), std::nullopt);
+    auto icon = heartbeat(c, 0, status(204));
+    REQUIRE(icon);
+    CHECK(icon->kind == Kind::PutIcon);
+    CHECK(icon->title_id == "0100A0D02127E000");
+    c.on_outcome(*icon, status(200), 1);
     CHECK_FALSE(c.next(2));
 
-    answer(c, 60000, status(204));
-    CHECK_FALSE(c.next(60001));
+    // Never again for this title, even past 10 minutes or after leaving it.
+    CHECK(icon_uploads(c, 2, 700000, status(204), status(200)).empty());
     c.set_report(home(), std::nullopt);
-    answer(c, 60002, status(204));
+    answer(c, 700001, status(204));
     c.set_report(game(), std::nullopt);
-    answer(c, 60003, status(204));
-    CHECK_FALSE(c.next(60004));
+    CHECK(icon_uploads(c, 700002, 800000, status(204), status(200)).empty());
+}
+
+TEST_CASE("icons: an old relay's failed upload is retried on the backoff") {
+    auto c = keyed();
+    c.set_report(game(), std::nullopt);
+    CHECK(icon_uploads(c, 0, 400000, status(204), status(503)) == std::vector<int64_t>{0, 60000, 360000});
+}
+
+TEST_CASE("icons: a 204 for a report without a hash uploads nothing") {
+    auto c = keyed();
+    Report r = game();
+    r.icon.reset();
+    c.set_report(r, std::nullopt);
+    CHECK(icon_uploads(c, 0, 100000, status(204), status(200)).empty());
 }
 
 TEST_CASE("icons: none for a report without a title id") {
     auto c = keyed();
     c.set_report(home(), std::nullopt);
-    answer(c, 0, status(204));
-    CHECK_FALSE(c.next(1));
+    CHECK(icon_uploads(c, 0, 100000, need(true), status(200)).empty());
 }
 
 TEST_CASE("icons: none on a 4xx PUT") {
@@ -348,85 +500,56 @@ TEST_CASE("icons: none on a 4xx PUT") {
     CHECK_FALSE(c.next(1));
 }
 
-TEST_CASE("icons: done statuses") {
-    for (int s : {200, 202, 400, 404, 409, 413, -1}) {
-        CAPTURE(s);
-        auto c = keyed();
-        c.set_report(game(), std::nullopt);
-        answer(c, 0, status(204));
-        CHECK(answer(c, 1, status(s)).kind == Kind::PutIcon);
-        CHECK(c.link_state() == LinkState::Ok);
-        CHECK_FALSE(first_due(c, 2, 59999));
-    }
-}
-
 TEST_CASE("icons: a presence PUT goes first when both are due") {
     auto c = keyed();
     c.set_report(game(), std::nullopt);
-    answer(c, 0, status(204));
+    answer(c, 0, need(true));
     c.set_report(game("Mario", "0100000000010000"), std::nullopt);
     auto req = c.next(1);
     REQUIRE(req);
     CHECK(req->kind == Kind::PutPresence);
-    c.on_outcome(*req, status(204), 1);
+    c.on_outcome(*req, need(true), 1);
     auto first = c.next(2);
     REQUIRE(first);
     CHECK(first->kind == Kind::PutIcon);
     CHECK(first->title_id == "0100A0D02127E000");
-    c.on_outcome(*first, status(202), 2);
+    c.on_outcome(*first, status(200), 2);
     auto second = c.next(3);
     REQUIRE(second);
     CHECK(second->title_id == "0100000000010000");
 }
 
-TEST_CASE("icons: 503 three times, no fourth attempt") {
-    auto c = keyed();
-    c.set_report(game(), std::nullopt);
-    answer(c, 0, status(204));
-    int attempts = 0;
-    for (int64_t t = 1; t < 59000; t += 500) {
-        auto req = c.next(t);
-        if (!req) continue;
-        REQUIRE(req->kind == Kind::PutIcon);
-        ++attempts;
-        c.on_outcome(*req, status(503), t);
-    }
-    CHECK(attempts == 3);
-    answer(c, 60000, status(204));
-    CHECK_FALSE(first_due(c, 60001, 119999));
-}
-
-TEST_CASE("icons: a failure opens an icon backoff of 5 s, then 10 s") {
-    auto c = keyed();
-    c.set_report(game(), std::nullopt);
-    answer(c, 0, status(204));
-    answer(c, 1, status(0));
-    CHECK_FALSE(c.next(5000));
-    CHECK(answer(c, 5001, status(0)).kind == Kind::PutIcon);
-    CHECK_FALSE(c.next(15000));
-    CHECK(c.next(15001));
-}
-
 TEST_CASE("icons: a 429 with Retry-After 120 does not delay the presence heartbeat") {
     auto c = keyed();
     c.set_report(game(), std::nullopt);
-    answer(c, 0, status(204));
+    answer(c, 0, need(true));
     CHECK(answer(c, 1, status(429, 120)).kind == Kind::PutIcon);
     auto hb = c.next(60000);
     REQUIRE(hb);
     CHECK(hb->kind == Kind::PutPresence);
-    c.on_outcome(*hb, status(204), 60000);
+    c.on_outcome(*hb, need(true), 60000);
     CHECK_FALSE(first_due(c, 60001, 119999, 1));
-    CHECK(answer(c, 120001, status(204)).kind == Kind::PutPresence);
+    CHECK(answer(c, 120001, need(true)).kind == Kind::PutPresence);
     auto icon = c.next(120002);
     REQUIRE(icon);
     CHECK(icon->kind == Kind::PutIcon);
 }
 
+TEST_CASE("icons: a 429 without Retry-After backs off 5 s, then 10 s") {
+    auto c = keyed();
+    c.set_report(game(), std::nullopt);
+    answer(c, 0, need(true));
+    answer(c, 1, status(429));
+    CHECK_FALSE(c.next(5000));
+    CHECK(answer(c, 5001, status(429)).kind == Kind::PutIcon);
+    CHECK_FALSE(c.next(15000));
+    CHECK(c.next(15001));
+}
+
 TEST_CASE("icons: none inside a presence backoff window") {
     auto c = keyed();
     c.set_report(game(), std::nullopt);
-    answer(c, 0, status(204));
+    answer(c, 0, need(true));
     c.set_report(game("Zelda", "0100000000010000"), std::nullopt);
     CHECK(answer(c, 1, status(503)).kind == Kind::PutPresence);
     CHECK_FALSE(first_due(c, 2, 5000, 1));
@@ -435,43 +558,10 @@ TEST_CASE("icons: none inside a presence backoff window") {
     CHECK(put->kind == Kind::PutPresence);
 }
 
-TEST_CASE("icons: a 401 with the admin key drops it and retries the title with the API key") {
-    auto c = keyed(true);
-    c.set_report(game(), std::nullopt);
-    answer(c, 0, status(204));
-    auto icon = answer(c, 1, status(401));
-    CHECK(icon.kind == Kind::PutIcon);
-    CHECK(icon.use_admin_key);
-    CHECK(c.link_state() == LinkState::Ok);
-    auto retry = c.next(2);
-    REQUIRE(retry);
-    CHECK(retry->kind == Kind::PutIcon);
-    CHECK(retry->title_id == "0100A0D02127E000");
-    CHECK_FALSE(retry->use_admin_key);
-    c.on_outcome(*retry, status(202), 2);
-
-    c.set_key(true, true);
-    c.set_report(game("Mario", "0100000000010000"), std::nullopt);
-    answer(c, 3, status(204));
-    auto next_icon = c.next(4);
-    REQUIRE(next_icon);
-    CHECK(next_icon->kind == Kind::PutIcon);
-    CHECK_FALSE(next_icon->use_admin_key);
-}
-
-TEST_CASE("icons: the admin key is used while it works") {
-    auto c = keyed(true);
-    c.set_report(game(), std::nullopt);
-    answer(c, 0, status(204));
-    auto icon = c.next(1);
-    REQUIRE(icon);
-    CHECK(icon->use_admin_key);
-}
-
-TEST_CASE("icons: a 401 with the API key is Unauthorized") {
+TEST_CASE("icons: a 401 on an upload is Unauthorized") {
     auto c = keyed();
     c.set_report(game(), std::nullopt);
-    answer(c, 0, status(204));
+    answer(c, 0, need(true));
     CHECK(answer(c, 1, status(401)).kind == Kind::PutIcon);
     CHECK(c.link_state() == LinkState::Unauthorized);
     CHECK_FALSE(first_due(c, 2, 400000));
@@ -480,7 +570,7 @@ TEST_CASE("icons: a 401 with the API key is Unauthorized") {
 TEST_CASE("icons: a 401 on presence stops them") {
     auto c = keyed();
     c.set_report(game(), std::nullopt);
-    answer(c, 0, status(204));
+    answer(c, 0, need(true));
     c.set_report(home(), std::nullopt);
     answer(c, 1, status(401));
     CHECK_FALSE(first_due(c, 2, 400000));
@@ -572,4 +662,16 @@ TEST_CASE("backoff_left_ms: the presence backoff window, nullopt once it closes"
     CHECK_FALSE(c.backoff_left_ms(5000).has_value());
     answer(c, 5000, status(204));
     CHECK_FALSE(c.backoff_left_ms(5000).has_value());
+}
+
+TEST_CASE("parse_need_icon reads a boolean need_icon only") {
+    CHECK(parse_need_icon(R"({"need_icon":true})") == true);
+    CHECK(parse_need_icon(R"({"need_icon": false, "other": 1})") == false);
+    CHECK_FALSE(parse_need_icon(R"({"need_icon":"true"})").has_value());
+    CHECK_FALSE(parse_need_icon(R"({"need_icon":1})").has_value());
+    CHECK_FALSE(parse_need_icon(R"({"need_icon":null})").has_value());
+    CHECK_FALSE(parse_need_icon(R"({"other":true})").has_value());
+    CHECK_FALSE(parse_need_icon(R"({"need_icon":true)").has_value());
+    CHECK_FALSE(parse_need_icon("").has_value());
+    CHECK_FALSE(parse_need_icon(R"({"a":{"need_icon":true}})").has_value());
 }

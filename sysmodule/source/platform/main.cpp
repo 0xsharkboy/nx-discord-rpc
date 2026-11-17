@@ -23,6 +23,7 @@
 #include "platform/clock.hpp"
 #include "platform/config_store.hpp"
 #include "platform/firmware.hpp"
+#include "platform/icon_source.hpp"
 #include "platform/init.hpp"
 #include "platform/ipc_server.hpp"
 #include "platform/log.hpp"
@@ -166,7 +167,7 @@ void clear_key(Store& s, RelayClient& client, int64_t now_ms) {
     s.settings.discord_id.clear();
     s.settings.avatar.clear();
     save_now(s, now_ms);
-    client.set_key(false, !s.settings.admin_key.empty());
+    client.set_key(false);
 }
 
 void apply_link_effect(const LinkEffect& effect, Store& s, RelayClient& client, LinkClient& link, int64_t now_ms) {
@@ -181,7 +182,7 @@ void apply_link_effect(const LinkEffect& effect, Store& s, RelayClient& client, 
             log::set_secrets(s.settings.api_key, s.settings.admin_key);
             log::info("API key imported");
         }
-        client.set_key(true, !s.settings.admin_key.empty());
+        client.set_key(true);
         if (!effect.username || effect.username->empty()) link.request_username();
         save = true;
     }
@@ -347,7 +348,7 @@ void publish(SharedState& shared, const Snapshot& s) {
     static RelayClient client;
     static LinkClient link;
     static SharedState shared;
-    client.set_key(!settings.api_key.empty(), !settings.admin_key.empty());
+    client.set_key(!settings.api_key.empty());
     if (!settings.api_key.empty()) link.request_username();
 
     SettingsSaver saver;
@@ -374,6 +375,9 @@ void publish(SharedState& shared, const Snapshot& s) {
     std::optional<uint64_t> playtime_title;
     std::optional<uint64_t> playtime_s;
     int64_t next_playtime_ms = 0;
+    // Hashed once per title, failures included: the icon is not re-read every tick.
+    std::optional<uint64_t> icon_title;
+    std::optional<std::string> icon_hash;
 
     for (;;) {
         // One short-lived connection per request: none is ever open between ticks.
@@ -477,14 +481,23 @@ void publish(SharedState& shared, const Snapshot& s) {
         } else {
             elapsed.resume();
         }
-        const std::optional<Report> report = render_report(scene, settings);
+        std::optional<Report> report = render_report(scene, settings);
+        // Only a report naming its title (a game, paused or not, outside private mode) carries the icon hash.
+        if (report && report->title_id) {
+            if (icon_title != scene.title_id) {
+                icon_title = scene.title_id;
+                icon_hash = icon_sha256(scene.title_id);
+                if (!icon_hash) log::debug("No icon for title " + *report->title_id);
+            }
+            report->icon = icon_hash;
+        }
         client.set_report(report, paused ? std::nullopt : std::optional<int64_t>{elapsed.seconds()});
 
         if (needs_key(client.link_state()) && now >= next_key_check) {
             next_key_check = now + kKeyCheckIntervalMs;
             if (auto key = store.import_api_key_file()) {
                 if (import_key(store, settings, std::move(*key))) {
-                    client.set_key(true, !settings.admin_key.empty());
+                    client.set_key(true);
                     link.request_username();
                 }
             }
@@ -512,13 +525,8 @@ void publish(SharedState& shared, const Snapshot& s) {
                     apply_link_effect(effect, persist, client, link, mono_ms());
                 }
             } else if (const auto req = client.next(mono_ms())) {
-                const Outcome out = execute(*url, *req, settings.api_key, settings.admin_key);
-                if (!power.asleep()) {
-                    if (req->kind == Request::Kind::PutIcon && req->use_admin_key && out.status == 401) {
-                        log::warn("Relay rejected the admin key; icons use the API key until reboot");
-                    }
-                    unexpected.observe(*req, out.status);
-                }
+                const Outcome out = execute(*url, *req, settings.api_key);
+                if (!power.asleep()) unexpected.observe(*req, out.status);
                 client.on_outcome(*req, out, mono_ms());
             }
         } else if (!power.asleep()) {

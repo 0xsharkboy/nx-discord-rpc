@@ -84,6 +84,7 @@ std::string report_json(const Report& report, std::optional<int64_t> elapsed_s) 
         w.key("elapsed_s").value(std::clamp<int64_t>(*elapsed_s, 0, kMaxElapsedSeconds));
     }
     if (report.title_id) w.key("title_id").value(*report.title_id);
+    if (report.icon) w.key("icon").value(*report.icon);
     w.end_object();
     return w.str();
 }

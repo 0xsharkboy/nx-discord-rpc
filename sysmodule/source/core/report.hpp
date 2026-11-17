@@ -26,6 +26,7 @@ struct SceneInput {
 struct Report {
     std::string name, details;
     std::optional<std::string> title_id;
+    std::optional<std::string> icon;  // SHA-256 of the title's icon, lowercase hex; set by the caller
     bool operator==(const Report&) const = default;
 };
 

@@ -284,3 +284,19 @@ TEST_CASE("format_playtime_boundaries") {
     CHECK(format_playtime(3600) == "1 h total");
     CHECK(format_playtime(547200) == "152 h total");
 }
+
+TEST_CASE("report_json_includes_icon_when_set") {
+    auto r = render_report(game(), base());
+    REQUIRE(r);
+    CHECK(report_json(*r, 754).find("\"icon\"") == std::string::npos);
+    r->icon = "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08";
+    CHECK(report_json(*r, 754) ==
+          R"({"name":"Zelda","details":"on Nintendo Switch","elapsed_s":754,"title_id":"0100A0D02127E000",)"
+          R"("icon":"9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08"})");
+}
+
+TEST_CASE("render_report never sets the icon") {
+    auto r = render_report(game(), base());
+    REQUIRE(r);
+    CHECK_FALSE(r->icon);
+}

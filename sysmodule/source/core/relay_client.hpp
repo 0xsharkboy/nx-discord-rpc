@@ -2,9 +2,11 @@
 
 #include <cstdint>
 #include <deque>
+#include <map>
 #include <optional>
 #include <set>
 #include <string>
+#include <string_view>
 
 #include "core/report.hpp"
 
@@ -12,16 +14,19 @@ namespace drpc {
 
 struct Request {
     enum class Kind { PutPresence, DeletePresence, PutIcon } kind;
-    std::string body;            // PutPresence only
-    std::string title_id;        // PutIcon only
-    bool use_admin_key = false;  // PutIcon only
+    std::string body;      // PutPresence only
+    std::string title_id;  // PutIcon only
 };
 
 // status 0: network error; -1: icon unavailable locally.
 struct Outcome {
     int status = 0;
     std::optional<int> retry_after_s;
+    std::optional<bool> need_icon;  // PutPresence answered 200 with a boolean need_icon
 };
+
+// The boolean need_icon of a 200 PUT /v1/presence answer; nullopt when absent, not a boolean or not JSON.
+std::optional<bool> parse_need_icon(std::string_view body);
 
 enum class LinkState { NoKey, Ok, Unauthorized, LinkBroken };
 
@@ -29,7 +34,7 @@ enum class LinkState { NoKey, Ok, Unauthorized, LinkBroken };
 class RelayClient {
 public:
     // A key change: call on boot and on key import only. Resets Unauthorized/LinkBroken.
-    void set_key(bool has_api_key, bool has_admin_key);
+    void set_key(bool has_api_key);
     // Desired state; elapsed is computed by the caller and sent with each PUT.
     void set_report(std::optional<Report> report, std::optional<int64_t> elapsed_s);
     // One request in flight: do not call next() again before on_outcome() for its request.
@@ -50,15 +55,23 @@ private:
         void reset() { *this = Backoff{}; }
     };
 
+    // Icon upload state of one title, kept until reboot.
+    struct TitleIcon {
+        std::optional<int64_t> uploaded_ms;  // last 2xx upload
+        bool stopped = false;                // a final rejection: no more uploads this session
+        int failures = 0;                    // network errors and 5xx since the last success
+        int64_t retry_ms = 0;                // no upload before this instant
+    };
+
     void on_presence_outcome(const Outcome& out, int64_t now_ms);
     void on_delete_outcome(const Outcome& out, int64_t now_ms);
     void on_icon_outcome(const Request& req, const Outcome& out, int64_t now_ms);
+    void on_need_icon(const std::string& title_id, int64_t now_ms);
+    void queue_icon(const std::string& title_id);
+    void unqueue_icon(const std::string& title_id);
     void forget_shown();
-    void pop_icon();
 
     LinkState link_ = LinkState::NoKey;
-    bool has_admin_key_ = false;
-    bool admin_key_dropped_ = false;
 
     std::optional<Report> desired_;
     std::optional<int64_t> elapsed_s_;
@@ -70,10 +83,11 @@ private:
     bool wake_pending_ = false;
     Backoff backoff_;
 
-    std::deque<std::string> icon_queue_;
-    std::set<std::string> icon_seen_;
-    int icon_attempts_ = 0;
-    Backoff icon_backoff_;
+    std::deque<std::string> icon_queue_;  // title ids waiting for an upload, each at most once
+    std::set<std::string> icon_seen_;     // titles uploaded for a relay that ignores hashes
+    std::map<std::string, TitleIcon> icons_;
+    int icon_attempts_ = 0;  // consecutive 429s
+    Backoff icon_backoff_;   // 429 only: the upload rate limit is per account
 };
 
 }  // namespace drpc
