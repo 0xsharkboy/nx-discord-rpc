@@ -7,7 +7,12 @@
     "about": "About"
   },
   "blocking": {
-    "not_running": "NX Discord RPC is not running. Check that it is installed in atmosphere/contents/4200000000D15C0D and reboot.",
+    "not_running": "NX Discord RPC is not running. Start it now, and turn Start at boot back on in Settings if it is off. If it does not start, check that it is installed in atmosphere/contents/4200000000D15C0D and reboot.",
+    "start_now": "Start now",
+    "starting": "Starting…",
+    "start_failed": "Could not start NX Discord RPC (error {}).",
+    "start_unavailable": "Could not start NX Discord RPC.",
+    "start_timeout": "NX Discord RPC did not start within 5 seconds. Reboot the console.",
     "update_sysmodule": "Update the NX Discord RPC sysmodule (protocol {}) to match this app (protocol {}).",
     "update_app": "Update this app (protocol {}) to match the sysmodule (protocol {})."
   },

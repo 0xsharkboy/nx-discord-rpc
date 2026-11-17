@@ -6,6 +6,13 @@
 
 #include "drpc/client.hpp"
 
+namespace brls {
+class Activity;
+class AppletFrame;
+class Button;
+class Label;
+}  // namespace brls
+
 namespace app {
 
 std::string blocking_message(drpc::ConnectError error, uint32_t remote_version);
@@ -19,10 +26,21 @@ public:
     void open();
 
 private:
-    void show_blocking(const std::string& message);
+    void show_blocking(const std::string& message, bool offer_start);
     void show_tabs();
+    brls::AppletFrame* make_tabs();
+    void start_sysmodule();
+    void poll_start(int attempt);
+    void connected();
+    void start_failed(const std::string& message);
 
     std::unique_ptr<drpc::Client> client_;
+    // The not-running screen, while it is shown.
+    brls::Activity* blocking_ = nullptr;
+    brls::Label* message_ = nullptr;
+    brls::Label* start_note_ = nullptr;
+    brls::Button* start_button_ = nullptr;
+    bool starting_ = false;
 };
 
 }  // namespace app
