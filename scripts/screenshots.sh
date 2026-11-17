@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
-# Takes the README screenshots from the desktop build, one 1280x720 PNG per scenario.
+# Renders the app screens from the desktop build, one 1280x720 PNG per scenario, into build/screenshots.
 # Run it in the desktop shell: nix develop .#desktop -c make screenshots
 set -euo pipefail
 
 root=$(cd "$(dirname "$0")/.." && pwd)
 bin=$root/build/app-desktop/nx-discord-rpc
-out=$root/docs/images
+out=$root/build/screenshots
+mkdir -p "$out"
 
 [ -x "$bin" ] || { echo "missing $bin: run 'make app-desktop' first" >&2; exit 1; }
 

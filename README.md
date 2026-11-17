@@ -2,9 +2,11 @@
 
 Show the game you are playing on your Nintendo Switch as your Discord status.
 
-![Status tab of the app](docs/images/status.png)
-
-![Linking your Discord account](docs/images/link.png)
+<p align="center">
+  <img src="docs/images/discord-profile.png" alt="Discord profile showing a Switch game played through NX Discord RPC" height="340">
+  &nbsp;&nbsp;
+  <img src="docs/images/switch/status.jpg" alt="Status tab of the app on a Switch" height="340">
+</p>
 
 ## What it does
 
@@ -42,6 +44,11 @@ receives and keeps.
 3. Scan the QR code with your phone, or open the address shown and enter the code.
 4. Approve the request on Discord.
 
+<p align="center">
+  <img src="docs/images/switch/link.jpg" alt="Linking your Discord account with a QR code" width="49%">
+  <img src="docs/images/switch/account.jpg" alt="Account tab of the app after linking" width="49%">
+</p>
+
 The app then shows your Discord picture, "Linked as" followed by your Discord username, and the game
 you are playing appears on your profile within a few seconds. The Status tab shows what is
 currently shown on Discord and the state of the relay.
@@ -51,8 +58,6 @@ As a fallback, you can link without the app: write the API key issued by the rel
 while it has no working key, saves it to `config.ini`, then deletes the file. After a rejected key
 or a broken Discord link, a new `api_key.txt` is needed.
 
-![Account tab of the app](docs/images/account.png)
-
 ## Settings
 
 The Settings tab of the app and the overlay edit the same settings. A change applies within about a
@@ -61,7 +66,7 @@ Enabled, Private mode, Show firmware version, Show HOME Menu and Debug log. The 
 toggles except Debug log, and labels the firmware one "Show firmware". The relay URL cannot be changed
 from either: edit `relay_url` in `config.ini`.
 
-![Settings tab of the app](docs/images/settings.png)
+![Settings tab of the app](docs/images/switch/settings.jpg)
 
 The file is `sdmc:/config/nx-discord-rpc/config.ini`, one `key = value` per line. The sysmodule
 reads it at boot and rewrites it whenever a setting changes from the app or the overlay, so edit it
@@ -130,7 +135,8 @@ Everything comes from the Nix flake.
     nix develop .#desktop -c make app-desktop
     build/app-desktop/nx-discord-rpc --fake linked-game
 
-The README screenshots come from `nix develop .#desktop -c make screenshots`. Before trusting a
+The README screenshots are captures from a console. `nix develop .#desktop -c make screenshots`
+renders the same screens from the desktop build into `build/screenshots/`. Before trusting a
 build on a console, run the [hardware checklist](docs/hardware-checklist.md). The wire protocol is
 described in [docs/protocol.md](docs/protocol.md), a copy of
 [nx-discord-rpc-relay/docs/protocol.md](https://github.com/0xsharkboy/nx-discord-rpc-relay/blob/main/docs/protocol.md).
