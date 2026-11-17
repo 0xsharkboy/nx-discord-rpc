@@ -85,7 +85,7 @@ while the console is off (SD card in a PC), never on a running console.
 | `show_home_menu` | `false` | Report the HOME Menu too |
 | `show_paused` | `true` | Show a game as paused while another screen is in front |
 | `show_docked` | `false` | Append Docked or Handheld |
-| `show_playtime` | `false` | Append the total playtime of the current profile on this console |
+| `show_playtime` | `false` | Append the total playtime of the game on this console, all profiles together |
 | `debug_log` | `false` | Write debug lines to the log |
 | `relay_url` | `https://nx-discord-rpc.0xsharkboy.dev` | The relay's base URL (https only), editable in `config.ini` only. Empty uses the default. An invalid URL disables sending, and the API key never goes to another host |
 | `api_key` | empty | The API key issued by the relay when you link. Written by the sysmodule, not meant to be edited |
@@ -96,8 +96,9 @@ while the console is off (SD card in a PC), never on a running console.
 With Show paused games on, a game shows "Paused · HOME Menu", "Paused · Nintendo eShop",
 "Paused · Album" or "Paused · User page" while one of those screens is in front. Other screens a
 game opens, such as the keyboard, still count as playing. While paused, no elapsed time is sent.
-Show docked or handheld adds "Docked" or "Handheld" to the details. Show total playtime adds your
-total playtime in this game on this console, for example "45 min total" or "152 h total". With
+Show docked or handheld adds "Docked" or "Handheld" to the details. Show total playtime adds the
+total playtime of this game on this console, all profiles together and counting finished sessions,
+for example "45 min total" or "152 h total". With
 Show HOME Menu on, the HOME Menu itself shows "In the HOME Menu". A game being played shows "on
 Nintendo Switch". In private mode the game name, icon and playtime are hidden, while Docked or
 Handheld still shows if turned on.
@@ -110,8 +111,8 @@ image only if it does not have it yet. None are uploaded in private mode or on t
 - **What the relay receives:** your Discord link (to show the presence on your account), the name and
   title id of the game you are playing, the details line, the elapsed time and the hash of the game's icon.
   The icon image is sent only when the relay does not have it yet.
-- **Icons:** each image is stored once, with no link to you or to a title. The console reads your
-  playtime and sends only the text.
+- **Icons:** each image is stored once, with no link to you or to a title. The console reads the
+  playtime itself and sends only the text.
 - **What it keeps:** no play history. The current game is held in memory only, to send it to
   Discord. Your Discord OAuth tokens are encrypted at rest. The
   [how it works](https://github.com/0xsharkboy/nx-discord-rpc-relay/blob/main/docs/how-it-works.md)

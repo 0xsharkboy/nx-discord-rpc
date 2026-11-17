@@ -39,10 +39,10 @@ Run on the console before trusting a build. Tick each box only when the expected
 35. [ ] Return to the game. Expected: the details return to normal and the elapsed time resumes. Open the on-screen keyboard in a game. Expected: it still shows as playing.
 36. [ ] Turn Show paused games off, then press HOME in a game. Expected: the game keeps showing as playing.
 37. [ ] Turn Show docked or handheld on, then dock and undock the console. Expected: the details end with "Docked" or "Handheld" within a few seconds.
-38. [ ] Turn Show total playtime on. Expected: the details end with a total (for example "45 min total") that matches the playtime on the console's profile page for the current profile.
+38. [ ] Turn Show total playtime on. Expected: the details end with a total (for example "45 min total") that matches the sum of every profile's playtime on this console for that game (sessions are counted once they end).
 39. [ ] Start a game through a forwarder. Expected: its icon shows on Discord at once.
 40. [ ] Play the same game on a second console. Expected: the image is reused, and the relay log shows no second upload.
 41. [ ] Run a v0.3 console against the new relay. Expected: it still shows icons.
 42. [ ] Run a v0.4.0 console against the current production relay (a relay older than v0.4.0, which ignores the icon hash). Expected: the icon still appears on Discord after one upload per title.
-43. [ ] With the sysmodule running (it holds `pdm:qry` and `acc:u1` sessions), open the console's own User page and its Play Activity. Expected: both still open and show the playtime as before.
+43. [ ] With the sysmodule running (it holds a `pdm:qry` session), open the console's own User page and its Play Activity. Expected: both still open and show the playtime as before.
 44. [ ] Run a v0.3 console with `admin_key` set against the new relay. Expected: its icon uploads are stored but no longer attached to its presence, so Discord shows the logo or the legacy title icon. This is expected; leaving `admin_key` empty restores icons.

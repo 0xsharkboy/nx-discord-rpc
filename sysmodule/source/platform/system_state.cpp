@@ -60,12 +60,11 @@ std::optional<bool> query_docked() {
 }
 
 std::optional<uint64_t> query_playtime_s(uint64_t title_id) {
-    if (!service_up(OptionalService::PdmQuery) || !service_up(OptionalService::Account)) return std::nullopt;
-    AccountUid uid{};
-    if (R_FAILED(accountGetLastOpenedUser(&uid)) || !accountUidIsValid(&uid)) return std::nullopt;
+    // All profiles together: pdm only records which profile played once a session ends (checked on hardware), so
+    // the profile playing now cannot be told apart. switch-discord-activity uses the same console-wide query.
+    if (!service_up(OptionalService::PdmQuery)) return std::nullopt;
     PdmPlayStatistics stats{};
-    if (R_FAILED(pdmqryQueryPlayStatisticsByApplicationIdAndUserAccountId(title_id, uid, false, &stats)))
-        return std::nullopt;
+    if (R_FAILED(pdmqryQueryPlayStatisticsByApplicationId(title_id, false, &stats))) return std::nullopt;
     return stats.playtime / 1'000'000'000ULL;
 }
 

@@ -42,8 +42,6 @@ constexpr int64_t kKeyCheckIntervalMs = 30'000;
 constexpr int64_t kIpcRetryMs = 5000;
 constexpr int64_t kProfileRefreshMs = 24 * 60 * 60 * 1000;
 constexpr int64_t kPlaytimeRefreshMs = 600'000;
-// A game may open its user after launch: one early re-read replaces the previous profile's playtime.
-constexpr int64_t kPlaytimeFirstRefreshMs = 30'000;
 // A title whose icon could not be hashed is read again at most this often.
 constexpr int64_t kIconHashRetryMs = 60'000;
 
@@ -471,7 +469,7 @@ void publish(SharedState& shared, const Snapshot& s) {
                 if (new_title || now >= next_playtime_ms) {
                     playtime_title = title->title_id;
                     playtime_s = query_playtime_s(title->title_id);
-                    next_playtime_ms = now + (new_title ? kPlaytimeFirstRefreshMs : kPlaytimeRefreshMs);
+                    next_playtime_ms = now + kPlaytimeRefreshMs;
                 }
                 scene.playtime_s = playtime_s;
             }

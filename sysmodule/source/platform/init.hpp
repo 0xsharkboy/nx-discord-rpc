@@ -16,7 +16,7 @@ struct InitFailure {
 std::optional<InitFailure> init_failure();
 
 // Services the sysmodule runs without; each one only feeds an optional detail.
-enum class OptionalService { PdmQuery, Account, Apm, Count };
+enum class OptionalService { PdmQuery, Apm, Count };
 
 bool service_up(OptionalService service);
 

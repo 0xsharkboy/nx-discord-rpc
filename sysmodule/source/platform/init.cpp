@@ -30,7 +30,6 @@ struct ServiceInit {
 Result init_socket() { return socketInitialize(&kSocketConfig); }
 Result init_ssl() { return sslInitialize(1); }
 Result init_nifm() { return nifmInitialize(NifmServiceType_User); }
-Result init_account() { return accountInitialize(AccountServiceType_System); }
 
 ServiceInit g_services[] = {
     {"time", timeInitialize, timeExit, false},
@@ -45,7 +44,6 @@ ServiceInit g_services[] = {
 // Optional, in OptionalService order: a failure only disables focus, docked or playtime detection.
 ServiceInit g_optional[] = {
     {"pdm:qry", pdmqryInitialize, pdmqryExit, false},
-    {"acc:u1", init_account, accountExit, false},
     {"apm", apmInitialize, apmExit, false},
 };
 static_assert(std::size(g_optional) == static_cast<size_t>(drpc::OptionalService::Count));
