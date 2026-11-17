@@ -66,6 +66,10 @@ Enabled, Private mode, Show firmware version, Show HOME Menu and Debug log. The 
 toggles except Debug log, and labels the firmware one "Show firmware". The relay URL cannot be changed
 from either: edit `relay_url` in `config.ini`.
 
+The app also has Start at boot, which is not stored in `config.ini`: it adds or removes the
+sysmodule's `boot2.flag` for Atmosphère and applies at the next boot. When the sysmodule is not
+running, the app offers Start now, which starts it for the current session only.
+
 ![Settings tab of the app](docs/images/switch/settings.jpg)
 
 The file is `sdmc:/config/nx-discord-rpc/config.ini`, one `key = value` per line. The sysmodule
@@ -116,7 +120,8 @@ in private mode or on the HOME Menu.
 
 - The log is `sdmc:/config/nx-discord-rpc/log.txt`. Keys are masked in it. Turn on Debug log in the
   Settings tab (`debug_log`) for more detail.
-- If the app says "NX Discord RPC is not running", check that the sysmodule is installed in
+- If the app says "NX Discord RPC is not running", press Start now and turn Start at boot back on in
+  Settings if it is off. If it does not start, check that the sysmodule is installed in
   `atmosphere/contents/4200000000D15C0D` on the SD card, then reboot.
 - If the Status tab says "Relay rejected the key. Link again" or "Discord link broken. Link again",
   go to the Account tab and choose Link with Discord again.

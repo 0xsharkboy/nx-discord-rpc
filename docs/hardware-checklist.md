@@ -20,7 +20,7 @@ Run on the console before trusting a build. Tick each box only when the expected
 16. [ ] Open the overlay in game (Tesla Menu or Ultrahand). Expected: it opens and shows the toggles Enabled, Private mode, Show firmware and Show HOME Menu (no Debug log). The presence line shows the middle dot between the game and its details, and ends with an ellipsis when it is too long for the overlay; both render correctly (Tesla font).
 17. [ ] Change a toggle in the app, then look at the overlay, and the reverse. Expected: the other side reflects the change within about 1 s.
 18. [ ] Change settings from the overlay, wait 3 s, reboot. Expected: `config.ini` holds the changes and they are still set after reboot.
-19. [ ] Remove `atmosphere/contents/4200000000D15C0D/flags/boot2.flag`, reboot, open the app, then the overlay. Expected: the app shows at once a blocking screen saying "NX Discord RPC is not running.", offering no other action; the overlay says it too, without hanging or crashing.
+19. [ ] Remove `atmosphere/contents/4200000000D15C0D/flags/boot2.flag`, reboot, open the app, then the overlay. Expected: the app shows at once a blocking screen saying "NX Discord RPC is not running.", whose only action is Start now; the overlay says it too, without hanging or crashing.
 20. [ ] Restore `boot2.flag`, reboot. Expected: the app and overlay work again.
 21. [ ] Presence still behaves as before: a game shows its title with elapsed time; HOME shows nothing unless "Show HOME Menu" is on; private mode shows "Playing a game"; no upload or request happens in private mode or at HOME.
 22. [ ] Sleep on the dock for several minutes, with background wakes. Expected: nothing is sent while asleep; presence resumes after a real wake.
@@ -32,3 +32,6 @@ Run on the console before trusting a build. Tick each box only when the expected
 28. [ ] Unlink from the Account tab. Expected: the picture disappears, and `avatar.png` and `avatar.key` are gone from `sdmc:/config/nx-discord-rpc/`.
 29. [ ] Link an account without a custom avatar. Expected: the Account tab shows Discord's default avatar.
 30. [ ] Change the avatar on Discord. Expected: the new picture shows within about a week (the next token refresh), or right away after unlinking and linking again.
+31. [ ] Settings tab: turn Start at boot off, then reboot and open the app. Expected: `boot2.flag` is gone from `atmosphere/contents/4200000000D15C0D/flags/` and the app shows the not-running screen with a Start now button.
+32. [ ] Press Start now. Expected: within a few seconds the app opens normally on the Status tab; Start at boot is still off in Settings.
+33. [ ] Turn Start at boot on, then reboot. Expected: `boot2.flag` is back, the sysmodule runs and the app opens normally.
