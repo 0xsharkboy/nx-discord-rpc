@@ -70,15 +70,24 @@ void SettingsTab::add_boot_toggle(brls::Box* list) {
         dialog->addButton("app/settings/close"_i18n, [] {});
         dialog->open();
     });
-    list->addView(cell);
+
+    // The hint sits under the title inside the cell, so the cell's separator stays below both.
+    auto* text = new brls::Box(brls::Axis::COLUMN);
+    text->setGrow(1);
+    text->setJustifyContent(brls::JustifyContent::CENTER);
+    brls::Label* title = cell->title;
+    title->setGrow(0);
+    cell->removeView(title, false);
+    text->addView(title);
 
     auto* note = new brls::Label();
     note->setText("app/settings/start_at_boot_hint"_i18n);
-    note->setFontSize(18);
+    note->setFontSize(16);
     note->setTextColor(palette::text_faint());
-    note->setMarginLeft(16);  // under the cell title, past the cell's descriptionIndent padding
-    note->setMarginBottom(8);
-    list->addView(note);
+    text->addView(note);
+
+    cell->addView(text, 0);
+    list->addView(cell);
 }
 
 void SettingsTab::load() {
