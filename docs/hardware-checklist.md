@@ -43,3 +43,6 @@ Run on the console before trusting a build. Tick each box only when the expected
 39. [ ] Start a game through a forwarder. Expected: its icon shows on Discord at once.
 40. [ ] Play the same game on a second console. Expected: the image is reused, and the relay log shows no second upload.
 41. [ ] Run a v0.3 console against the new relay. Expected: it still shows icons.
+42. [ ] Run a v0.4.0 console against the current production relay (a relay older than v0.4.0, which ignores the icon hash). Expected: the icon still appears on Discord after one upload per title.
+43. [ ] With the sysmodule running (it holds `pdm:qry` and `acc:u1` sessions), open the console's own User page and its Play Activity. Expected: both still open and show the playtime as before.
+44. [ ] Run a v0.3 console with `admin_key` set against the new relay. Expected: its icon uploads are stored but no longer attached to its presence, so Discord shows the logo or the legacy title icon. This is expected; leaving `admin_key` empty restores icons.

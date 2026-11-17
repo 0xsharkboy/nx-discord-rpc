@@ -89,7 +89,7 @@ while the console is off (SD card in a PC), never on a running console.
 | `debug_log` | `false` | Write debug lines to the log |
 | `relay_url` | `https://nx-discord-rpc.0xsharkboy.dev` | The relay's base URL (https only), editable in `config.ini` only. Empty uses the default. An invalid URL disables sending, and the API key never goes to another host |
 | `api_key` | empty | The API key issued by the relay when you link. Written by the sysmodule, not meant to be edited |
-| `admin_key` | empty | No longer used. Icons always use the API key. Leave it empty |
+| `admin_key` | empty | No longer used. Icons always use the API key. Leave it empty: a v0.4 relay no longer shows the icons a v0.3 console uploads with it |
 | `username` | empty | The Discord username shown by the app and the overlay. Informational only |
 | `discord_id`, `avatar` | empty | Your Discord user id and avatar hash, used to show your picture. Written by the sysmodule, not meant to be edited |
 
@@ -115,8 +115,9 @@ image only if it does not have it yet. None are uploaded in private mode or on t
 - **What it keeps:** no play history. The current game is held in memory only, to send it to
   Discord. Your Discord OAuth tokens are encrypted at rest. The
   [how it works](https://github.com/0xsharkboy/nx-discord-rpc-relay/blob/main/docs/how-it-works.md)
-  page lists everything else the relay stores, such as your Discord user id and username, and icon
-  votes for about 30 days. It also keeps your avatar id, to tell the app which picture to show.
+  page lists everything else the relay stores, such as your Discord user id and username. It also
+  keeps your avatar id, to tell the app which picture to show. Icon images are stored keyed by
+  their hash, with no link to you or to a title, and deleted after 30 days without use.
 - **Your picture:** the app downloads your Discord picture from `cdn.discordapp.com` without any
   token. The request carries the app's User-Agent (`nx-discord-rpc/<version>`), and Discord sees your
   console's IP address. The picture is cached in `sdmc:/config/nx-discord-rpc/avatar.png` and
