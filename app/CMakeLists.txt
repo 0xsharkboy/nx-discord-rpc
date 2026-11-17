@@ -68,6 +68,8 @@ set(STAGE_COMMANDS
     COMMAND ${CMAKE_COMMAND} -E copy_directory ${BRLS_RES}/img/sys ${ROMFS_DIR}/img/sys
     COMMAND ${CMAKE_COMMAND} -E copy ${BRLS_RES}/i18n/en-US/hints.json ${ROMFS_DIR}/i18n/en-US/hints.json
     COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/resources/i18n ${ROMFS_DIR}/i18n
+    # The Switch reports Canadian French as fr-CA: reuse the fr strings.
+    COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/resources/i18n/fr ${ROMFS_DIR}/i18n/fr-CA
     COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_SOURCE_DIR}/resources/img/console.png ${ROMFS_DIR}/img/console.png
     COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_SOURCE_DIR}/resources/img/console_idle.png ${ROMFS_DIR}/img/console_idle.png
     COMMAND ${CMAKE_COMMAND} -E copy ${APP_ICON} ${ROMFS_DIR}/img/app_icon.jpg)

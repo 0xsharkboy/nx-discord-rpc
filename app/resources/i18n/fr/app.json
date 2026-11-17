@@ -1,0 +1,100 @@
+{
+  "title": "NX Discord RPC",
+  "tabs": {
+    "status": "Statut",
+    "settings": "Réglages",
+    "account": "Compte",
+    "about": "À propos"
+  },
+  "blocking": {
+    "not_running": "NX Discord RPC n'est pas lancé. Le démarrer maintenant, puis réactiver Démarrage au boot dans Réglages s'il est désactivé. S'il ne démarre pas, vérifier qu'il est installé dans atmosphere/contents/4200000000D15C0D et redémarrer la console.",
+    "start_now": "Démarrer",
+    "starting": "Démarrage…",
+    "start_failed": "Impossible de démarrer NX Discord RPC (erreur {}).",
+    "start_unavailable": "Impossible de démarrer NX Discord RPC.",
+    "start_timeout": "NX Discord RPC n'a pas démarré. Redémarrer la console.",
+    "update_sysmodule": "Mettre à jour le sysmodule NX Discord RPC (protocole {}) pour qu'il corresponde à cette appli (protocole {}).",
+    "update_app": "Mettre à jour cette appli (protocole {}) pour qu'elle corresponde au sysmodule (protocole {})."
+  },
+  "status": {
+    "heading": "AFFICHÉ SUR DISCORD",
+    "nothing": "Rien n'est affiché sur Discord pour le moment",
+    "elapsed": "{} écoulé",
+    "footer": {
+      "ok": "Lié en tant que {} · relais OK",
+      "ok_unnamed": "Lié · relais OK",
+      "backoff": "Relais injoignable, nouvel essai dans {} s",
+      "nokey": "Non lié. Ouvrir Compte",
+      "broken": "Lien Discord rompu. Lier à nouveau",
+      "unauthorized": "Clé refusée par le relais. Lier à nouveau",
+      "offline": "Console hors ligne",
+      "nourl": "relay_url est invalide dans config.ini"
+    }
+  },
+  "settings": {
+    "presence": "Présence",
+    "enabled": "Activée",
+    "private_mode": "Mode privé",
+    "show_firmware": "Afficher la version du firmware",
+    "show_home_menu": "Afficher le menu HOME",
+    "show_paused": "Afficher les jeux en pause",
+    "show_docked": "Afficher dock ou portable",
+    "show_playtime": "Afficher le temps de jeu total",
+    "advanced": "Avancé",
+    "debug_log": "Journal de débogage",
+    "start_at_boot": "Démarrage au boot",
+    "start_at_boot_hint": "Pris en compte au prochain démarrage",
+    "start_at_boot_failed": "Impossible de modifier Démarrage au boot. Vérifier que NX Discord RPC est installé dans atmosphere/contents/4200000000D15C0D et que la carte SD n'est pas protégée en écriture.",
+    "close": "Fermer",
+    "relay": "Relais : {}",
+    "relay_unset": "Relais : non défini",
+    "relay_hint": "modifier relay_url dans config.ini"
+  },
+  "account": {
+    "heading": "Compte Discord",
+    "not_linked": "Non lié",
+    "linked": "Lié à Discord",
+    "nokey": "Lier le compte Discord pour afficher les jeux en cours.",
+    "broken": "Lien Discord rompu. Lier à nouveau",
+    "unauthorized": "Clé refusée par le relais. Lier à nouveau",
+    "unlinking": "Déliaison…",
+    "link": "Lier avec Discord",
+    "unlink": "Délier",
+    "unlink_confirm": "Délier le compte Discord ? Rien ne sera affiché sur Discord tant qu'il n'est pas lié à nouveau.",
+    "unlink_failed": "Le relais est injoignable, impossible de délier. Oublier la clé sur cette console uniquement ? Discord conserve l'autorisation jusqu'à sa suppression dans les paramètres de Discord.",
+    "forget": "Oublier localement",
+    "cancel": "Annuler"
+  },
+  "link": {
+    "title": "Lier avec Discord",
+    "starting": "Demande d'un code…",
+    "scan": "Scanner le code avec un téléphone, ou ouvrir",
+    "enter": "et saisir ce code",
+    "expires": "Expire dans {}",
+    "cancel": "Annuler",
+    "retry": "Réessayer",
+    "close": "Fermer",
+    "linked_title": "Lié en tant que {}",
+    "linked_body": "La présence s'affiche maintenant sur Discord.",
+    "denied_title": "Liaison refusée",
+    "denied_body": "La demande a été refusée sur Discord.",
+    "expired_title": "Code expiré",
+    "expired_body": "Le code n'a pas été utilisé à temps.",
+    "failed_title": "Échec de la liaison",
+    "rate_limited_body": "Trop de tentatives, réessayer dans {} min",
+    "rate_limited_ready": "Il est possible de réessayer.",
+    "unreachable_body": "Relais injoignable. Vérifier la connexion de la console.",
+    "interrupted_title": "Liaison interrompue",
+    "interrupted_body": "La liaison s'est arrêtée, par exemple parce que la console est passée en veille.",
+    "other_body": "Une erreur est survenue. Réessayer."
+  },
+  "about": {
+    "tagline": "Discord Rich Presence pour Nintendo Switch",
+    "app_version": "Version de l'appli",
+    "sysmodule_version": "Version du sysmodule",
+    "protocol_version": "Version du protocole",
+    "source": "Code source",
+    "privacy": "Confidentialité",
+    "privacy_body": "Le relais reçoit le lien Discord, le nom du jeu en cours, le temps écoulé et l'icône. Il ne conserve aucun historique de jeu et ne voit jamais le mot de passe Discord."
+  }
+}

@@ -38,6 +38,7 @@ add_executable(nxdrpc_tests
   version_test.cpp
   client_fake_test.cpp
   app_presentation_test.cpp
+  i18n_keys_test.cpp
   discord_ids_test.cpp
   avatar_cache_test.cpp
   boot_flag_test.cpp
@@ -65,6 +66,7 @@ add_executable(nxdrpc_tests
 )
 target_compile_options(nxdrpc_tests PRIVATE -Wall -Wextra)
 target_compile_definitions(nxdrpc_tests PRIVATE
+  NXDRPC_I18N_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../app/resources/i18n"
   NXDRPC_VERSION="${NXDRPC_VERSION}"
   NXDRPC_TEST_VERSION="${NXDRPC_VERSION}")
 target_link_libraries(nxdrpc_tests PRIVATE doctest::doctest)

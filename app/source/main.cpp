@@ -57,7 +57,9 @@ int main(int argc, char* argv[]) {
     const SslSession ssl;
 #endif
 
-    brls::Platform::APP_LOCALE_DEFAULT = brls::LOCALE_EN_US;
+    // The Switch follows the console language; the desktop build reads BOREALIS_LANG (e.g. fr).
+    // Languages without a translation fall back to en-US.
+    brls::Platform::APP_LOCALE_DEFAULT = brls::LOCALE_AUTO;
     if (!brls::Application::init()) {
         brls::Logger::error("Unable to init Borealis application");
         return EXIT_FAILURE;

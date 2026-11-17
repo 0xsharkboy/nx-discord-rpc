@@ -5,7 +5,8 @@ set -euo pipefail
 
 root=$(cd "$(dirname "$0")/.." && pwd)
 bin=$root/build/app-desktop/nx-discord-rpc
-out=$root/build/screenshots
+# SHOTS_OUT picks the output directory; BOREALIS_LANG=fr renders the French strings.
+out=${SHOTS_OUT:-$root/build/screenshots}
 mkdir -p "$out"
 
 [ -x "$bin" ] || { echo "missing $bin: run 'make app-desktop' first" >&2; exit 1; }
