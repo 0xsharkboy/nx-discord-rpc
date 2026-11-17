@@ -59,7 +59,13 @@ jobs:
           printf '\n%s\n' "Source code: this tag (clone with \`git clone --recursive\`)." >> release/NOTES.md
       - uses: softprops/action-gh-release@v2
         with:
+          # The single files are what the in-app updater downloads; their names must not change.
           files: |
             release/*.zip
+            release/exefs.nsp
+            release/toolbox.json
+            release/nx-discord-rpc.nro
+            release/nx-discord-rpc.ovl
             release/SHA256SUMS
+          fail_on_unmatched_files: true
           body_path: release/NOTES.md
