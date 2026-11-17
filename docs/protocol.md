@@ -346,6 +346,9 @@ Protocol version 4 adds the per-title visibility list and two Status fields:
   `uint64 running_title_id` at offset 496 (the running game whatever its visibility, 0 on the
   HOME Menu), so a UI can change the visibility of a game that is hidden.
 
+From v0.5.0, Status `elapsed_s` is -1 when the presence carries no elapsed time: nothing is
+shown, or the game is paused (the PUT then has no `elapsed_s`, so Discord shows no timer).
+
 ## Examples
 
 Link:

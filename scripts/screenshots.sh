@@ -14,6 +14,8 @@ mkdir -p "$out"
 # Keys: Enter is A, the arrows are the D-pad.
 # Xvfb has no GPU, and a hardware driver renders black frames into it.
 export LIBGL_ALWAYS_SOFTWARE=1
+# The desktop build has no title data: every game gets the app icon in the Status preview.
+export NXDRPC_TITLE_ICON_FILE=$root/app/resources/icon.jpg
 # GLFW prefers Wayland when it is available: keep the app on the Xvfb display.
 unset WAYLAND_DISPLAY
 export XDG_SESSION_TYPE=x11
@@ -53,6 +55,13 @@ shoot() {
 
 run() {
     shoot status linked-game
+    shoot status-paused linked-paused
+    shoot status-private linked-private
+    shoot status-idle linked-idle
+    # Status > Test connection: Right reaches the button.
+    shoot diag-ok linked-game Right Return
+    shoot diag-unreachable backoff Right Return
+    shoot diag-broken broken Right Return
     shoot settings linked-game Down
     shoot account linked-game Down Down
     shoot link link-flow Down Down Right Return

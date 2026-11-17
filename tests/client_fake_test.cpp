@@ -1,6 +1,7 @@
 #include <doctest/doctest.h>
 
 #include <cstring>
+#include <string>
 
 #include "drpc/client.hpp"
 
@@ -328,4 +329,35 @@ TEST_CASE("fake hidden-full: the list is full and valid") {
     REQUIRE(c->hidden(l));
     CHECK(l.count == ipc::kMaxHiddenTitles);
     CHECK(ipc::valid_hidden(l));
+}
+
+TEST_CASE("fake preview scenarios: paused, private and idle") {
+    ipc::Status s;
+    auto paused = make_fake_client("linked-paused");
+    REQUIRE(paused);
+    REQUIRE(paused->connect() == ConnectError::None);
+    REQUIRE(paused->status(s));
+    CHECK(s.shown == 1);
+    CHECK(std::string(s.details) == "Paused \xC2\xB7 HOME Menu");
+    CHECK(s.elapsed_s == -1);
+
+    auto priv = make_fake_client("linked-private");
+    REQUIRE(priv);
+    REQUIRE(priv->connect() == ConnectError::None);
+    REQUIRE(priv->status(s));
+    CHECK(std::string(s.name) == "Nintendo Switch");
+    CHECK(s.title_id[0] == '\0');
+    CHECK(s.is_game == 0);
+    CHECK(s.running_title_id == 0x0100000000010000ULL);
+    ipc::HiddenList l;
+    REQUIRE(priv->hidden(l));
+    CHECK(ipc::valid_hidden(l));
+
+    auto idle = make_fake_client("linked-idle");
+    REQUIRE(idle);
+    REQUIRE(idle->connect() == ConnectError::None);
+    REQUIRE(idle->status(s));
+    CHECK(s.shown == 0);
+    CHECK(s.link == ipc::LinkState::Linked);
+    CHECK(s.running_title_id == 0);
 }

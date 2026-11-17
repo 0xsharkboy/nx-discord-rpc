@@ -4,7 +4,8 @@
 
 #include "palette.hpp"
 #include "presentation.hpp"
-#include "views/presence_card.hpp"
+#include "views/connection_test_view.hpp"
+#include "views/preview_card.hpp"
 
 using namespace brls::literals;
 
@@ -55,7 +56,7 @@ NVGcolor tone_color(Tone tone) {
 StatusTab::StatusTab(drpc::Client& client) : brls::Box(brls::Axis::COLUMN), client_(client) {
     setPadding(48, 56, 40, 56);
 
-    card_ = new PresenceCard();
+    card_ = new PreviewCard();
     addView(card_);
 
     auto* footer = new brls::Box(brls::Axis::ROW);
@@ -77,6 +78,17 @@ StatusTab::StatusTab(drpc::Client& client) : brls::Box(brls::Axis::COLUMN), clie
     footer_->setMarginLeft(14);
     footer_->setShrink(1);
     footer->addView(footer_);
+
+    auto* test = new brls::Button();
+    test->setStyle(&brls::BUTTONSTYLE_BORDERED);
+    test->setText("app/status/test"_i18n);
+    test->setWidth(300);
+    test->setMarginTop(28);
+    test->registerClickAction([this](brls::View*) {
+        ConnectionTestView::open(client_);
+        return true;
+    });
+    addView(test);
 
     refresh();
     timer_.setCallback([this] { refresh(); });

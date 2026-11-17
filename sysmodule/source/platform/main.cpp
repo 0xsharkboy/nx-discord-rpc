@@ -285,7 +285,7 @@ struct Snapshot {
     const std::optional<RelayUrl>& url;
     bool online;
     const std::optional<Report>& report;
-    int64_t elapsed_s;
+    std::optional<int64_t> elapsed_s;  // none while paused: the relay gets none either
     const RelayClient& client;
     const LinkClient& link;
     int64_t now_ms;
@@ -308,7 +308,7 @@ void publish(SharedState& shared, const Snapshot& s) {
             st.is_game = 1;
             copy_str(st.title_id, sizeof st.title_id, *s.report->title_id);
         }
-        st.elapsed_s = std::max<int64_t>(s.elapsed_s, 0);
+        if (s.elapsed_s) st.elapsed_s = std::max<int64_t>(*s.elapsed_s, 0);
     }
     st.link = ipc_link_state(s.client.link_state());
     if (!s.url) {
@@ -514,7 +514,11 @@ void publish(SharedState& shared, const Snapshot& s) {
             }
             report->icon = icon_hash;
         }
-        client.set_report(report, paused ? std::nullopt : std::optional<int64_t>{elapsed.seconds()});
+        // Paused: no elapsed time for the relay, so Discord shows no timer, and none for the UIs either.
+        const auto sent_elapsed = [&elapsed, paused] {
+            return paused ? std::nullopt : std::optional<int64_t>{elapsed.seconds()};
+        };
+        client.set_report(report, sent_elapsed());
 
         if (needs_key(client.link_state()) && now >= next_key_check) {
             next_key_check = now + kKeyCheckIntervalMs;
@@ -533,7 +537,7 @@ void publish(SharedState& shared, const Snapshot& s) {
         }
         // Before the request, which can block for 8 s: the UIs see what this tick took.
         publish(shared,
-                Snapshot{settings, url, online, report, elapsed.seconds(), client, link, mono_ms(), running_id});
+                Snapshot{settings, url, online, report, sent_elapsed(), client, link, mono_ms(), running_id});
 
         if (!url) {
             if (const auto lreq = link.next(now)) {
@@ -558,7 +562,7 @@ void publish(SharedState& shared, const Snapshot& s) {
         }
 
         const int64_t after = mono_ms();
-        publish(shared, Snapshot{settings, url, online, report, elapsed.seconds(), client, link, after, running_id});
+        publish(shared, Snapshot{settings, url, online, report, sent_elapsed(), client, link, after, running_id});
         // Sleep began during the request: no log or SD access until the console wakes.
         if (power.asleep()) continue;
 

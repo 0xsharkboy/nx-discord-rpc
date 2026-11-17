@@ -1,5 +1,11 @@
 #include "title_icon.hpp"
 
+#ifndef __SWITCH__
+#include <cstdlib>
+#include <fstream>
+#include <iterator>
+#endif
+
 #ifdef __SWITCH__
 #include <switch.h>
 
@@ -120,9 +126,17 @@ void init() {}
 
 void exit() {}
 
+// Desktop builds have no title data: NXDRPC_TITLE_ICON_FILE names a JPEG shown for every title (screenshots).
 const std::vector<uint8_t>& get(const std::string&) {
-    static const std::vector<uint8_t> kNone;
-    return kNone;
+    static const std::vector<uint8_t> kIcon = [] {
+        std::vector<uint8_t> jpeg;
+        const char* file = std::getenv("NXDRPC_TITLE_ICON_FILE");
+        if (!file || !*file) return jpeg;
+        std::ifstream in(file, std::ios::binary);
+        jpeg.assign(std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>());
+        return jpeg;
+    }();
+    return kIcon;
 }
 
 bool read_control(uint64_t, Control&) { return false; }

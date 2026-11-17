@@ -29,6 +29,46 @@
       "unauthorized": "Relay rejected the key. Link again",
       "offline": "Console is offline",
       "nourl": "relay_url in config.ini is invalid"
+    },
+    "test": "Test connection"
+  },
+  "diag": {
+    "title": "Connection test",
+    "intro": "Checks each link between this console and Discord, in order.",
+    "again": "Test again",
+    "status_page": "Relay status page:",
+    "status_page_hint": "Scan to see whether the relay is down for everyone.",
+    "privacy_tip": "If your friends still see nothing, open Discord, User Settings > Activity Privacy, and turn on sharing your activity.",
+    "step": {
+      "network": "Internet connection",
+      "relay": "Relay reachable",
+      "key": "API key accepted",
+      "link": "Discord link",
+      "presence": "Presence on Discord"
+    },
+    "reason": {
+      "checking": "Checking…",
+      "not_checked": "Not checked",
+      "network_ok": "Connected",
+      "no_network": "The console is not connected to the internet",
+      "relay_ok": "The relay answered",
+      "no_url": "relay_url in config.ini is invalid",
+      "relay_unreachable": "No answer. The relay may be down, or this network blocks it",
+      "relay_http": "The relay answered with error {}",
+      "relay_wrong_answer": "Something else answered. Check relay_url, or sign in to this network",
+      "key_ok": "Accepted",
+      "no_key": "No key yet. Link your account in Account",
+      "key_rejected": "The relay rejected the key. Link again in Account",
+      "link_ok": "Linked",
+      "link_broken": "Discord no longer accepts this link. Link again in Account",
+      "presence_shown": "Shown",
+      "nothing_to_show": "Nothing to show right now",
+      "not_sent_yet": "Not sent yet, it goes out in a few seconds",
+      "not_delivered": "The last update did not reach the relay. Retrying",
+      "retrying": "The last update failed. Retrying in {} s",
+      "rate_limited": "Too many updates. Retrying shortly",
+      "relay_error": "The relay failed the last update (error {}). Retrying",
+      "refused": "The relay refused the last update (error {})"
     }
   },
   "settings": {

@@ -1,4 +1,4 @@
-#include "views/presence_card.hpp"
+#include "views/preview_card.hpp"
 
 #include "palette.hpp"
 #include "presentation.hpp"
@@ -12,6 +12,7 @@ namespace app {
 namespace {
 
 constexpr float kIconSide = 144;
+const std::vector<uint8_t> kNoIcon;
 
 brls::Image* make_icon() {
     auto* image = new brls::Image();
@@ -32,7 +33,7 @@ brls::Label* make_line(float size, NVGcolor color) {
 
 }  // namespace
 
-PresenceCard::PresenceCard() : brls::Box(brls::Axis::COLUMN) {
+PreviewCard::PreviewCard() : brls::Box(brls::Axis::COLUMN) {
     setBackgroundColor(palette::card());
     setCornerRadius(16);
     setPadding(28, 32, 32, 32);
@@ -85,18 +86,19 @@ PresenceCard::PresenceCard() : brls::Box(brls::Axis::COLUMN) {
     details_->setMarginTop(10);
     text->addView(details_);
 
-    timer_ = make_line(22, palette::accent_light());
+    // Discord shows the elapsed time in green.
+    timer_ = make_line(22, palette::green());
     timer_->setMarginTop(10);
     text->addView(timer_);
 }
 
-void PresenceCard::set_art(Art art) {
+void PreviewCard::set_art(Art art) {
     logo_->setVisibility(art == Art::Logo ? brls::Visibility::VISIBLE : brls::Visibility::GONE);
     idle_->setVisibility(art == Art::Idle ? brls::Visibility::VISIBLE : brls::Visibility::GONE);
     icon_->setVisibility(art == Art::Icon ? brls::Visibility::VISIBLE : brls::Visibility::GONE);
 }
 
-void PresenceCard::show_art(bool shown, const std::string& title_id) {
+void PreviewCard::show_art(bool shown, const std::string& title_id) {
     if (!shown) {
         set_art(Art::Idle);
         return;
@@ -105,7 +107,8 @@ void PresenceCard::show_art(bool shown, const std::string& title_id) {
         icon_title_ = title_id;
         icon_ok_ = false;
         icon_->clear();
-        const auto& jpeg = title_icon::get(title_id);
+        // Only a title the sysmodule names to the relay: a masked game has none, so it keeps the console artwork.
+        const auto& jpeg = title_id.empty() ? kNoIcon : title_icon::get(title_id);
         if (!jpeg.empty()) {
             icon_->setImageFromMem(jpeg.data(), static_cast<int>(jpeg.size()));
             icon_ok_ = icon_->getTexture() != 0;
@@ -114,9 +117,10 @@ void PresenceCard::show_art(bool shown, const std::string& title_id) {
     set_art(icon_ok_ ? Art::Icon : Art::Logo);
 }
 
-void PresenceCard::update(const drpc::ipc::Status& status) {
-    const bool shown = status.shown && status.name[0] != '\0';
-    show_art(shown, shown && status.is_game ? status.title_id : "");
+void PreviewCard::update(const drpc::ipc::Status& status) {
+    const Preview preview = preview_of(status);
+    const bool shown = preview.shown;
+    show_art(shown, preview.icon_title);
 
     if (!shown) {
         name_->setVisibility(brls::Visibility::GONE);
@@ -132,12 +136,12 @@ void PresenceCard::update(const drpc::ipc::Status& status) {
     name_->setText(status.name);
     details_->setText(status.details);
     details_->setVisibility(status.details[0] ? brls::Visibility::VISIBLE : brls::Visibility::GONE);
-    elapsed_s_ = status.elapsed_s;
+    elapsed_s_ = preview.timer ? status.elapsed_s : -1;
     fetched_at_ = std::chrono::steady_clock::now();
     tick();
 }
 
-void PresenceCard::tick() {
+void PreviewCard::tick() {
     if (elapsed_s_ < 0) {
         timer_->setVisibility(brls::Visibility::GONE);
         return;

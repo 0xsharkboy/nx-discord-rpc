@@ -9,9 +9,11 @@
 
 namespace app {
 
-class PresenceCard : public brls::Box {
+// What Discord shows for this console: the game icon (read locally from the title data), name, details and an
+// elapsed timer counted while the app is open. A masked game shows the console artwork, never its own icon.
+class PreviewCard : public brls::Box {
 public:
-    PresenceCard();
+    PreviewCard();
 
     void update(const drpc::ipc::Status& status);
     void tick();

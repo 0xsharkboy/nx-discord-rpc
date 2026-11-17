@@ -24,6 +24,15 @@ FooterLine footer_line(const drpc::ipc::Status& status) {
     return {Footer::Ok, Tone::Good};
 }
 
+Preview preview_of(const drpc::ipc::Status& status) {
+    Preview p;
+    p.shown = status.shown && status.name[0] != '\0' && status.link == drpc::ipc::LinkState::Linked;
+    if (!p.shown) return p;
+    if (status.is_game) p.icon_title = status.title_id;
+    p.timer = status.elapsed_s >= 0;
+    return p;
+}
+
 std::string format_elapsed(int64_t seconds) {
     if (seconds < 0) seconds = 0;
     const long long h = seconds / 3600, m = (seconds / 60) % 60, s = seconds % 60;

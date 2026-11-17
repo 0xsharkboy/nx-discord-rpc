@@ -29,6 +29,46 @@
       "unauthorized": "Clé refusée par le relais. Lier à nouveau",
       "offline": "Console hors ligne",
       "nourl": "relay_url est invalide dans config.ini"
+    },
+    "test": "Tester la connexion"
+  },
+  "diag": {
+    "title": "Test de connexion",
+    "intro": "Vérifie chaque maillon entre cette console et Discord, dans l'ordre.",
+    "again": "Tester à nouveau",
+    "status_page": "Page d'état du relais :",
+    "status_page_hint": "Scanner pour savoir si le relais est en panne pour tout le monde.",
+    "privacy_tip": "Si rien n'apparaît chez les amis, ouvrir Discord, Paramètres utilisateur > Confidentialité des activités, et activer le partage de l'activité.",
+    "step": {
+      "network": "Connexion Internet",
+      "relay": "Relais joignable",
+      "key": "Clé d'API acceptée",
+      "link": "Lien Discord",
+      "presence": "Présence sur Discord"
+    },
+    "reason": {
+      "checking": "Vérification…",
+      "not_checked": "Non vérifié",
+      "network_ok": "Connectée",
+      "no_network": "La console n'est pas connectée à Internet",
+      "relay_ok": "Le relais a répondu",
+      "no_url": "relay_url est invalide dans config.ini",
+      "relay_unreachable": "Aucune réponse. Le relais est peut-être en panne, ou ce réseau le bloque",
+      "relay_http": "Le relais a répondu avec l'erreur {}",
+      "relay_wrong_answer": "Un autre serveur a répondu. Vérifier relay_url, ou se connecter à ce réseau",
+      "key_ok": "Acceptée",
+      "no_key": "Pas encore de clé. Lier le compte dans Compte",
+      "key_rejected": "Clé refusée par le relais. Lier à nouveau dans Compte",
+      "link_ok": "Lié",
+      "link_broken": "Discord n'accepte plus ce lien. Lier à nouveau dans Compte",
+      "presence_shown": "Affichée",
+      "nothing_to_show": "Rien à afficher pour le moment",
+      "not_sent_yet": "Pas encore envoyée, elle part dans quelques secondes",
+      "not_delivered": "La dernière mise à jour n'a pas atteint le relais. Nouvel essai en cours",
+      "retrying": "La dernière mise à jour a échoué. Nouvel essai dans {} s",
+      "rate_limited": "Trop de mises à jour. Nouvel essai sous peu",
+      "relay_error": "Le relais n'a pas pu traiter la dernière mise à jour (erreur {}). Nouvel essai en cours",
+      "refused": "Le relais a refusé la dernière mise à jour (erreur {})"
     }
   },
   "settings": {
