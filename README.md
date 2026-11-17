@@ -11,8 +11,7 @@ Show the game you are playing on your Nintendo Switch as your Discord status.
 ## What it does
 
 NX Discord RPC shows the game being played on your Switch as Discord Rich Presence, with the game
-name, the elapsed time and the hash of the game's icon.
-  The icon image is sent only when the relay does not have it yet. It has three parts:
+name, the elapsed time and the game's icon. It has three parts:
 
 - a sysmodule that runs in the background, starts at boot and reports the running game;
 - an app, started from the Homebrew Menu, that shows the status, edits the settings and links your
@@ -99,7 +98,9 @@ With Show paused games on, a game shows "Paused · HOME Menu", "Paused · Ninten
 game opens, such as the keyboard, still count as playing. While paused, no elapsed time is sent.
 Show docked or handheld adds "Docked" or "Handheld" to the details. Show total playtime adds your
 total playtime in this game on this console, for example "45 min total" or "152 h total". With
-Show HOME Menu on, the HOME Menu shows "on Nintendo Switch".
+Show HOME Menu on, the HOME Menu itself shows "In the HOME Menu". A game being played shows "on
+Nintendo Switch". In private mode the game name, icon and playtime are hidden, while Docked or
+Handheld still shows if turned on.
 
 Title icons are sent automatically. The console sends the icon's hash, and the relay asks for the
 image only if it does not have it yet. None are uploaded in private mode or on the HOME Menu.
@@ -107,7 +108,8 @@ image only if it does not have it yet. None are uploaded in private mode or on t
 ## Privacy
 
 - **What the relay receives:** your Discord link (to show the presence on your account), the name and
-  title id of the game you are playing, the details line, the elapsed time and the game's icon.
+  title id of the game you are playing, the details line, the elapsed time and the hash of the game's icon.
+  The icon image is sent only when the relay does not have it yet.
 - **Icons:** each image is stored once, with no link to you or to a title. The console reads your
   playtime and sends only the text.
 - **What it keeps:** no play history. The current game is held in memory only, to send it to
