@@ -91,12 +91,13 @@ std::optional<Request> RelayClient::next(int64_t now_ms) {
         }
     }
 
-    if (icon_backoff_.open(now_ms)) return std::nullopt;
-    // The first queued title out of its retry window: one failing title does not hold back the others.
-    for (const std::string& title_id : icon_queue_) {
-        if (now_ms >= icons_[title_id].retry_ms) return Request{Request::Kind::PutIcon, {}, title_id};
-    }
-    return std::nullopt;
+    // Only the title the desired report names: no upload for a title no longer shown, nor in private
+    // mode, on the HOME Menu or when disabled. Others stay queued with their state for when they come back.
+    if (icon_backoff_.open(now_ms) || !desired_ || !desired_->title_id) return std::nullopt;
+    const std::string& shown = *desired_->title_id;
+    if (std::find(icon_queue_.begin(), icon_queue_.end(), shown) == icon_queue_.end()) return std::nullopt;
+    if (const auto it = icons_.find(shown); it != icons_.end() && now_ms < it->second.retry_ms) return std::nullopt;
+    return Request{Request::Kind::PutIcon, {}, shown};
 }
 
 void RelayClient::on_outcome(const Request& req, const Outcome& out, int64_t now_ms) {
@@ -177,7 +178,7 @@ void RelayClient::on_delete_outcome(const Outcome& out, int64_t now_ms) {
 }
 
 void RelayClient::on_icon_outcome(const Request& req, const Outcome& out, int64_t now_ms) {
-    if (std::find(icon_queue_.begin(), icon_queue_.end(), req.title_id) == icon_queue_.end()) return;
+    // No queue check: an outcome that lands after the title left the screen still counts for it.
     if (out.status == 401) {
         link_ = LinkState::Unauthorized;
         return;

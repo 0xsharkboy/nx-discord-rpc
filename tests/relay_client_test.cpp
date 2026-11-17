@@ -500,7 +500,7 @@ TEST_CASE("icons: none on a 4xx PUT") {
     CHECK_FALSE(c.next(1));
 }
 
-TEST_CASE("icons: a presence PUT goes first when both are due") {
+TEST_CASE("icons: a presence PUT goes first, then only the shown title uploads") {
     auto c = keyed();
     c.set_report(game(), std::nullopt);
     answer(c, 0, need(true));
@@ -512,11 +512,69 @@ TEST_CASE("icons: a presence PUT goes first when both are due") {
     auto first = c.next(2);
     REQUIRE(first);
     CHECK(first->kind == Kind::PutIcon);
-    CHECK(first->title_id == "0100A0D02127E000");
+    CHECK(first->title_id == "0100000000010000");
     c.on_outcome(*first, status(200), 2);
-    auto second = c.next(3);
-    REQUIRE(second);
-    CHECK(second->title_id == "0100000000010000");
+    CHECK_FALSE(first_due(c, 3, 59999));
+
+    // Zelda's upload waited in the queue and goes once Zelda is shown again.
+    c.set_report(game(), std::nullopt);
+    CHECK(answer(c, 60000, need(true)).kind == Kind::PutPresence);
+    auto back = c.next(60001);
+    REQUIRE(back);
+    CHECK(back->kind == Kind::PutIcon);
+    CHECK(back->title_id == "0100A0D02127E000");
+}
+
+TEST_CASE("icons: a queued retrying title is not uploaded after set_report(nullopt)") {
+    auto c = keyed();
+    c.set_report(game(), std::nullopt);
+    CHECK(icon_uploads(c, 0, 1000, need(true), status(503)) == std::vector<int64_t>{0});
+    c.set_report(std::nullopt, std::nullopt);
+    CHECK(answer(c, 2000, status(204)).kind == Kind::DeletePresence);
+    CHECK_FALSE(first_due(c, 2001, 3000000));
+}
+
+TEST_CASE("icons: a queued retrying title is not uploaded in private mode or on the HOME Menu") {
+    auto c = keyed();
+    c.set_report(game(), std::nullopt);
+    CHECK(icon_uploads(c, 0, 1000, need(true), status(503)) == std::vector<int64_t>{0});
+    Report masked = home();
+    masked.details = "Playing a game";
+    c.set_report(masked, std::nullopt);
+    CHECK(icon_uploads(c, 2000, 3000000, status(204), status(200)).empty());
+}
+
+TEST_CASE("icons: a queued retrying title is not uploaded after set_report(other title)") {
+    auto c = keyed();
+    c.set_report(game(), std::nullopt);
+    CHECK(icon_uploads(c, 0, 1000, need(true), status(503)) == std::vector<int64_t>{0});
+    c.set_report(game("Mario", "0100000000010000"), std::nullopt);
+    // Mario needs nothing; Zelda's retry is never sent while Mario is shown.
+    CHECK(icon_uploads(c, 2000, 3000000, need(false), status(200)).empty());
+
+    // Back on Zelda, past its 60 s window: the retry goes with the same backoff state (next window 300 s).
+    c.set_report(game(), std::nullopt);
+    CHECK(icon_uploads(c, 3001000, 3400000, need(true), status(503)) == std::vector<int64_t>{3001000, 3301000});
+}
+
+TEST_CASE("icons: an upload outcome after the title left the screen still counts") {
+    for (int s : {200, 400}) {
+        CAPTURE(s);
+        auto c = keyed();
+        c.set_report(game(), std::nullopt);
+        answer(c, 0, need(true));
+        auto icon = c.next(1);
+        REQUIRE(icon);
+        REQUIRE(icon->kind == Kind::PutIcon);
+        c.set_report(home(), std::nullopt);
+        c.on_outcome(*icon, status(s), 1);
+        answer(c, 2, status(204));
+
+        // Back on the title within 10 minutes: no upload after a success, none ever after a 400.
+        c.set_report(game(), std::nullopt);
+        CHECK(icon_uploads(c, 3000, 590000, need(true), status(200)).empty());
+        if (s == 400) CHECK(icon_uploads(c, 591000, 1300000, need(true), status(200)).empty());
+    }
 }
 
 TEST_CASE("icons: a 429 with Retry-After 120 does not delay the presence heartbeat") {

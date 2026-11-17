@@ -83,7 +83,7 @@ private:
     bool wake_pending_ = false;
     Backoff backoff_;
 
-    std::deque<std::string> icon_queue_;  // title ids waiting for an upload, each at most once
+    std::deque<std::string> icon_queue_;  // title ids waiting for an upload, each at most once; sent only while shown
     std::set<std::string> icon_seen_;     // titles uploaded for a relay that ignores hashes
     std::map<std::string, TitleIcon> icons_;
     int icon_attempts_ = 0;  // consecutive 429s
