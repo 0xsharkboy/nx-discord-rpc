@@ -7,6 +7,7 @@
 #include <optional>
 #include <string>
 
+#include "core/elapsed.hpp"
 #include "core/http.hpp"
 #include "core/ipc_convert.hpp"
 #include "core/link_client.hpp"
@@ -135,24 +136,6 @@ private:
     int last_ = 0;
 };
 
-// Seconds on the current title. The wall clock keeps counting across sleep, like the console's play timer.
-class Elapsed {
-public:
-    void restart() {
-        start_unix_ms_ = unix_ms();
-        start_mono_ms_ = mono_ms();
-    }
-
-    int64_t seconds() const {
-        const int64_t now_unix = unix_ms();
-        if (start_unix_ms_ != 0 && now_unix != 0) return (now_unix - start_unix_ms_) / 1000;
-        return (mono_ms() - start_mono_ms_) / 1000;
-    }
-
-private:
-    int64_t start_unix_ms_ = 0;
-    int64_t start_mono_ms_ = 0;
-};
 
 // What a config.ini write touches.
 struct Store {
@@ -378,7 +361,7 @@ void publish(SharedState& shared, const Snapshot& s) {
 
     bool polled = false;
     std::optional<uint64_t> shown_id;
-    Elapsed elapsed;
+    Elapsed elapsed(unix_ms, mono_ms);
     LinkState shown_link = client.link_state();
     int64_t next_heap_log = 0;
     int64_t next_key_check = mono_ms() + kKeyCheckIntervalMs;

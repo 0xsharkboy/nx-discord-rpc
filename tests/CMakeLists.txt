@@ -28,6 +28,7 @@ add_executable(nxdrpc_tests
   relay_url_test.cpp
   power_state_test.cpp
   report_test.cpp
+  elapsed_test.cpp
   relay_client_test.cpp
   json_extract_test.cpp
   link_client_test.cpp

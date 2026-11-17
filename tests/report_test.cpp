@@ -168,3 +168,119 @@ TEST_CASE("report json") {
 TEST_CASE("equality ignores elapsed") {
     CHECK(*render_report(game(), base()) == *render_report(game(), base()));
 }
+
+namespace {
+SceneInput paused(Screen screen = Screen::Unknown) {
+    SceneInput in = game();
+    in.scene = Scene::Paused;
+    in.paused_screen = screen;
+    return in;
+}
+}  // namespace
+
+TEST_CASE("paused details name the screen") {
+    const Settings s = base();
+    CHECK(render_report(paused(Screen::HomeMenu), s)->details == "Paused \xC2\xB7 HOME Menu");
+    CHECK(render_report(paused(Screen::Shop), s)->details == "Paused \xC2\xB7 Nintendo eShop");
+    CHECK(render_report(paused(Screen::Album), s)->details == "Paused \xC2\xB7 Album");
+    CHECK(render_report(paused(Screen::UserPage), s)->details == "Paused \xC2\xB7 User page");
+    CHECK(render_report(paused(Screen::Unknown), s)->details == "Paused");
+    auto r = render_report(paused(Screen::Album), s);
+    CHECK(r->name == "Zelda");
+    CHECK(r->title_id == std::optional<std::string>{"0100A0D02127E000"});
+}
+
+TEST_CASE("paused_private_mode_shows_paused_without_screen") {
+    Settings s = base();
+    s.private_mode = true;
+    SceneInput in = paused(Screen::Shop);
+    in.playtime_s = 7200;
+    s.show_playtime = true;
+    auto r = render_report(in, s);
+    REQUIRE(r);
+    CHECK(r->name == "Nintendo Switch");
+    CHECK(r->details == "Paused");
+    CHECK_FALSE(r->title_id);
+}
+
+TEST_CASE("show_paused_off_renders_as_game") {
+    Settings s = base();
+    s.show_paused = false;
+    auto p = render_report(paused(Screen::Shop), s);
+    auto g = render_report(game(), s);
+    REQUIRE(p);
+    CHECK(*p == *g);
+    CHECK(p->details == "on Nintendo Switch");
+    s.private_mode = true;
+    CHECK(render_report(paused(), s)->details == "Playing a game");
+}
+
+TEST_CASE("docked and handheld") {
+    Settings s = base();
+    s.show_docked = true;
+    SceneInput in = game();
+    in.docked = true;
+    CHECK(render_report(in, s)->details == "on Nintendo Switch \xC2\xB7 Docked");
+    in.docked = false;
+    CHECK(render_report(in, s)->details == "on Nintendo Switch \xC2\xB7 Handheld");
+    in.docked = std::nullopt;
+    CHECK(render_report(in, s)->details == "on Nintendo Switch");
+    in.docked = true;
+    s.show_docked = false;
+    CHECK(render_report(in, s)->details == "on Nintendo Switch");
+}
+
+TEST_CASE("details_order_docked_playtime_firmware") {
+    Settings s = base();
+    s.show_docked = true;
+    s.show_playtime = true;
+    s.show_firmware = true;
+    SceneInput in = paused(Screen::HomeMenu);
+    in.docked = false;
+    in.playtime_s = 547200;
+    CHECK(render_report(in, s)->details ==
+          "Paused \xC2\xB7 HOME Menu \xC2\xB7 Handheld \xC2\xB7 152 h total \xC2\xB7 19.0.1");
+}
+
+TEST_CASE("playtime is skipped when off, unknown, or too short") {
+    Settings s = base();
+    SceneInput in = game();
+    in.playtime_s = 3600;
+    CHECK(render_report(in, s)->details == "on Nintendo Switch");
+    s.show_playtime = true;
+    CHECK(render_report(in, s)->details == "on Nintendo Switch \xC2\xB7 1 h total");
+    in.playtime_s = 59;
+    CHECK(render_report(in, s)->details == "on Nintendo Switch");
+    in.playtime_s = std::nullopt;
+    CHECK(render_report(in, s)->details == "on Nintendo Switch");
+}
+
+TEST_CASE("private mode drops playtime on a game") {
+    Settings s = base();
+    s.private_mode = true;
+    s.show_playtime = true;
+    SceneInput in = game();
+    in.playtime_s = 7200;
+    CHECK(render_report(in, s)->details == "Playing a game");
+}
+
+TEST_CASE("home menu ignores docked and playtime") {
+    Settings s = base();
+    s.show_home_menu = true;
+    s.show_docked = true;
+    s.show_playtime = true;
+    SceneInput in;
+    in.scene = Scene::HomeMenu;
+    in.docked = true;
+    in.playtime_s = 7200;
+    CHECK(render_report(in, s)->details == "In the HOME Menu");
+}
+
+TEST_CASE("format_playtime_boundaries") {
+    CHECK(format_playtime(0) == "");
+    CHECK(format_playtime(59) == "");
+    CHECK(format_playtime(60) == "1 min total");
+    CHECK(format_playtime(3599) == "59 min total");
+    CHECK(format_playtime(3600) == "1 h total");
+    CHECK(format_playtime(547200) == "152 h total");
+}
