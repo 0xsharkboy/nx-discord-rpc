@@ -18,6 +18,7 @@ private:
     using Field = uint8_t drpc::ipc::Settings::*;
 
     void add_toggle(brls::Box* list, const std::string& title, Field field);
+    void add_boot_toggle(brls::Box* list);
     void apply(brls::BooleanCell* cell, Field field, bool on);
     void load();
     void sync();

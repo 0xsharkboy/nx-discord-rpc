@@ -34,6 +34,10 @@
     "show_home_menu": "Show HOME Menu",
     "advanced": "Advanced",
     "debug_log": "Debug log",
+    "start_at_boot": "Start at boot",
+    "start_at_boot_hint": "Applies at next boot",
+    "start_at_boot_failed": "Could not change Start at boot. Check that the SD card is not write protected.",
+    "close": "Close",
     "relay": "Relay: {}",
     "relay_unset": "Relay: not set",
     "relay_hint": "edit relay_url in config.ini"

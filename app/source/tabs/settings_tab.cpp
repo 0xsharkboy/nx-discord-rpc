@@ -1,5 +1,6 @@
 #include "tabs/settings_tab.hpp"
 
+#include "boot_flag.hpp"
 #include "palette.hpp"
 
 using namespace brls::literals;
@@ -33,6 +34,7 @@ SettingsTab::SettingsTab(drpc::Client& client) : client_(client) {
     advanced->setMarginTop(24);
     list->addView(advanced);
     add_toggle(list, "app/settings/debug_log"_i18n, &drpc::ipc::Settings::debug_log);
+    add_boot_toggle(list);
 
     drpc::ipc::Status status{};
     client_.status(status);
@@ -55,6 +57,28 @@ void SettingsTab::add_toggle(brls::Box* list, const std::string& title, Field fi
     cell->init(title, false, [this, cell, field](bool on) { apply(cell, field, on); });
     list->addView(cell);
     toggles_.emplace_back(cell, field);
+}
+
+// Not a sysmodule setting: the cell reads and writes Atmosphere's boot2 flag file directly, so it stays out of
+// toggles_ and works even when the settings cannot be read over IPC.
+void SettingsTab::add_boot_toggle(brls::Box* list) {
+    auto* cell = new brls::BooleanCell();
+    cell->init("app/settings/start_at_boot"_i18n, boot_flag_enabled(boot_flag_path()), [cell](bool on) {
+        if (set_boot_flag(boot_flag_path(), on)) return;
+        cell->setOn(!on, false);
+        auto* dialog = new brls::Dialog("app/settings/start_at_boot_failed"_i18n);
+        dialog->addButton("app/settings/close"_i18n, [] {});
+        dialog->open();
+    });
+    list->addView(cell);
+
+    auto* note = new brls::Label();
+    note->setText("app/settings/start_at_boot_hint"_i18n);
+    note->setFontSize(18);
+    note->setTextColor(palette::text_faint());
+    note->setMarginLeft(16);  // under the cell title, past the cell's descriptionIndent padding
+    note->setMarginBottom(8);
+    list->addView(note);
 }
 
 void SettingsTab::load() {
