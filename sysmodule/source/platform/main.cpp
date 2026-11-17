@@ -44,6 +44,8 @@ constexpr int64_t kProfileRefreshMs = 24 * 60 * 60 * 1000;
 constexpr int64_t kPlaytimeRefreshMs = 600'000;
 // A game may open its user after launch: one early re-read replaces the previous profile's playtime.
 constexpr int64_t kPlaytimeFirstRefreshMs = 30'000;
+// A title whose icon could not be hashed is read again at most this often.
+constexpr int64_t kIconHashRetryMs = 60'000;
 
 void log_wake(const PowerNet::WakeReport& wake) {
     log::info("Console awake; sleep acknowledged after " + std::to_string(wake.ack_ms) + " ms" +
@@ -140,7 +142,6 @@ public:
 private:
     int last_ = 0;
 };
-
 
 // What a config.ini write touches.
 struct Store {
@@ -375,9 +376,10 @@ void publish(SharedState& shared, const Snapshot& s) {
     std::optional<uint64_t> playtime_title;
     std::optional<uint64_t> playtime_s;
     int64_t next_playtime_ms = 0;
-    // Hashed once per title, failures included: the icon is not re-read every tick.
+    // Hashed once per title; a failed read is retried every kIconHashRetryMs, never every tick.
     std::optional<uint64_t> icon_title;
     std::optional<std::string> icon_hash;
+    int64_t next_icon_hash_ms = 0;
 
     for (;;) {
         // One short-lived connection per request: none is ever open between ticks.
@@ -484,10 +486,14 @@ void publish(SharedState& shared, const Snapshot& s) {
         std::optional<Report> report = render_report(scene, settings);
         // Only a report naming its title (a game, paused or not, outside private mode) carries the icon hash.
         if (report && report->title_id) {
-            if (icon_title != scene.title_id) {
+            const bool new_icon_title = icon_title != scene.title_id;
+            if (new_icon_title || (!icon_hash && now >= next_icon_hash_ms)) {
                 icon_title = scene.title_id;
                 icon_hash = icon_sha256(scene.title_id);
-                if (!icon_hash) log::debug("No icon for title " + *report->title_id);
+                if (!icon_hash) {
+                    next_icon_hash_ms = now + kIconHashRetryMs;
+                    if (new_icon_title) log::debug("No icon for title " + *report->title_id);
+                }
             }
             report->icon = icon_hash;
         }

@@ -18,7 +18,7 @@ struct Request {
     std::string title_id;  // PutIcon only
 };
 
-// status 0: network error; -1: icon unavailable locally.
+// status 0: network error; -1: icon unavailable locally (retried like a network error).
 struct Outcome {
     int status = 0;
     std::optional<int> retry_after_s;
@@ -84,7 +84,7 @@ private:
     Backoff backoff_;
 
     std::deque<std::string> icon_queue_;  // title ids waiting for an upload, each at most once; sent only while shown
-    std::set<std::string> icon_seen_;     // titles uploaded for a relay that ignores hashes
+    std::set<std::string> icon_seen_;     // titles answered 204 (no need_icon): one upload per session
     std::map<std::string, TitleIcon> icons_;
     int icon_attempts_ = 0;  // consecutive 429s
     Backoff icon_backoff_;   // 429 only: the upload rate limit is per account

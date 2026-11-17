@@ -433,7 +433,7 @@ TEST_CASE("upload_400_stops_title") {
 }
 
 TEST_CASE("icons: any other final answer also stops the title") {
-    for (int s : {404, 409, 422, -1}) {
+    for (int s : {404, 409, 422}) {
         CAPTURE(s);
         auto c = keyed();
         c.set_report(game(), std::nullopt);
@@ -479,12 +479,34 @@ TEST_CASE("icons: an old relay's failed upload is retried on the backoff") {
     CHECK(icon_uploads(c, 0, 400000, status(204), status(503)) == std::vector<int64_t>{0, 60000, 360000});
 }
 
-TEST_CASE("icons: a 204 for a report without a hash uploads nothing") {
+TEST_CASE("icons: a 204 for a report without a hash still uploads once per session") {
     auto c = keyed();
     Report r = game();
     r.icon.reset();
     c.set_report(r, std::nullopt);
-    CHECK(icon_uploads(c, 0, 100000, status(204), status(200)).empty());
+    CHECK(icon_uploads(c, 0, 800000, status(204), status(200)) == std::vector<int64_t>{0});
+}
+
+TEST_CASE("icons: an icon the console cannot read yet is retried, not stopped") {
+    auto c = keyed();
+    Report r = game();
+    r.icon.reset();
+    c.set_report(r, std::nullopt);
+    CHECK(icon_uploads(c, 0, 400000, status(204), status(-1)) == std::vector<int64_t>{0, 60000, 360000});
+}
+
+TEST_CASE("icons: a hash read after a failed one is still honoured") {
+    // The hash failed at launch: the 204 fallback queues an upload, which cannot read the icon either.
+    auto c = keyed();
+    Report r = game();
+    r.icon.reset();
+    c.set_report(r, std::nullopt);
+    CHECK(answer(c, 0, status(204)).kind == Kind::PutPresence);
+    CHECK(answer(c, 1, status(-1)).kind == Kind::PutIcon);
+    // The next read works: the relay asks for the icon and gets it once the retry window ends.
+    c.set_report(game(), std::nullopt);
+    CHECK(answer(c, 2, need(true)).kind == Kind::PutPresence);
+    CHECK(icon_uploads(c, 3, 70000, need(true), status(200)) == std::vector<int64_t>{60003});
 }
 
 TEST_CASE("icons: none for a report without a title id") {

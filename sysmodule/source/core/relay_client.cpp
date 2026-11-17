@@ -139,8 +139,9 @@ void RelayClient::on_presence_outcome(const Outcome& out, int64_t now_ms) {
     const std::string& title_id = *sent_->title_id;
     if (out.need_icon) {
         if (*out.need_icon) on_need_icon(title_id, now_ms);
-    } else if (out.status == 204 && sent_->icon && icon_seen_.insert(title_id).second) {
-        // A relay older than v0.4.0 ignores the hash: one upload per title per session.
+    } else if (out.status == 204 && icon_seen_.insert(title_id).second) {
+        // A relay older than v0.4.0 ignores the hash, and a report whose hash could not be read gets
+        // a 204 too: one upload per title per session.
         if (!icons_[title_id].stopped) queue_icon(title_id);
     }
 }
@@ -195,8 +196,9 @@ void RelayClient::on_icon_outcome(const Request& req, const Outcome& out, int64_
     icon_backoff_.reset();
 
     TitleIcon& icon = icons_[req.title_id];
-    if (is_retryable(out.status)) {
-        // Network error or 5xx (503 storage_full included): the title stays queued until its window ends.
+    if (is_retryable(out.status) || out.status == -1) {
+        // Network error, 5xx (503 storage_full included) or an icon the console could not read yet:
+        // the title stays queued until its window ends.
         icon.retry_ms = now_ms + kIconRetryMs[std::min(icon.failures, kIconRetrySteps - 1)];
         ++icon.failures;
         return;
@@ -206,7 +208,7 @@ void RelayClient::on_icon_outcome(const Request& req, const Outcome& out, int64_
         icon.failures = 0;
         icon.retry_ms = 0;
     } else {
-        // 400 invalid_icon or blocked, 413 too_large, -1 no icon on the console, or any other final answer.
+        // 400 invalid_icon or blocked, 413 too_large, or any other final answer.
         icon.stopped = true;
     }
     unqueue_icon(req.title_id);
