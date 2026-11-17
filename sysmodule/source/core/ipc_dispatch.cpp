@@ -37,10 +37,34 @@ DispatchResult set_settings(std::span<const uint8_t> in_raw, SharedState& state)
     return {0, {}};
 }
 
+DispatchResult get_hidden(std::span<uint8_t> out_buf, const SharedState& state) {
+    if (out_buf.size() < sizeof(ipc::HiddenList)) return {kRcBadBuffer, {}};
+    ipc::HiddenList list;
+    state.hidden(list);
+    std::memcpy(out_buf.data(), &list, sizeof list);
+    return {0, {}};
+}
+
+// The buffer is the client's memory: copied once, then only the copy is read.
+DispatchResult set_hidden(std::span<const uint8_t> in_buf, SharedState& state) {
+    if (in_buf.size() < sizeof(ipc::HiddenList)) return {kRcBadInput, {}};
+    ipc::HiddenList in;
+    std::memcpy(&in, in_buf.data(), sizeof in);
+    if (!ipc::valid_hidden(in)) return {kRcBadInput, {}};
+    ipc::HiddenList clean{};
+    clean.count = in.count;
+    for (uint32_t i = 0; i < in.count; ++i) {
+        clean.items[i].title_id = in.items[i].title_id;
+        clean.items[i].visibility = in.items[i].visibility;
+    }
+    state.set_hidden(clean);
+    return {0, {}};
+}
+
 }  // namespace
 
-DispatchResult dispatch(uint32_t cmd_id, std::span<const uint8_t> in_raw, std::span<uint8_t> out_buf,
-                        SharedState& state) {
+DispatchResult dispatch(uint32_t cmd_id, std::span<const uint8_t> in_raw, std::span<const uint8_t> in_buf,
+                        std::span<uint8_t> out_buf, SharedState& state) {
     const auto cmd = static_cast<ipc::Cmd>(cmd_id);
     switch (cmd) {
         case ipc::Cmd::GetProtocolVersion:
@@ -53,6 +77,10 @@ DispatchResult dispatch(uint32_t cmd_id, std::span<const uint8_t> in_raw, std::s
             return raw(state.settings());
         case ipc::Cmd::SetSettings:
             return set_settings(in_raw, state);
+        case ipc::Cmd::GetHidden:
+            return get_hidden(out_buf, state);
+        case ipc::Cmd::SetHidden:
+            return set_hidden(in_buf, state);
         case ipc::Cmd::StartLink:
         case ipc::Cmd::CancelLink:
         case ipc::Cmd::Unlink:

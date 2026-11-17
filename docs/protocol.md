@@ -333,6 +333,19 @@ app reads, both empty strings when unknown.
 Protocol version 3 replaces the reserved bytes of the Settings struct with `show_paused`,
 `show_docked` and `show_playtime`, one byte each, 0 or 1.
 
+Protocol version 4 adds the per-title visibility list and two Status fields:
+
+- Commands 9 `GetHidden` (out buffer) and 10 `SetHidden` (in buffer) carry a 1032-byte list:
+  `uint32 count`, 4 bytes of padding, then 64 items of `uint64 title_id`, `uint8 visibility`
+  (1 "Playing a game", 2 Hidden) and 7 bytes of padding. Shown titles are not listed. Both use
+  `HipcMapAlias` buffers since the list does not fit the raw data of a message. `SetHidden`
+  rejects a count above 64, any other visibility, a title id below `0100000000010000` or a title
+  listed twice, and keeps nothing of a rejected list.
+- Status grows to 504 bytes: `int32 last_relay_status` at offset 492 (the HTTP status of the
+  last presence PUT or DELETE, 0 before any, -1 for a network error) and
+  `uint64 running_title_id` at offset 496 (the running game whatever its visibility, 0 on the
+  HOME Menu), so a UI can change the visibility of a game that is hidden.
+
 ## Examples
 
 Link:

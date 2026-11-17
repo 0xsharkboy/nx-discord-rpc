@@ -9,7 +9,6 @@ namespace drpc {
 namespace {
 
 constexpr size_t kMaxFieldBytes = 128;
-constexpr uint64_t kMinReportableTitleId = 0x0100000000010000ULL;
 constexpr int64_t kMaxElapsedSeconds = 31536000;
 constexpr const char* kFallbackName = "Nintendo Switch";
 
@@ -47,6 +46,11 @@ std::string truncate_utf8(std::string_view s, size_t max_bytes) {
 
 std::optional<Report> render_report(const SceneInput& in, const Settings& settings) {
     if (!settings.enabled) return std::nullopt;
+    // A per-title choice: Hidden sends nothing at all, Private renders like private mode.
+    const TitleVisibility visibility =
+        in.scene == Scene::HomeMenu ? TitleVisibility::Shown : visibility_of(settings, in.title_id);
+    if (visibility == TitleVisibility::Hidden) return std::nullopt;
+    const bool masked = settings.private_mode || visibility == TitleVisibility::Private;
 
     Report r;
     const bool paused = in.scene == Scene::Paused && settings.show_paused;
@@ -56,17 +60,17 @@ std::optional<Report> render_report(const SceneInput& in, const Settings& settin
         if (!settings.show_home_menu) return std::nullopt;
         r.name = kFallbackName;
         r.details = "In the HOME Menu";
-    } else if (settings.private_mode) {
+    } else if (masked) {
         r.name = kFallbackName;
         r.details = paused ? "Paused" : "Playing a game";
     } else {
         r.name = in.game_name.empty() ? kFallbackName : in.game_name;
         r.details = paused ? paused_details(in.paused_screen) : "on Nintendo Switch";
-        if (in.title_id >= kMinReportableTitleId) r.title_id = format_title_id(in.title_id);
+        if (in.title_id >= ipc::kMinReportableTitleId) r.title_id = format_title_id(in.title_id);
     }
 
     if (game_like && settings.show_docked && in.docked) append_part(r.details, *in.docked ? "Docked" : "Handheld");
-    if (game_like && !settings.private_mode && settings.show_playtime && in.playtime_s)
+    if (game_like && !masked && settings.show_playtime && in.playtime_s)
         append_part(r.details, format_playtime(*in.playtime_s));
     if (settings.show_firmware) append_part(r.details, in.firmware);
 

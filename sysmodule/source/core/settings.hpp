@@ -5,6 +5,10 @@
 #include <span>
 #include <string>
 #include <string_view>
+#include <utility>
+#include <vector>
+
+#include "drpc/protocol.hpp"
 
 namespace drpc {
 
@@ -18,6 +22,8 @@ struct Settings {
     std::string api_key, admin_key;
     std::string username;
     std::string discord_id, avatar;
+    // Private or Hidden titles only, at most ipc::kMaxHiddenTitles, each title once.
+    std::vector<std::pair<uint64_t, TitleVisibility>> hidden_titles;
     bool operator==(const Settings&) const = default;
 };
 
@@ -33,5 +39,7 @@ std::optional<std::string> normalize_admin_key(std::string_view raw);
 std::string redact(std::string_view text, std::span<const std::string_view> secrets);
 // "0100000000D15C0D": 16 upper-case hex digits.
 std::string format_title_id(uint64_t title_id);
+// The visibility hidden_titles gives a title, Shown when it is not listed.
+TitleVisibility visibility_of(const Settings& s, uint64_t title_id);
 
 }  // namespace drpc

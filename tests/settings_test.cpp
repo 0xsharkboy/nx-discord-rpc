@@ -3,6 +3,8 @@
 #include <span>
 #include <string>
 #include <string_view>
+#include <utility>
+#include <vector>
 
 #include "core/settings.hpp"
 
@@ -159,4 +161,58 @@ TEST_CASE("a username containing a newline normalizes to empty") {
 
 TEST_CASE("username truncation does not split a UTF-8 sequence") {
     CHECK(drpc::normalize_username(std::string(31, 'a') + "\xC3\xA9") == std::string(31, 'a'));
+}
+
+namespace {
+using drpc::TitleVisibility;
+using Hidden = std::vector<std::pair<uint64_t, TitleVisibility>>;
+}  // namespace
+
+TEST_CASE("hidden titles default to none and parse private and hide entries") {
+    CHECK(drpc::Settings{}.hidden_titles.empty());
+    const auto s = drpc::parse_settings("hidden_titles = 0100abcd00010000:private, 0100A0D02127E000:hide\n");
+    CHECK(s.hidden_titles == Hidden{{0x0100ABCD00010000ULL, TitleVisibility::Private},
+                                    {0x0100A0D02127E000ULL, TitleVisibility::Hidden}});
+}
+
+TEST_CASE("hidden titles serialize upper case and round trip") {
+    drpc::Settings s;
+    s.hidden_titles = {{0x0100abcd00010000ULL, TitleVisibility::Private},
+                       {0x0100A0D02127E000ULL, TitleVisibility::Hidden}};
+    const std::string out = drpc::serialize_settings(s);
+    CHECK(out.find("hidden_titles = 0100ABCD00010000:private,0100A0D02127E000:hide\n") != std::string::npos);
+    CHECK(drpc::parse_settings(out) == s);
+    CHECK(drpc::serialize_settings(drpc::Settings{}).find("hidden_titles = \n") != std::string::npos);
+}
+
+TEST_CASE("hidden titles: malformed, unknown and duplicate entries are dropped") {
+    const auto s = drpc::parse_settings(
+        "hidden_titles = 0100ABCD0001000:private,0100ABCD000100000:hide,0100ABCD0001000G:hide,"
+        "0100ABCD00010000:shown,0100ABCD00010000:hidden,0100ABCD00010000,:private,0100000000000352:hide,"
+        "0100ABCD00010000:PRIVATE,,0100A0D02127E000:hide,0100A0D02127E000:private, 0100000000010000 : private \n");
+    CHECK(s.hidden_titles == Hidden{{0x0100A0D02127E000ULL, TitleVisibility::Hidden},
+                                    {0x0100000000010000ULL, TitleVisibility::Private}});
+}
+
+TEST_CASE("hidden titles: 64 entries round trip, more are dropped") {
+    drpc::Settings s;
+    for (uint64_t i = 0; i < 64; ++i) {
+        s.hidden_titles.emplace_back(0x0100000000010000ULL + (i << 16),
+                                     i % 2 ? TitleVisibility::Hidden : TitleVisibility::Private);
+    }
+    const std::string out = drpc::serialize_settings(s);
+    CHECK(drpc::parse_settings(out) == s);
+
+    std::string ini = "hidden_titles = ";
+    for (uint64_t i = 0; i < 70; ++i) ini += drpc::format_title_id(0x0100000000010000ULL + (i << 16)) + ":hide,";
+    const auto many = drpc::parse_settings(ini);
+    REQUIRE(many.hidden_titles.size() == 64);
+    CHECK(many.hidden_titles.back().first == 0x0100000000010000ULL + (63ULL << 16));
+}
+
+TEST_CASE("visibility_of finds a title, Shown otherwise") {
+    drpc::Settings s;
+    s.hidden_titles = {{0x0100A0D02127E000ULL, TitleVisibility::Hidden}};
+    CHECK(drpc::visibility_of(s, 0x0100A0D02127E000ULL) == TitleVisibility::Hidden);
+    CHECK(drpc::visibility_of(s, 0x0100000000010000ULL) == TitleVisibility::Shown);
 }

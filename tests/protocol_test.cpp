@@ -10,9 +10,9 @@ TEST_CASE("ipc settings is 8 bytes") {
     CHECK(sizeof(drpc::ipc::Settings) == 8);
 }
 
-TEST_CASE("ipc settings layout and protocol 3") {
+TEST_CASE("ipc settings layout and protocol 4") {
     using drpc::ipc::Settings;
-    CHECK(drpc::ipc::kProtocolVersion == 3);
+    CHECK(drpc::ipc::kProtocolVersion == 4);
     CHECK(offsetof(Settings, show_paused) == 2);
     CHECK(offsetof(Settings, show_docked) == 6);
     CHECK(offsetof(Settings, show_playtime) == 7);
@@ -20,7 +20,6 @@ TEST_CASE("ipc settings layout and protocol 3") {
 
 TEST_CASE("ipc status layout carries the Discord id and avatar (protocol 2)") {
     using drpc::ipc::Status;
-    CHECK(sizeof(Status) == 496);
     CHECK(offsetof(Status, discord_id) == 56);
     CHECK(offsetof(Status, avatar) == 80);
     CHECK(offsetof(Status, elapsed_s) == 472);
@@ -92,4 +91,94 @@ TEST_CASE("terminate_strings ends every string field with a NUL") {
     CHECK(std::strlen(l.verification_uri) == sizeof l.verification_uri - 1);
     CHECK(std::strlen(l.user_code) == sizeof l.user_code - 1);
     CHECK(std::strlen(l.username) == sizeof l.username - 1);
+}
+
+TEST_CASE("ipc status protocol 4: last relay status and running title id at the end") {
+    using drpc::ipc::Status;
+    CHECK(offsetof(Status, unlink) == 488);
+    CHECK(offsetof(Status, last_relay_status) == 492);
+    CHECK(offsetof(Status, running_title_id) == 496);
+    CHECK(sizeof(Status) == 504);
+}
+
+TEST_CASE("ipc hidden list layout and command numbers") {
+    using namespace drpc::ipc;
+    CHECK(sizeof(HiddenTitle) == 16);
+    CHECK(offsetof(HiddenTitle, visibility) == 8);
+    CHECK(sizeof(HiddenList) == 8 + 64 * 16);
+    CHECK(offsetof(HiddenList, items) == 8);
+    CHECK(kMaxHiddenTitles == 64);
+    CHECK(static_cast<uint32_t>(Cmd::GetHidden) == 9);
+    CHECK(static_cast<uint32_t>(Cmd::SetHidden) == 10);
+    CHECK(static_cast<uint8_t>(TitleVisibility::Shown) == 0);
+    CHECK(static_cast<uint8_t>(TitleVisibility::Private) == 1);
+    CHECK(static_cast<uint8_t>(TitleVisibility::Hidden) == 2);
+}
+
+namespace {
+drpc::ipc::HiddenList two_entries() {
+    drpc::ipc::HiddenList l{};
+    l.count = 2;
+    l.items[0].title_id = 0x0100A0D02127E000ULL;
+    l.items[0].visibility = 1;
+    l.items[1].title_id = 0x0100000000010000ULL;
+    l.items[1].visibility = 2;
+    return l;
+}
+}  // namespace
+
+TEST_CASE("valid_hidden accepts up to 64 Private or Hidden entries of real titles") {
+    using namespace drpc::ipc;
+    CHECK(valid_hidden(HiddenList{}));
+    CHECK(valid_hidden(two_entries()));
+    HiddenList full{};
+    full.count = 64;
+    for (uint32_t i = 0; i < 64; ++i) {
+        full.items[i].title_id = 0x0100000000010000ULL + (uint64_t{i} << 16);
+        full.items[i].visibility = 2;
+    }
+    CHECK(valid_hidden(full));
+    full.count = 65;
+    CHECK_FALSE(valid_hidden(full));
+}
+
+TEST_CASE("valid_hidden rejects a bad visibility, a system title and a duplicate") {
+    using namespace drpc::ipc;
+    HiddenList l = two_entries();
+    l.items[1].visibility = 0;
+    CHECK_FALSE(valid_hidden(l));
+    l.items[1].visibility = 3;
+    CHECK_FALSE(valid_hidden(l));
+    l = two_entries();
+    l.items[1].title_id = 0x010000000000FFFFULL;
+    CHECK_FALSE(valid_hidden(l));
+    l = two_entries();
+    l.items[1].title_id = l.items[0].title_id;
+    CHECK_FALSE(valid_hidden(l));
+    // Garbage past count is ignored.
+    l = two_entries();
+    l.items[5].visibility = 9;
+    CHECK(valid_hidden(l));
+}
+
+TEST_CASE("hidden list conversions round trip and zero the unused items") {
+    drpc::Settings s;
+    s.hidden_titles = {{0x0100A0D02127E000ULL, drpc::TitleVisibility::Private},
+                       {0x0100000000010000ULL, drpc::TitleVisibility::Hidden}};
+    drpc::ipc::HiddenList wire;
+    std::memset(&wire, 0xAB, sizeof wire);
+    drpc::to_ipc(s, wire);
+    CHECK(wire.count == 2);
+    CHECK(wire.pad == 0);
+    CHECK(wire.items[0].title_id == 0x0100A0D02127E000ULL);
+    CHECK(wire.items[0].visibility == 1);
+    CHECK(wire.items[1].visibility == 2);
+    CHECK(wire.items[0].pad[0] == 0);
+    CHECK(wire.items[2].title_id == 0);
+    CHECK(wire.items[63].visibility == 0);
+    drpc::Settings back;
+    back.private_mode = true;
+    drpc::apply_ipc(wire, back);
+    CHECK(back.hidden_titles == s.hidden_titles);
+    CHECK(back.private_mode);
 }

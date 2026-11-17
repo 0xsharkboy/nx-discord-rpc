@@ -300,3 +300,68 @@ TEST_CASE("render_report never sets the icon") {
     REQUIRE(r);
     CHECK_FALSE(r->icon);
 }
+
+namespace {
+Settings with_visibility(TitleVisibility v) {
+    Settings s = base();
+    s.hidden_titles = {{0x0100000000010000ULL, TitleVisibility::Hidden}, {0x0100A0D02127E000ULL, v}};
+    return s;
+}
+}  // namespace
+
+TEST_CASE("hidden_title_sends_nothing") {
+    Settings s = with_visibility(TitleVisibility::Hidden);
+    s.show_home_menu = true;
+    CHECK_FALSE(render_report(game(), s));
+    SceneInput paused = game();
+    paused.scene = Scene::Paused;
+    paused.paused_screen = Screen::HomeMenu;
+    CHECK_FALSE(render_report(paused, s));
+    s.private_mode = true;
+    CHECK_FALSE(render_report(game(), s));
+    // Another title and the HOME Menu are not affected.
+    SceneInput other = game();
+    other.title_id = 0x0100152000022000ULL;
+    CHECK(render_report(other, s));
+    SceneInput home;
+    home.scene = Scene::HomeMenu;
+    CHECK(render_report(home, s));
+}
+
+TEST_CASE("private_title_sends_no_id_or_icon") {
+    Settings s = with_visibility(TitleVisibility::Private);
+    s.show_playtime = true;
+    s.show_docked = true;
+    SceneInput in = game();
+    in.playtime_s = 7200;
+    in.docked = true;
+    auto r = render_report(in, s);
+    REQUIRE(r);
+    CHECK(r->name == "Nintendo Switch");
+    CHECK(r->details == "Playing a game \xC2\xB7 Docked");
+    CHECK_FALSE(r->title_id);
+    CHECK_FALSE(r->icon);
+
+    in.scene = Scene::Paused;
+    in.paused_screen = Screen::Album;
+    r = render_report(in, s);
+    REQUIRE(r);
+    CHECK(r->name == "Nintendo Switch");
+    CHECK(r->details == "Paused \xC2\xB7 Docked");
+    CHECK_FALSE(r->title_id);
+
+    // The same output as private mode for this title.
+    Settings global = base();
+    global.private_mode = true;
+    global.show_playtime = true;
+    global.show_docked = true;
+    CHECK(render_report(in, global) == r);
+}
+
+TEST_CASE("a Shown entry or another title's entry renders the game as usual") {
+    Settings s = with_visibility(TitleVisibility::Shown);
+    auto r = render_report(game(), s);
+    REQUIRE(r);
+    CHECK(r->name == "Zelda");
+    CHECK(r->title_id == std::optional<std::string>{"0100A0D02127E000"});
+}

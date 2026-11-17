@@ -26,6 +26,10 @@ public:
     virtual bool cancel_link() = 0;
     virtual bool unlink() = 0;
     virtual bool forget_key() = 0;
+    // The per-title visibility list (protocol 4).
+    virtual bool hidden(ipc::HiddenList&) = 0;
+    // False when the sysmodule rejects the list (see ipc::valid_hidden) or cannot be reached.
+    virtual bool set_hidden(const ipc::HiddenList&) = 0;
 };
 
 std::unique_ptr<Client> make_switch_client();

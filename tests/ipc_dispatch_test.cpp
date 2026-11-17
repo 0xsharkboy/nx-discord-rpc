@@ -16,8 +16,9 @@ using drpc::DispatchResult;
 using drpc::SharedState;
 using drpc::ipc::Cmd;
 
-DispatchResult call(SharedState& state, Cmd cmd, std::span<const uint8_t> in = {}, std::span<uint8_t> out = {}) {
-    return drpc::dispatch(static_cast<uint32_t>(cmd), in, out, state);
+DispatchResult call(SharedState& state, Cmd cmd, std::span<const uint8_t> in = {}, std::span<uint8_t> out = {},
+                    std::span<const uint8_t> in_buf = {}) {
+    return drpc::dispatch(static_cast<uint32_t>(cmd), in, in_buf, out, state);
 }
 
 template <typename T>
@@ -46,12 +47,12 @@ void check_protocol_version(SharedState& state) {
     REQUIRE(r.raw_out.size() == sizeof(uint32_t));
     uint32_t version = 0;
     std::memcpy(&version, r.raw_out.data(), sizeof(version));
-    CHECK(version == 3);
+    CHECK(version == 4);
 }
 
 }  // namespace
 
-TEST_CASE("GetProtocolVersion returns 3") {
+TEST_CASE("GetProtocolVersion returns 4") {
     SharedState state;
     check_protocol_version(state);
 }
@@ -182,7 +183,7 @@ TEST_CASE("GetSettings returns the latest set value") {
 
 TEST_CASE("an unknown command is rejected") {
     SharedState state;
-    const DispatchResult r = drpc::dispatch(99, {}, {}, state);
+    const DispatchResult r = drpc::dispatch(99, {}, {}, {}, state);
     CHECK(r.rc == drpc::kRcUnknownCommand);
     CHECK(r.raw_out.empty());
     check_protocol_version(state);
@@ -324,4 +325,99 @@ TEST_CASE("a publish made before a request is taken keeps showing the request") 
     state.publish(drpc::ipc::Status{}, drpc::ipc::Link{});
     CHECK(state.link().phase == drpc::ipc::LinkPhase::Idle);
     CHECK(state.status().unlink == drpc::ipc::UnlinkResult::None);
+}
+
+namespace {
+
+drpc::ipc::HiddenList sample_hidden() {
+    drpc::ipc::HiddenList l{};
+    l.count = 2;
+    l.items[0].title_id = 0x0100A0D02127E000ULL;
+    l.items[0].visibility = 1;
+    l.items[1].title_id = 0x0100000000010000ULL;
+    l.items[1].visibility = 2;
+    return l;
+}
+
+DispatchResult set_hidden(SharedState& state, const drpc::ipc::HiddenList& l,
+                          size_t size = sizeof(drpc::ipc::HiddenList)) {
+    std::vector<uint8_t> in(sizeof(drpc::ipc::HiddenList) + 16, 0);
+    std::memcpy(in.data(), &l, sizeof l);
+    return call(state, Cmd::SetHidden, {}, {}, std::span<const uint8_t>(in.data(), size));
+}
+
+}  // namespace
+
+TEST_CASE("GetHidden without an out buffer or with a short one is a bad buffer") {
+    SharedState state;
+    CHECK(call(state, Cmd::GetHidden).rc == drpc::kRcBadBuffer);
+    std::vector<uint8_t> out(sizeof(drpc::ipc::HiddenList) - 1, 0xAB);
+    CHECK(call(state, Cmd::GetHidden, {}, out).rc == drpc::kRcBadBuffer);
+    for (uint8_t b : out) CHECK(b == 0xAB);
+}
+
+TEST_CASE("a valid SetHidden is served by GetHidden and taken once") {
+    SharedState state;
+    const auto l = sample_hidden();
+    REQUIRE(set_hidden(state, l).rc == 0);
+
+    std::vector<uint8_t> out(sizeof(drpc::ipc::HiddenList), 0xFF);
+    REQUIRE(call(state, Cmd::GetHidden, {}, out).rc == 0);
+    CHECK(std::memcmp(out.data(), &l, sizeof l) == 0);
+
+    drpc::ipc::HiddenList taken;
+    REQUIRE(state.take_hidden(taken));
+    CHECK(std::memcmp(&taken, &l, sizeof l) == 0);
+    CHECK_FALSE(state.take_hidden(taken));
+}
+
+TEST_CASE("SetHidden zeroes the items past count and the padding") {
+    SharedState state;
+    auto l = sample_hidden();
+    l.pad = 3;
+    l.items[2].title_id = 0x0100152000022000ULL;
+    l.items[2].visibility = 7;
+    l.items[0].pad[3] = 5;
+    REQUIRE(set_hidden(state, l).rc == 0);
+    drpc::ipc::HiddenList got;
+    state.hidden(got);
+    CHECK(got.count == 2);
+    CHECK(got.pad == 0);
+    CHECK(got.items[2].title_id == 0);
+    CHECK(got.items[2].visibility == 0);
+    CHECK(got.items[0].pad[3] == 0);
+}
+
+TEST_CASE("SetHidden rejects a short buffer, too many entries, a bad visibility or a system title") {
+    SharedState state;
+    CHECK(call(state, Cmd::SetHidden).rc == drpc::kRcBadInput);
+    CHECK(set_hidden(state, sample_hidden(), sizeof(drpc::ipc::HiddenList) - 1).rc == drpc::kRcBadInput);
+    auto l = sample_hidden();
+    l.count = 65;
+    CHECK(set_hidden(state, l).rc == drpc::kRcBadInput);
+    l = sample_hidden();
+    l.items[1].visibility = 0;
+    CHECK(set_hidden(state, l).rc == drpc::kRcBadInput);
+    l = sample_hidden();
+    l.items[1].title_id = 0x0100000000001000ULL;
+    CHECK(set_hidden(state, l).rc == drpc::kRcBadInput);
+    drpc::ipc::HiddenList taken;
+    CHECK_FALSE(state.take_hidden(taken));
+}
+
+TEST_CASE("seed_hidden is served without being taken and never replaces a pending SetHidden") {
+    SharedState state;
+    const auto l = sample_hidden();
+    state.seed_hidden(l);
+    drpc::ipc::HiddenList got;
+    state.hidden(got);
+    CHECK(got.count == 2);
+    CHECK_FALSE(state.take_hidden(got));
+
+    REQUIRE(set_hidden(state, drpc::ipc::HiddenList{}).rc == 0);
+    state.seed_hidden(l);
+    state.hidden(got);
+    CHECK(got.count == 0);
+    REQUIRE(state.take_hidden(got));
+    CHECK(got.count == 0);
 }

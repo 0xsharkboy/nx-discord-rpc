@@ -92,6 +92,7 @@ while the console is off (SD card in a PC), never on a running console.
 | `admin_key` | empty | No longer used. Icons always use the API key. Leave it empty: a v0.4 relay no longer shows the icons a v0.3 console uploads with it |
 | `username` | empty | The Discord username shown by the app and the overlay. Informational only |
 | `discord_id`, `avatar` | empty | Your Discord user id and avatar hash, used to show your picture. Written by the sysmodule, not meant to be edited |
+| `hidden_titles` | empty | Games shown as "Playing a game" or not at all, as `0100ABCD12345000:private,0100ABCD12346000:hide` (16 hex digits each, at most 64). Invalid entries are dropped |
 
 With Show paused games on, a game shows "Paused · HOME Menu", "Paused · Nintendo eShop",
 "Paused · Album" or "Paused · User page" while one of those screens is in front. Other screens a

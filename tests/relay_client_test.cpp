@@ -755,3 +755,88 @@ TEST_CASE("parse_need_icon reads a boolean need_icon only") {
     CHECK_FALSE(parse_need_icon("").has_value());
     CHECK_FALSE(parse_need_icon(R"({"a":{"need_icon":true}})").has_value());
 }
+
+namespace {
+SceneInput zelda() {
+    SceneInput in;
+    in.scene = Scene::Game;
+    in.title_id = 0x0100A0D02127E000ULL;
+    in.game_name = "Zelda";
+    return in;
+}
+}  // namespace
+
+TEST_CASE("hidden_title_sends_nothing: a hidden title yields a DELETE and no icon upload") {
+    auto c = keyed();
+    Settings s;
+    c.set_report(game(), std::nullopt);
+    CHECK(icon_uploads(c, 0, 1000, need(true), status(503)) == std::vector<int64_t>{0});
+    s.hidden_titles = {{0x0100A0D02127E000ULL, TitleVisibility::Hidden}};
+    c.set_report(render_report(zelda(), s), 10);
+    const auto req = c.next(2000);
+    REQUIRE(req);
+    CHECK(req->kind == Kind::DeletePresence);
+    c.on_outcome(*req, status(204), 2000);
+    CHECK_FALSE(first_due(c, 2001, 3000000));
+}
+
+TEST_CASE("private_title_sends_no_id_or_icon: no title id, game name or hash in the PUT, no upload") {
+    auto c = keyed();
+    Settings s;
+    c.set_report(game(), std::nullopt);
+    CHECK(icon_uploads(c, 0, 1000, need(true), status(503)) == std::vector<int64_t>{0});
+    s.hidden_titles = {{0x0100A0D02127E000ULL, TitleVisibility::Private}};
+    c.set_report(render_report(zelda(), s), 10);
+    const auto req = c.next(2000);
+    REQUIRE(req);
+    CHECK(req->kind == Kind::PutPresence);
+    CHECK(req->body.find("title_id") == std::string::npos);
+    CHECK(req->body.find("icon") == std::string::npos);
+    CHECK(req->body.find("Zelda") == std::string::npos);
+    CHECK(req->body.find("0100A0D02127E000") == std::string::npos);
+    CHECK(icon_uploads(c, 2000, 3000000, need(true), status(200)).empty());
+}
+
+TEST_CASE("last_presence_status: 0 before any request, then the last presence answer") {
+    auto c = keyed();
+    CHECK(c.last_presence_status() == 0);
+    c.set_report(game(), std::nullopt);
+    auto req = c.next(0);
+    REQUIRE(req);
+    c.on_outcome(*req, need(true), 0);
+    CHECK(c.last_presence_status() == 200);
+    // An icon upload answer does not count.
+    req = c.next(1);
+    REQUIRE(req);
+    REQUIRE(req->kind == Kind::PutIcon);
+    c.on_outcome(*req, status(-1), 1);
+    CHECK(c.last_presence_status() == 200);
+    c.on_outcome(*req, status(413), 2);
+    CHECK(c.last_presence_status() == 200);
+
+    c.set_report(std::nullopt, std::nullopt);
+    req = c.next(3);
+    REQUIRE(req);
+    REQUIRE(req->kind == Kind::DeletePresence);
+    c.on_outcome(*req, status(0), 3);
+    CHECK(c.last_presence_status() == -1);
+    req = c.next(10000);
+    REQUIRE(req);
+    c.on_outcome(*req, status(503), 10000);
+    CHECK(c.last_presence_status() == 503);
+}
+
+TEST_CASE("last_presence_status: 401 and 409 are kept, a new key resets it") {
+    auto c = keyed();
+    c.set_report(game(), std::nullopt);
+    auto req = c.next(0);
+    REQUIRE(req);
+    c.on_outcome(*req, status(401), 0);
+    CHECK(c.last_presence_status() == 401);
+    c.set_key(true);
+    CHECK(c.last_presence_status() == 0);
+    req = c.next(1);
+    REQUIRE(req);
+    c.on_outcome(*req, status(409), 1);
+    CHECK(c.last_presence_status() == 409);
+}

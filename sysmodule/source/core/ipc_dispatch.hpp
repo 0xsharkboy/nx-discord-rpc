@@ -26,8 +26,9 @@ inline constexpr uint32_t kRcBadInput = MAKERESULT(420, 2);
 inline constexpr uint32_t kRcBadBuffer = MAKERESULT(420, 3);
 
 // in_raw: CMIF raw data after the header, possibly with trailing padding.
+// in_buf: the client's in buffer (HipcMapAlias), empty when none was sent.
 // out_buf: the client's out buffer, empty when none was sent. Nothing is written on error.
-DispatchResult dispatch(uint32_t cmd_id, std::span<const uint8_t> in_raw, std::span<uint8_t> out_buf,
-                        SharedState& state);
+DispatchResult dispatch(uint32_t cmd_id, std::span<const uint8_t> in_raw, std::span<const uint8_t> in_buf,
+                        std::span<uint8_t> out_buf, SharedState& state);
 
 }  // namespace drpc

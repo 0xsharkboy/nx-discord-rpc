@@ -27,6 +27,44 @@ std::string_view strip_bom(std::string_view s) {
     return s.substr(0, kBom.size()) == kBom ? s.substr(kBom.size()) : s;
 }
 
+std::optional<uint64_t> parse_title_id(std::string_view s) {
+    if (s.size() != 16) return std::nullopt;
+    uint64_t id = 0;
+    for (char c : s) {
+        int digit;
+        if (c >= '0' && c <= '9') digit = c - '0';
+        else if (c >= 'A' && c <= 'F') digit = c - 'A' + 10;
+        else if (c >= 'a' && c <= 'f') digit = c - 'a' + 10;
+        else return std::nullopt;
+        id = (id << 4) | uint64_t(digit);
+    }
+    return id;
+}
+
+// "0100ABCD00010000:private,0100...:hide". Malformed, unknown, system and repeated titles are dropped;
+// the first kMaxHiddenTitles valid entries are kept.
+std::vector<std::pair<uint64_t, TitleVisibility>> parse_hidden_titles(std::string_view v) {
+    std::vector<std::pair<uint64_t, TitleVisibility>> out;
+    while (!v.empty() && out.size() < ipc::kMaxHiddenTitles) {
+        const size_t comma = v.find(',');
+        const std::string_view entry = v.substr(0, comma);
+        v = comma == std::string_view::npos ? std::string_view{} : v.substr(comma + 1);
+
+        const size_t colon = entry.find(':');
+        if (colon == std::string_view::npos) continue;
+        const auto id = parse_title_id(trim(entry.substr(0, colon)));
+        const std::string_view state = trim(entry.substr(colon + 1));
+        TitleVisibility vis;
+        if (state == "private") vis = TitleVisibility::Private;
+        else if (state == "hide") vis = TitleVisibility::Hidden;
+        else continue;
+        if (!id || *id < ipc::kMinReportableTitleId) continue;
+        const bool seen = std::any_of(out.begin(), out.end(), [&](const auto& e) { return e.first == *id; });
+        if (!seen) out.emplace_back(*id, vis);
+    }
+    return out;
+}
+
 std::string_view unwrap(std::string_view raw) {
     raw = trim(strip_bom(raw));
     if (raw.size() >= 2 && (raw.front() == '"' || raw.front() == '\'') && raw.back() == raw.front()) {
@@ -97,6 +135,7 @@ Settings parse_settings(std::string_view ini) {
         else if (key == "username") s.username = normalize_username(value);
         else if (key == "discord_id") s.discord_id = valid_discord_id(value) ? std::string{value} : std::string{};
         else if (key == "avatar") s.avatar = valid_avatar_hash(value) ? std::string{value} : std::string{};
+        else if (key == "hidden_titles") s.hidden_titles = parse_hidden_titles(value);
     }
     return s;
 }
@@ -118,6 +157,16 @@ std::string serialize_settings(const Settings& s) {
     out += "username = " + s.username + "\n";
     out += "discord_id = " + s.discord_id + "\n";
     out += "avatar = " + s.avatar + "\n";
+    out += "hidden_titles = ";
+    bool first = true;
+    for (const auto& [id, vis] : s.hidden_titles) {
+        if (vis == TitleVisibility::Shown) continue;
+        if (!first) out += ",";
+        first = false;
+        out += format_title_id(id);
+        out += vis == TitleVisibility::Hidden ? ":hide" : ":private";
+    }
+    out += "\n";
     return out;
 }
 
@@ -144,6 +193,13 @@ std::string format_title_id(uint64_t title_id) {
     char hex[17];
     std::snprintf(hex, sizeof hex, "%016llX", static_cast<unsigned long long>(title_id));
     return hex;
+}
+
+TitleVisibility visibility_of(const Settings& s, uint64_t title_id) {
+    for (const auto& [id, vis] : s.hidden_titles) {
+        if (id == title_id) return vis;
+    }
+    return TitleVisibility::Shown;
 }
 
 }  // namespace drpc

@@ -60,6 +60,30 @@ std::optional<ipc::Settings> SharedState::take_settings() {
     return settings_;
 }
 
+void SharedState::set_hidden(const ipc::HiddenList& list) {
+    std::lock_guard lock(mutex_);
+    hidden_ = list;
+    hidden_pending_ = true;
+}
+
+void SharedState::seed_hidden(const ipc::HiddenList& list) {
+    std::lock_guard lock(mutex_);
+    if (!hidden_pending_) hidden_ = list;
+}
+
+void SharedState::hidden(ipc::HiddenList& out) const {
+    std::lock_guard lock(mutex_);
+    out = hidden_;
+}
+
+bool SharedState::take_hidden(ipc::HiddenList& out) {
+    std::lock_guard lock(mutex_);
+    if (!hidden_pending_) return false;
+    hidden_pending_ = false;
+    out = hidden_;
+    return true;
+}
+
 void SharedState::request(ipc::Cmd cmd) {
     if (!is_request(cmd)) return;
     std::lock_guard lock(mutex_);

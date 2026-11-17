@@ -13,6 +13,7 @@ namespace {
 constexpr uint32_t kPendingSeconds = 300;
 constexpr int64_t kOutcomeAfterMs = 8000;
 constexpr int64_t kUnlinkAfterMs = 2000;
+constexpr uint64_t kFakeTitleId = 0x0100000000010000ULL;
 
 int64_t (*g_clock)() = nullptr;
 
@@ -50,6 +51,7 @@ struct Scenario {
     uint32_t pending_s = kPendingSeconds;
     bool unlink_fails = false;
     uint32_t remote_version = ipc::kProtocolVersion + 1;
+    int32_t relay_status = 204;
 };
 
 Scenario no_key(std::string_view name) {
@@ -58,6 +60,7 @@ Scenario no_key(std::string_view name) {
     s.username = "";
     s.presence = Presence::None;
     s.link = ipc::LinkState::NoKey;
+    s.relay_status = 0;
     return s;
 }
 
@@ -92,6 +95,7 @@ const Scenario* find_scenario(std::string_view name) {
         Scenario backoff{"backoff"};
         backoff.health = ipc::RelayHealth::Backoff;
         backoff.backoff_s = 120;
+        backoff.relay_status = 503;
 
         Scenario missing = no_key("missing");
         missing.connect = ConnectError::NotRunning;
@@ -117,10 +121,13 @@ const Scenario* find_scenario(std::string_view name) {
 
         Scenario unauthorized{"unauthorized"};
         unauthorized.link = ipc::LinkState::Unauthorized;
+        unauthorized.relay_status = 401;
         Scenario broken{"broken"};
         broken.link = ipc::LinkState::LinkBroken;
+        broken.relay_status = 409;
         Scenario offline{"offline"};
         offline.health = ipc::RelayHealth::Offline;
+        offline.relay_status = -1;
         Scenario nourl = no_key("nourl");
         nourl.health = ipc::RelayHealth::NoUrl;
         nourl.relay_host = "";
@@ -171,6 +178,11 @@ public:
         settings_.show_firmware = 1;
         settings_.show_home_menu = 1;
         settings_.show_paused = 1;
+        // Two sample entries, neither of them the running title.
+        std::memset(&hidden_, 0, sizeof hidden_);
+        hidden_.count = 2;
+        hidden_.items[0] = {0x01007EF00011E000ULL, static_cast<uint8_t>(ipc::TitleVisibility::Private), {}};
+        hidden_.items[1] = {0x0100152000022000ULL, static_cast<uint8_t>(ipc::TitleVisibility::Hidden), {}};
         std::memset(&link_, 0, sizeof link_);
         if (key_ && state_ == ipc::LinkState::Linked) {
             link_.phase = ipc::LinkPhase::Linked;
@@ -203,17 +215,27 @@ public:
             put(out.discord_id, sc_.discord_id);
         }
         if (sc_.presence == Presence::Game) {
-            put(out.name, sc_.long_names ? long_name().c_str() : "Monument Valley");
-            put(out.details, sc_.long_names ? long_details().c_str() : "Playing");
-            put(out.title_id, "0100000000010000");
-            out.is_game = 1;
-            out.shown = settings_.private_mode ? 0 : 1;
-            out.elapsed_s = 754;
+            out.running_title_id = kFakeTitleId;
+            const ipc::TitleVisibility vis = visibility(kFakeTitleId);
+            if (vis == ipc::TitleVisibility::Private) {
+                put(out.name, "Nintendo Switch");
+                put(out.details, "Playing a game");
+                out.shown = 1;
+                out.elapsed_s = 754;
+            } else if (vis == ipc::TitleVisibility::Shown) {
+                put(out.name, sc_.long_names ? long_name().c_str() : "Monument Valley");
+                put(out.details, sc_.long_names ? long_details().c_str() : "Playing");
+                put(out.title_id, "0100000000010000");
+                out.is_game = 1;
+                out.shown = settings_.private_mode ? 0 : 1;
+                out.elapsed_s = 754;
+            }
         } else if (sc_.presence == Presence::Home) {
             put(out.name, "Home Menu");
             out.shown = settings_.show_home_menu ? 1 : 0;
         }
         out.unlink = unlink_result_;
+        out.last_relay_status = sc_.relay_status;
         return true;
     }
 
@@ -281,7 +303,32 @@ public:
         return true;
     }
 
+    bool hidden(ipc::HiddenList& out) override {
+        if (!connected_) return false;
+        out = hidden_;
+        return true;
+    }
+
+    bool set_hidden(const ipc::HiddenList& in) override {
+        if (!connected_ || !ipc::valid_hidden(in)) return false;
+        std::memset(&hidden_, 0, sizeof hidden_);
+        hidden_.count = in.count;
+        for (uint32_t i = 0; i < in.count; ++i) {
+            hidden_.items[i].title_id = in.items[i].title_id;
+            hidden_.items[i].visibility = in.items[i].visibility;
+        }
+        return true;
+    }
+
 private:
+    ipc::TitleVisibility visibility(uint64_t title_id) const {
+        for (uint32_t i = 0; i < hidden_.count; ++i) {
+            const ipc::HiddenTitle& t = hidden_.items[i];
+            if (t.title_id == title_id) return static_cast<ipc::TitleVisibility>(t.visibility);
+        }
+        return ipc::TitleVisibility::Shown;
+    }
+
     void enter_pending() {
         link_.phase = ipc::LinkPhase::Pending;
         link_.seconds_left = sc_.pending_s;
@@ -329,6 +376,7 @@ private:
     const Scenario& sc_;
     ipc::Settings settings_;
     ipc::Link link_;
+    ipc::HiddenList hidden_;
     ipc::UnlinkResult unlink_result_ = ipc::UnlinkResult::None;
     ipc::LinkState state_;
     std::string username_;

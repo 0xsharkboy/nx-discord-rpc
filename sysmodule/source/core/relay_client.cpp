@@ -48,6 +48,7 @@ void RelayClient::Backoff::fail(const Outcome& out, int64_t now_ms) {
 }
 
 void RelayClient::set_key(bool has_api_key) {
+    last_presence_status_ = 0;
     if (!has_api_key) {
         link_ = LinkState::NoKey;
         return;
@@ -115,6 +116,7 @@ void RelayClient::on_outcome(const Request& req, const Outcome& out, int64_t now
 }
 
 void RelayClient::on_presence_outcome(const Outcome& out, int64_t now_ms) {
+    last_presence_status_ = out.status == 0 ? -1 : out.status;
     if (is_retryable(out.status)) {
         backoff_.fail(out, now_ms);
         return;
@@ -164,6 +166,7 @@ void RelayClient::unqueue_icon(const std::string& title_id) {
 }
 
 void RelayClient::on_delete_outcome(const Outcome& out, int64_t now_ms) {
+    last_presence_status_ = out.status == 0 ? -1 : out.status;
     if (is_retryable(out.status)) {
         backoff_.fail(out, now_ms);
         return;

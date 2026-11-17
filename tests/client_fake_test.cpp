@@ -264,3 +264,58 @@ TEST_CASE("mismatch-old scenario reports an older remote version") {
     CHECK(c->connect() == ConnectError::VersionMismatch);
     CHECK(c->remote_version() == 0);
 }
+
+TEST_CASE("fake hidden list: sample entries, set_hidden validates and the status follows it") {
+    auto c = make_fake_client("linked-game");
+    ipc::HiddenList l;
+    CHECK_FALSE(c->hidden(l));
+    REQUIRE(c->connect() == ConnectError::None);
+    REQUIRE(c->hidden(l));
+    CHECK(l.count == 2);
+    CHECK(ipc::valid_hidden(l));
+
+    ipc::Status st;
+    REQUIRE(c->status(st));
+    CHECK(st.running_title_id == 0x0100000000010000ULL);
+    CHECK(st.last_relay_status == 204);
+    CHECK(st.shown == 1);
+
+    l.count = 3;
+    l.items[2].title_id = st.running_title_id;
+    l.items[2].visibility = static_cast<uint8_t>(ipc::TitleVisibility::Hidden);
+    REQUIRE(c->set_hidden(l));
+    REQUIRE(c->status(st));
+    CHECK(st.shown == 0);
+    CHECK(st.title_id[0] == '\0');
+    CHECK(st.running_title_id == 0x0100000000010000ULL);
+
+    l.items[2].visibility = static_cast<uint8_t>(ipc::TitleVisibility::Private);
+    REQUIRE(c->set_hidden(l));
+    REQUIRE(c->status(st));
+    CHECK(st.shown == 1);
+    CHECK(std::strcmp(st.name, "Nintendo Switch") == 0);
+    CHECK(st.title_id[0] == '\0');
+
+    ipc::HiddenList bad = l;
+    bad.items[2].visibility = 0;
+    CHECK_FALSE(c->set_hidden(bad));
+    ipc::HiddenList now;
+    REQUIRE(c->hidden(now));
+    CHECK(now.count == 3);
+}
+
+TEST_CASE("fake last relay status follows the scenario") {
+    struct Case {
+        const char* name;
+        int32_t status;
+    };
+    for (const Case k : {Case{"nokey", 0}, Case{"unauthorized", 401}, Case{"broken", 409}, Case{"offline", -1},
+                         Case{"backoff", 503}, Case{"linked-home", 204}}) {
+        CAPTURE(k.name);
+        auto c = make_fake_client(k.name);
+        REQUIRE(c->connect() == ConnectError::None);
+        ipc::Status st;
+        REQUIRE(c->status(st));
+        CHECK(st.last_relay_status == k.status);
+    }
+}

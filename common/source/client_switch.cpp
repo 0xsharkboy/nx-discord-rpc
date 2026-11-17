@@ -66,6 +66,22 @@ public:
     bool unlink() override { return simple(ipc::Cmd::Unlink); }
     bool forget_key() override { return simple(ipc::Cmd::ForgetKey); }
 
+    bool hidden(ipc::HiddenList& out) override {
+        if (!get_buffer(ipc::Cmd::GetHidden, out)) return false;
+        if (out.count > ipc::kMaxHiddenTitles) out.count = ipc::kMaxHiddenTitles;
+        return true;
+    }
+
+    bool set_hidden(const ipc::HiddenList& in) override {
+        if (!open_) return false;
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wmissing-field-initializers"
+        return R_SUCCEEDED(serviceDispatch(&srv_, static_cast<u32>(ipc::Cmd::SetHidden),
+                                           .buffer_attrs = {SfBufferAttr_HipcMapAlias | SfBufferAttr_In},
+                                           .buffers = {{&in, sizeof in}}));
+#pragma GCC diagnostic pop
+    }
+
 private:
     template <typename T>
     bool get_buffer(ipc::Cmd cmd, T& out) {

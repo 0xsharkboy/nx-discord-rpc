@@ -45,6 +45,9 @@ public:
     LinkState link_state() const { return link_; }
     // Time left in the presence backoff window, nullopt when it is closed.
     std::optional<int64_t> backoff_left_ms(int64_t now_ms) const;
+    // The HTTP status of the last presence PUT or DELETE answered: 0 before any (and after set_key), -1 for a
+    // network error. Icon uploads do not count.
+    int last_presence_status() const { return last_presence_status_; }
 
 private:
     struct Backoff {
@@ -72,6 +75,7 @@ private:
     void forget_shown();
 
     LinkState link_ = LinkState::NoKey;
+    int last_presence_status_ = 0;
 
     std::optional<Report> desired_;
     std::optional<int64_t> elapsed_s_;

@@ -25,6 +25,14 @@ public:
     // The latest value from set_settings not yet taken, once.
     std::optional<ipc::Settings> take_settings();
 
+    // The hidden list, like the settings. Out parameters: the list is about 1 KB, kept off the callers' stacks.
+    void set_hidden(const ipc::HiddenList& list);
+    // Ignored while a set_hidden value is pending.
+    void seed_hidden(const ipc::HiddenList& list);
+    void hidden(ipc::HiddenList& out) const;
+    // The latest value from set_hidden not yet taken, once; false when there is none.
+    bool take_hidden(ipc::HiddenList& out);
+
     // Only StartLink, CancelLink, Unlink and ForgetKey; anything else is ignored.
     // Status and Link reflect a request from the moment it is made, even across a publish, until it is taken.
     // Repeated requests coalesce until taken.
@@ -42,6 +50,8 @@ private:
     ipc::Link link_{};
     ipc::Settings settings_{};
     bool settings_pending_ = false;
+    ipc::HiddenList hidden_{};
+    bool hidden_pending_ = false;
     std::array<bool, kCmdSlots> requests_{};
 };
 

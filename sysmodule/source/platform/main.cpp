@@ -289,6 +289,7 @@ struct Snapshot {
     const RelayClient& client;
     const LinkClient& link;
     int64_t now_ms;
+    uint64_t running_title_id;
 };
 
 void publish(SharedState& shared, const Snapshot& s) {
@@ -321,6 +322,8 @@ void publish(SharedState& shared, const Snapshot& s) {
         st.health = ipc::RelayHealth::Ok;
     }
     st.unlink = s.link.unlink_result();
+    st.last_relay_status = s.client.last_presence_status();
+    st.running_title_id = s.running_title_id;
 
     const LinkView view = s.link.view(s.now_ms);
     ipc::Link lk{};
@@ -353,8 +356,12 @@ void publish(SharedState& shared, const Snapshot& s) {
     SettingsSaver saver;
     Store persist{store, settings, saver, {}};
     LinkLog link_log;
+    // About 1 KB: static, off the small main thread stack.
+    static ipc::HiddenList hidden_ipc;
+    to_ipc(settings, hidden_ipc);
+    shared.seed_hidden(hidden_ipc);
     shared.seed_settings(to_ipc(settings));
-    publish(shared, Snapshot{settings, url, url && power.online(), std::nullopt, 0, client, link, mono_ms()});
+    publish(shared, Snapshot{settings, url, url && power.online(), std::nullopt, 0, client, link, mono_ms(), 0});
     RetryGate ipc_retry(kIpcRetryMs);
     bool ipc_up = ipc_server_start(shared);
     ipc_retry.attempted(mono_ms());
@@ -424,6 +431,17 @@ void publish(SharedState& shared, const Snapshot& s) {
             shared.seed_settings(to_ipc(settings));
             if (settings != before) saver.changed(now);
         }
+        // Before render_report: the new list applies to this very tick.
+        if (shared.take_hidden(hidden_ipc)) {
+            const auto before = settings.hidden_titles;
+            apply_ipc(hidden_ipc, settings);
+            to_ipc(settings, hidden_ipc);
+            shared.seed_hidden(hidden_ipc);
+            if (settings.hidden_titles != before) {
+                saver.changed(now);
+                log::info("Hidden games: " + std::to_string(settings.hidden_titles.size()) + " listed");
+            }
+        }
         if (saver.due(now)) save_now(persist, now);
 
         if (shared.take_request(ipc::Cmd::StartLink)) link.start(now);
@@ -437,6 +455,7 @@ void publish(SharedState& shared, const Snapshot& s) {
 
         const auto title = current_title();
         const std::optional<uint64_t> id = title ? std::optional{title->title_id} : std::nullopt;
+        const uint64_t running_id = id.value_or(0);
         if (!polled || id != shown_id) {
             polled = true;
             shown_id = id;
@@ -513,7 +532,8 @@ void publish(SharedState& shared, const Snapshot& s) {
             next_profile_ms = now + kProfileRefreshMs;
         }
         // Before the request, which can block for 8 s: the UIs see what this tick took.
-        publish(shared, Snapshot{settings, url, online, report, elapsed.seconds(), client, link, mono_ms()});
+        publish(shared,
+                Snapshot{settings, url, online, report, elapsed.seconds(), client, link, mono_ms(), running_id});
 
         if (!url) {
             if (const auto lreq = link.next(now)) {
@@ -538,7 +558,7 @@ void publish(SharedState& shared, const Snapshot& s) {
         }
 
         const int64_t after = mono_ms();
-        publish(shared, Snapshot{settings, url, online, report, elapsed.seconds(), client, link, after});
+        publish(shared, Snapshot{settings, url, online, report, elapsed.seconds(), client, link, after, running_id});
         // Sleep began during the request: no log or SD access until the console wakes.
         if (power.asleep()) continue;
 

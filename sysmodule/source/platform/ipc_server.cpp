@@ -107,6 +107,13 @@ void handle_request(const HipcParsedRequest& req) {
         return;
     }
 
+    std::span<const uint8_t> in_buf;
+    if (req.meta.num_send_buffers > 0) {
+        const HipcBufferDescriptor* desc = &req.data.send_buffers[0];
+        const auto* addr = static_cast<const uint8_t*>(hipcGetBufferAddress(desc));
+        if (addr != nullptr) in_buf = {addr, hipcGetBufferSize(desc)};
+    }
+
     std::span<uint8_t> out_buf;
     if (req.meta.num_recv_buffers > 0) {
         const HipcBufferDescriptor* desc = &req.data.recv_buffers[0];
@@ -114,7 +121,7 @@ void handle_request(const HipcParsedRequest& req) {
         if (addr != nullptr) out_buf = {addr, hipcGetBufferSize(desc)};
     }
 
-    const DispatchResult result = dispatch(hdr->command_id, raw, out_buf, *g_server.state);
+    const DispatchResult result = dispatch(hdr->command_id, raw, in_buf, out_buf, *g_server.state);
     write_reply(result.rc, result.raw_out);
 }
 

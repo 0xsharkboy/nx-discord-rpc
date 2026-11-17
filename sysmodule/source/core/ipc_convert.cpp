@@ -31,6 +31,23 @@ void apply_ipc(const ipc::Settings& in, Settings& out) {
     out.debug_log = in.debug_log != 0;
 }
 
+void to_ipc(const Settings& s, ipc::HiddenList& out) {
+    std::memset(&out, 0, sizeof out);
+    for (const auto& [id, vis] : s.hidden_titles) {
+        if (vis == TitleVisibility::Shown || out.count == ipc::kMaxHiddenTitles) continue;
+        ipc::HiddenTitle& t = out.items[out.count++];
+        t.title_id = id;
+        t.visibility = static_cast<uint8_t>(vis);
+    }
+}
+
+void apply_ipc(const ipc::HiddenList& in, Settings& out) {
+    out.hidden_titles.clear();
+    for (uint32_t i = 0; i < in.count && i < ipc::kMaxHiddenTitles; ++i) {
+        out.hidden_titles.emplace_back(in.items[i].title_id, static_cast<TitleVisibility>(in.items[i].visibility));
+    }
+}
+
 void copy_str(char* dst, size_t cap, std::string_view src) {
     if (cap == 0) return;
     const std::string cut = truncate_utf8(src, cap - 1);
