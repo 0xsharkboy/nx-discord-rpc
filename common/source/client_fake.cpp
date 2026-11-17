@@ -170,6 +170,7 @@ public:
         settings_.enabled = 1;
         settings_.show_firmware = 1;
         settings_.show_home_menu = 1;
+        settings_.show_paused = 1;
         std::memset(&link_, 0, sizeof link_);
         if (key_ && state_ == ipc::LinkState::Linked) {
             link_.phase = ipc::LinkPhase::Linked;
@@ -225,12 +226,11 @@ public:
     bool set_settings(const ipc::Settings& in) override {
         if (!connected_) return false;
         if (in.enabled > 1 || in.private_mode > 1 || in.show_firmware > 1 ||
-            in.show_home_menu > 1 || in.debug_log > 1) {
+            in.show_home_menu > 1 || in.debug_log > 1 ||
+            in.show_paused > 1 || in.show_docked > 1 || in.show_playtime > 1) {
             return false;
         }
         settings_ = in;
-        settings_.reserved0 = 0;
-        std::memset(settings_.reserved, 0, sizeof settings_.reserved);
         return true;
     }
 

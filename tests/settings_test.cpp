@@ -16,6 +16,25 @@ TEST_CASE("defaults on empty or garbage input") {
     CHECK(drpc::parse_settings("\x00\xff garbage\n=\nenabled=maybe"sv) == drpc::Settings{});
 }
 
+TEST_CASE("paused, docked and playtime default to true, false, false") {
+    const auto s = drpc::parse_settings("enabled = 1\n");
+    CHECK(s.show_paused);
+    CHECK_FALSE(s.show_docked);
+    CHECK_FALSE(s.show_playtime);
+}
+
+TEST_CASE("paused, docked and playtime parse and serialize") {
+    const auto s = drpc::parse_settings("show_paused = false\nshow_docked = true\nshow_playtime = 1\n");
+    CHECK_FALSE(s.show_paused);
+    CHECK(s.show_docked);
+    CHECK(s.show_playtime);
+    const std::string out = drpc::serialize_settings(s);
+    CHECK(out.find("show_paused = false\n") != std::string::npos);
+    CHECK(out.find("show_docked = true\n") != std::string::npos);
+    CHECK(out.find("show_playtime = true\n") != std::string::npos);
+    CHECK(drpc::parse_settings(out) == s);
+}
+
 TEST_CASE("round trip") {
     drpc::Settings s;
     s.private_mode = true;

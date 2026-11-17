@@ -159,6 +159,9 @@ public:
         add_toggle(list, "Private mode", cur.private_mode, &ipc::Settings::private_mode);
         add_toggle(list, "Show firmware", cur.show_firmware, &ipc::Settings::show_firmware);
         add_toggle(list, "Show HOME Menu", cur.show_home_menu, &ipc::Settings::show_home_menu);
+        add_toggle(list, "Show paused", cur.show_paused, &ipc::Settings::show_paused);
+        add_toggle(list, "Show docked", cur.show_docked, &ipc::Settings::show_docked);
+        add_toggle(list, "Show playtime", cur.show_playtime, &ipc::Settings::show_playtime);
 
         frame->setContent(list);
         refresh();

@@ -7,7 +7,7 @@
 namespace drpc::ipc {
 
 inline constexpr char kServiceName[] = "drpc";
-inline constexpr uint32_t kProtocolVersion = 2;
+inline constexpr uint32_t kProtocolVersion = 3;
 
 enum class Cmd : uint32_t {
     GetProtocolVersion = 0,
@@ -28,8 +28,7 @@ enum class LinkFailure : uint8_t { None, RateLimited, Unreachable, Interrupted, 
 enum class UnlinkResult : uint8_t { None, InProgress, Done, Failed };
 
 struct Settings {
-    uint8_t enabled, private_mode, reserved0, show_firmware, show_home_menu, debug_log;
-    uint8_t reserved[2];
+    uint8_t enabled, private_mode, show_paused, show_firmware, show_home_menu, debug_log, show_docked, show_playtime;
 };
 
 struct Status {

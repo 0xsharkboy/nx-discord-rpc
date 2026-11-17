@@ -10,9 +10,16 @@ TEST_CASE("ipc settings is 8 bytes") {
     CHECK(sizeof(drpc::ipc::Settings) == 8);
 }
 
+TEST_CASE("ipc settings layout and protocol 3") {
+    using drpc::ipc::Settings;
+    CHECK(drpc::ipc::kProtocolVersion == 3);
+    CHECK(offsetof(Settings, show_paused) == 2);
+    CHECK(offsetof(Settings, show_docked) == 6);
+    CHECK(offsetof(Settings, show_playtime) == 7);
+}
+
 TEST_CASE("ipc status layout carries the Discord id and avatar (protocol 2)") {
     using drpc::ipc::Status;
-    CHECK(drpc::ipc::kProtocolVersion == 2);
     CHECK(sizeof(Status) == 496);
     CHECK(offsetof(Status, discord_id) == 56);
     CHECK(offsetof(Status, avatar) == 80);
@@ -26,6 +33,9 @@ TEST_CASE("to_ipc and apply_ipc round trip the booleans") {
     s.show_firmware = true;
     s.show_home_menu = true;
     s.debug_log = true;
+    s.show_paused = false;
+    s.show_docked = true;
+    s.show_playtime = true;
     const drpc::ipc::Settings wire = drpc::to_ipc(s);
     drpc::Settings back;
     drpc::apply_ipc(wire, back);

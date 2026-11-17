@@ -29,6 +29,9 @@ SettingsTab::SettingsTab(drpc::Client& client) : client_(client) {
     add_toggle(list, "app/settings/private_mode"_i18n, &drpc::ipc::Settings::private_mode);
     add_toggle(list, "app/settings/show_firmware"_i18n, &drpc::ipc::Settings::show_firmware);
     add_toggle(list, "app/settings/show_home_menu"_i18n, &drpc::ipc::Settings::show_home_menu);
+    add_toggle(list, "app/settings/show_paused"_i18n, &drpc::ipc::Settings::show_paused);
+    add_toggle(list, "app/settings/show_docked"_i18n, &drpc::ipc::Settings::show_docked);
+    add_toggle(list, "app/settings/show_playtime"_i18n, &drpc::ipc::Settings::show_playtime);
 
     auto* advanced = make_header("app/settings/advanced"_i18n);
     advanced->setMarginTop(24);

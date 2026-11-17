@@ -19,7 +19,7 @@ TEST_CASE("missing scenario reports NotRunning") {
 TEST_CASE("mismatch scenario reports the remote version") {
     auto c = make_fake_client("mismatch");
     CHECK(c->connect() == ConnectError::VersionMismatch);
-    CHECK(c->remote_version() == 3);
+    CHECK(c->remote_version() == ipc::kProtocolVersion + 1);
 }
 
 TEST_CASE("unknown scenario yields no client") {
@@ -255,7 +255,7 @@ TEST_CASE("mismatch: an older sysmodule is the side to update, a newer one means
     CHECK(sysmodule_outdated(0));
     CHECK(sysmodule_outdated(ipc::kProtocolVersion - 1));
     CHECK_FALSE(sysmodule_outdated(ipc::kProtocolVersion + 1));
-    CHECK_FALSE(sysmodule_outdated(2));
+    CHECK_FALSE(sysmodule_outdated(ipc::kProtocolVersion));
 }
 
 TEST_CASE("mismatch-old scenario reports an older remote version") {

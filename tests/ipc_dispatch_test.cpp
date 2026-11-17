@@ -34,6 +34,9 @@ drpc::ipc::Settings valid_settings() {
     s.show_firmware = 0;
     s.show_home_menu = 1;
     s.debug_log = 1;
+    s.show_paused = 1;
+    s.show_docked = 0;
+    s.show_playtime = 1;
     return s;
 }
 
@@ -43,12 +46,12 @@ void check_protocol_version(SharedState& state) {
     REQUIRE(r.raw_out.size() == sizeof(uint32_t));
     uint32_t version = 0;
     std::memcpy(&version, r.raw_out.data(), sizeof(version));
-    CHECK(version == 2);
+    CHECK(version == 3);
 }
 
 }  // namespace
 
-TEST_CASE("GetProtocolVersion returns 2") {
+TEST_CASE("GetProtocolVersion returns 3") {
     SharedState state;
     check_protocol_version(state);
 }
@@ -133,6 +136,18 @@ TEST_CASE("SetSettings with a boolean other than 0 or 1 is bad input") {
     check_protocol_version(state);
 }
 
+TEST_CASE("SetSettings rejects a new field holding 2") {
+    for (uint8_t drpc::ipc::Settings::*field : {&drpc::ipc::Settings::show_paused, &drpc::ipc::Settings::show_docked,
+                                                &drpc::ipc::Settings::show_playtime}) {
+        SharedState state;
+        drpc::ipc::Settings s = valid_settings();
+        s.*field = 2;
+        const std::vector<uint8_t> in = bytes_of(s);
+        CHECK(call(state, Cmd::SetSettings, in).rc == drpc::kRcBadInput);
+        CHECK_FALSE(state.take_settings().has_value());
+    }
+}
+
 TEST_CASE("a valid SetSettings is taken once") {
     SharedState state;
     const drpc::ipc::Settings s = valid_settings();
@@ -143,17 +158,6 @@ TEST_CASE("a valid SetSettings is taken once") {
     REQUIRE(taken.has_value());
     CHECK(std::memcmp(&*taken, &s, sizeof(s)) == 0);
     CHECK_FALSE(state.take_settings().has_value());
-}
-
-TEST_CASE("SetSettings ignores the reserved byte and stores it as 0") {
-    SharedState state;
-    drpc::ipc::Settings s = valid_settings();
-    s.reserved0 = 0xAB;
-    const std::vector<uint8_t> in = bytes_of(s);
-    REQUIRE(call(state, Cmd::SetSettings, in).rc == 0);
-    const auto taken = state.take_settings();
-    REQUIRE(taken.has_value());
-    CHECK(taken->reserved0 == 0);
 }
 
 TEST_CASE("SetSettings accepts trailing padding after the struct") {
