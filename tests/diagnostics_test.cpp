@@ -258,3 +258,9 @@ TEST_CASE("diagnostics_steps_sysmodule_offline_makes_an_old_success_stale") {
     CHECK(s.result == Result::Warning);
     CHECK(s.reason == Reason::NotDelivered);
 }
+
+TEST_CASE("diagnostics_steps_probe_target_skips_a_utf8_bom") {
+    const auto t = app::diag::probe_target("\xEF\xBB\xBFrelay_url = https://relay.example.org:8443/rpc\n", "relay.example.org");
+    CHECK(t.port == 8443);
+    CHECK(t.base_path == "/rpc");
+}

@@ -65,7 +65,7 @@
       "nothing_to_show": "Nothing to show right now",
       "not_sent_yet": "Not sent yet, it goes out in a few seconds",
       "not_delivered": "The last update did not reach the relay. Retrying",
-      "retrying": "The last update failed. Retrying in {} s",
+      "retrying": "The last update failed. Retrying in {}s",
       "rate_limited": "Too many updates. Retrying shortly",
       "relay_error": "The relay failed the last update (error {}). Retrying",
       "refused": "The relay refused the last update (error {})"

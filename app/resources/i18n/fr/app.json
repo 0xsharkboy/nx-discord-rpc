@@ -38,7 +38,7 @@
     "again": "Tester à nouveau",
     "status_page": "Page d'état du relais :",
     "status_page_hint": "Scanner pour savoir si le relais est en panne pour tout le monde.",
-    "privacy_tip": "Si rien n'apparaît chez les amis, ouvrir Discord, Paramètres utilisateur > Confidentialité des activités, et activer le partage de l'activité.",
+    "privacy_tip": "Si rien n'apparaît chez les amis, ouvrir Discord, Paramètres utilisateur > Confidentialité de l'activité, et activer le partage de l'activité.",
     "step": {
       "network": "Connexion Internet",
       "relay": "Relais joignable",

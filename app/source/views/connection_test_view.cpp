@@ -142,11 +142,11 @@ ConnectionTestView::ConnectionTestView(drpc::Client& client) : client_(client) {
     url->setHorizontalAlign(brls::HorizontalAlign::CENTER);
     url->setMarginTop(4);
     help_->addView(url);
-    qr_ = new QrView(kQrSide);
-    qr_->setShrink(0);
-    qr_->setMarginTop(14);
-    qr_->set_text(drpc::kStatusPageUrl);
-    help_->addView(qr_);
+    auto* qr = new QrView(kQrSide);
+    qr->setShrink(0);
+    qr->setMarginTop(14);
+    qr->set_text(drpc::kStatusPageUrl);
+    help_->addView(qr);
     auto* hint = make_label(16, palette::text_faint());
     hint->setText("app/diag/status_page_hint"_i18n);
     hint->setHorizontalAlign(brls::HorizontalAlign::CENTER);

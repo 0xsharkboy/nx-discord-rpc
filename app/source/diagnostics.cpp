@@ -151,11 +151,10 @@ bool reason_has_code(Reason reason) {
            reason == Reason::Refused;
 }
 
-}  // namespace app::diag
-
-namespace app::diag {
-
 drpc::RelayUrl probe_target(std::string_view ini, std::string_view status_host) {
+    // Like the sysmodule's parse_settings: a UTF-8 BOM (Windows Notepad) is not part of the first key.
+    constexpr std::string_view kBom = "\xEF\xBB\xBF";
+    if (ini.starts_with(kBom)) ini.remove_prefix(kBom.size());
     std::optional<std::string_view> configured;
     while (!ini.empty()) {
         const size_t nl = ini.find('\n');

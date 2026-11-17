@@ -10,8 +10,6 @@
 
 namespace app {
 
-class QrView;
-
 // Status > Test connection: network, relay, key, link and presence, each OK or failed with a short reason.
 // The network and relay checks run on the brls::async worker; the sysmodule is only asked on the UI thread.
 class ConnectionTestView : public brls::ScrollingFrame {
@@ -41,7 +39,6 @@ private:
 
     std::array<Row, diag::kStepCount> rows_{};
     brls::Box* help_;
-    QrView* qr_;
     brls::Label* tip_;
     brls::Button* again_;
 

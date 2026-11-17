@@ -26,6 +26,8 @@ constexpr int64_t kBudgetMs = 8'000;
 constexpr size_t kMaxBody = 256;
 constexpr size_t kMaxConfigBytes = 64 * 1024;
 
+// The sysmodule may be rewriting config.ini (temp file, then rename) at this moment: a short or missing read only
+// makes probe_target fall back to relay_host on 443.
 std::string read_config() {
     std::string ini;
     FILE* f = std::fopen(drpc::paths::kConfig, "rb");
