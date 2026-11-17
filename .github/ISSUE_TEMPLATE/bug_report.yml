@@ -1,0 +1,95 @@
+name: Bug report
+description: Something does not work on your console.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting! Before you start:
+        - **Never paste `config.ini`.** It contains your API key. `log.txt` is safe to share: keys are masked in it.
+        - For problems with the relay server itself (self-hosting, the API), open an issue on
+          [nx-discord-rpc-relay](https://github.com/0xsharkboy/nx-discord-rpc-relay/issues) instead.
+  - type: input
+    id: version
+    attributes:
+      label: NX Discord RPC version
+      description: Shown in the About tab of the app, or in the name of the zip you installed.
+      placeholder: "0.3.0"
+    validations:
+      required: true
+  - type: input
+    id: firmware
+    attributes:
+      label: Firmware version
+      placeholder: "19.0.1"
+    validations:
+      required: true
+  - type: input
+    id: atmosphere
+    attributes:
+      label: Atmosphère version
+      placeholder: "1.8.0"
+    validations:
+      required: true
+  - type: dropdown
+    id: mmc
+    attributes:
+      label: Running on
+      options:
+        - emuMMC
+        - sysMMC
+        - Not sure
+    validations:
+      required: true
+  - type: dropdown
+    id: part
+    attributes:
+      label: Which part is affected?
+      multiple: true
+      options:
+        - Sysmodule (presence on Discord)
+        - App (Homebrew Menu)
+        - Overlay (Tesla Menu / Ultrahand)
+        - Linking my Discord account
+        - Not sure
+    validations:
+      required: true
+  - type: input
+    id: overlay
+    attributes:
+      label: Overlay loader
+      description: Only if the overlay is affected.
+      placeholder: "Ultrahand 1.9.x"
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What you did, what you expected, and what you saw instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open the app
+        2. Go to the Account tab
+        3. ...
+  - type: input
+    id: status
+    attributes:
+      label: Status tab
+      description: What the Status tab of the app says (relay state, link state).
+  - type: textarea
+    id: log
+    attributes:
+      label: Log
+      description: |
+        Attach `sdmc:/config/nx-discord-rpc/log.txt`, or paste the relevant part.
+        Turning on Debug log in Settings before reproducing the problem helps a lot.
+      render: text
+  - type: textarea
+    id: extra
+    attributes:
+      label: Anything else?
+      description: Screenshots, other sysmodules installed, the game you were playing...
