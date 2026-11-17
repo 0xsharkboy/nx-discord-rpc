@@ -5,6 +5,7 @@
 #include <string>
 
 #include "drpc/client.hpp"
+#include "sysmodule_launcher.hpp"
 
 namespace brls {
 class Activity;
@@ -41,6 +42,7 @@ private:
     brls::Label* start_note_ = nullptr;
     brls::Button* start_button_ = nullptr;
     bool starting_ = false;
+    LaunchResult launch_{};  // the last Start now launch, reported if no connection follows
 };
 
 }  // namespace app

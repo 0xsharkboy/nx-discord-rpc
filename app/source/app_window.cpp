@@ -18,9 +18,10 @@ namespace app {
 
 namespace {
 
-// After a launch, connect every 500 ms for up to 5 s.
+// After a launch, connect every 500 ms for up to 12 s: the sysmodule retries a failed service registration
+// every 5 s (kIpcRetryMs), for instance after colliding with a connect probe.
 constexpr long kStartPollMs = 500;
-constexpr int kStartPollAttempts = 10;
+constexpr int kStartPollAttempts = 24;
 
 void apply_theme() {
     const NVGcolor accent = palette::accent();
@@ -151,22 +152,9 @@ void AppWindow::start_sysmodule() {
     brls::async([this] {
         const LaunchResult launch = launch_sysmodule();
         brls::sync([this, launch] {
-            if (launch.status != LaunchStatus::Failed) {
-                brls::delay(kStartPollMs, [this] { poll_start(1); });
-                return;
-            }
-            // The launch may fail because the sysmodule came up in the meantime: check once before reporting.
-            if (client_->connect() == drpc::ConnectError::None) {
-                connected();
-                return;
-            }
-            if (launch.code == 0) {
-                start_failed("app/blocking/start_unavailable"_i18n);
-                return;
-            }
-            char code[16];
-            std::snprintf(code, sizeof code, "0x%X", static_cast<unsigned>(launch.code));
-            start_failed(brls::getStr("app/blocking/start_failed", std::string(code)));
+            // Poll whatever the launch said: a failure may only mean it is already running or starting.
+            launch_ = launch;
+            brls::delay(kStartPollMs, [this] { poll_start(1); });
         });
     });
 }
@@ -193,7 +181,15 @@ void AppWindow::poll_start(int attempt) {
         return;
     }
     if (attempt >= kStartPollAttempts) {
-        start_failed("app/blocking/start_timeout"_i18n);
+        if (launch_.ok) {
+            start_failed("app/blocking/start_timeout"_i18n);
+        } else if (launch_.code == 0) {
+            start_failed("app/blocking/start_unavailable"_i18n);
+        } else {
+            char code[16];
+            std::snprintf(code, sizeof code, "0x%X", static_cast<unsigned>(launch_.code));
+            start_failed(brls::getStr("app/blocking/start_failed", std::string(code)));
+        }
         return;
     }
     brls::delay(kStartPollMs, [this, attempt] { poll_start(attempt + 1); });

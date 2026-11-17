@@ -12,7 +12,7 @@
     "starting": "Starting…",
     "start_failed": "Could not start NX Discord RPC (error {}).",
     "start_unavailable": "Could not start NX Discord RPC.",
-    "start_timeout": "NX Discord RPC did not start within 5 seconds. Reboot the console.",
+    "start_timeout": "NX Discord RPC did not start. Reboot the console.",
     "update_sysmodule": "Update the NX Discord RPC sysmodule (protocol {}) to match this app (protocol {}).",
     "update_app": "Update this app (protocol {}) to match the sysmodule (protocol {})."
   },
@@ -41,7 +41,7 @@
     "debug_log": "Debug log",
     "start_at_boot": "Start at boot",
     "start_at_boot_hint": "Applies at next boot",
-    "start_at_boot_failed": "Could not change Start at boot. Check that the SD card is not write protected.",
+    "start_at_boot_failed": "Could not change Start at boot. Check that NX Discord RPC is installed in atmosphere/contents/4200000000D15C0D and that the SD card is not write protected.",
     "close": "Close",
     "relay": "Relay: {}",
     "relay_unset": "Relay: not set",
