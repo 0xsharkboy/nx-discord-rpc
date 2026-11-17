@@ -6,11 +6,13 @@
 #include <malloc.h>
 #include <optional>
 #include <string>
+#include <sys/stat.h>
 
 #include "core/elapsed.hpp"
 #include "core/http.hpp"
 #include "core/ipc_convert.hpp"
 #include "core/link_client.hpp"
+#include "core/nro_swap.hpp"
 #include "core/relay_client.hpp"
 #include "core/relay_url.hpp"
 #include "core/report.hpp"
@@ -44,6 +46,8 @@ constexpr int64_t kProfileRefreshMs = 24 * 60 * 60 * 1000;
 constexpr int64_t kPlaytimeRefreshMs = 600'000;
 // A title whose icon could not be hashed is read again at most this often.
 constexpr int64_t kIconHashRetryMs = 60'000;
+// How often a staged app update (nx-discord-rpc.nro.new) is looked for.
+constexpr int64_t kNroSwapCheckMs = 5'000;
 
 void log_wake(const PowerNet::WakeReport& wake) {
     log::info("Console awake; sleep acknowledged after " + std::to_string(wake.ack_ms) + " ms" +
@@ -51,6 +55,29 @@ void log_wake(const PowerNet::WakeReport& wake) {
     char buf[96];
     std::snprintf(buf, sizeof buf, "Waking steps while asleep: %u; PSC states seen: 0x%x", wake.ignored_wakes, wake.states_seen);
     log::debug(buf);
+}
+
+// Puts the app's staged update in place once the app has closed (see core/nro_swap.hpp). Called at start and
+// every kNroSwapCheckMs while awake; a file that cannot be moved yet is retried, and logged once.
+void swap_staged_nro(bool& warned) {
+    const std::string staged = std::string("sdmc:") + nro_swap::kStaged;
+    struct stat st {};
+    if (stat(staged.c_str(), &st) != 0) return;
+    const auto stamp = nro_swap::read_heartbeat(std::string("sdmc:") + nro_swap::kHeartbeat);
+    if (nro_swap::decide(true, stamp, mono_ms()) != nro_swap::Action::Swap) return;
+    switch (nro_swap::swap(std::string("sdmc:") + nro_swap::kNro, staged)) {
+        case nro_swap::SwapResult::Swapped:
+            log::info("App update installed: nx-discord-rpc.nro replaced");
+            warned = false;
+            return;
+        case nro_swap::SwapResult::Locked:
+            if (!warned) log::warn("App update waiting: nx-discord-rpc.nro is in use; retrying");
+            break;
+        case nro_swap::SwapResult::Failed:
+            if (!warned) log::warn("App update waiting: nx-discord-rpc.nro.new could not be renamed; retrying");
+            break;
+    }
+    warned = true;
 }
 
 void log_heap() {
@@ -385,6 +412,10 @@ void publish(SharedState& shared, const Snapshot& s) {
     std::optional<uint64_t> icon_title;
     std::optional<std::string> icon_hash;
     int64_t next_icon_hash_ms = 0;
+    // A staged app update left from before a reboot goes in place now, if the app is not open.
+    bool swap_warned = false;
+    swap_staged_nro(swap_warned);
+    int64_t next_swap_check = mono_ms() + kNroSwapCheckMs;
 
     for (;;) {
         // One short-lived connection per request: none is ever open between ticks.
@@ -575,6 +606,10 @@ void publish(SharedState& shared, const Snapshot& s) {
         if (now >= next_heap_log) {
             log_heap();
             next_heap_log = now + kHeapLogIntervalMs;
+        }
+        if (now >= next_swap_check) {
+            swap_staged_nro(swap_warned);
+            next_swap_check = mono_ms() + kNroSwapCheckMs;
         }
 
         svcSleepThread(kLoopMs * 1'000'000);

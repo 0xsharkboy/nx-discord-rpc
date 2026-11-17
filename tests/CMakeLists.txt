@@ -46,6 +46,7 @@ add_executable(nxdrpc_tests
   hidden_titles_test.cpp
   game_list_test.cpp
   diagnostics_test.cpp
+  nro_swap_test.cpp
   ../sysmodule/source/core/json_writer.cpp
   ../sysmodule/source/core/settings.cpp
   ../sysmodule/source/core/title_name.cpp
@@ -60,6 +61,7 @@ add_executable(nxdrpc_tests
   ../sysmodule/source/core/ipc_dispatch.cpp
   ../sysmodule/source/core/settings_saver.cpp
   ../sysmodule/source/core/focus.cpp
+  ../sysmodule/source/core/nro_swap.cpp
   ../common/source/client_fake.cpp
   ../common/source/shared/discord_ids.cpp
   ../common/source/shared/net_log.cpp
