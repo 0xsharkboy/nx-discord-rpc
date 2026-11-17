@@ -43,6 +43,8 @@ add_executable(nxdrpc_tests
   avatar_cache_test.cpp
   boot_flag_test.cpp
   focus_test.cpp
+  hidden_titles_test.cpp
+  game_list_test.cpp
   ../sysmodule/source/core/json_writer.cpp
   ../sysmodule/source/core/settings.cpp
   ../sysmodule/source/core/title_name.cpp
@@ -63,6 +65,7 @@ add_executable(nxdrpc_tests
   ../app/source/presentation.cpp
   ../app/source/avatar_cache.cpp
   ../app/source/boot_flag.cpp
+  ../app/source/game_list.cpp
 )
 target_compile_options(nxdrpc_tests PRIVATE -Wall -Wextra)
 target_compile_definitions(nxdrpc_tests PRIVATE

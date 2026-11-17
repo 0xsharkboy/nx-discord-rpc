@@ -36,7 +36,8 @@ std::unique_ptr<Client> make_switch_client();
 
 // Scenarios: "linked-game", "linked-home", "nokey", "link-flow", "backoff", "missing", "mismatch", "mismatch-old",
 // "link-denied", "link-expired", "link-ratelimited", "link-unreachable", "link-interrupted", "link-cancelled",
-// "link-starting", "unauthorized", "broken", "offline", "nourl", "unlink-failed", "linked-unnamed", "long-names".
+// "link-starting", "unauthorized", "broken", "offline", "nourl", "unlink-failed", "linked-unnamed", "long-names",
+// "hidden-full".
 // Returns nullptr for an unknown scenario.
 std::unique_ptr<Client> make_fake_client(std::string_view scenario);
 

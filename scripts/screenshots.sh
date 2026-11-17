@@ -5,7 +5,7 @@ set -euo pipefail
 
 root=$(cd "$(dirname "$0")/.." && pwd)
 bin=$root/build/app-desktop/nx-discord-rpc
-# SHOTS_OUT picks the output directory; BOREALIS_LANG=fr renders the French strings.
+# SHOTS_OUT picks the output directory; BOREALIS_LANG=fr renders the French strings; SHOTS_ONLY=<glob> picks screens.
 out=${SHOTS_OUT:-$root/build/screenshots}
 mkdir -p "$out"
 
@@ -22,13 +22,20 @@ pid=
 cleanup() { [ -n "$pid" ] && kill "$pid" 2>/dev/null; true; }
 trap cleanup EXIT
 
-key() { xdotool keydown "$1"; sleep 0.15; xdotool keyup "$1"; sleep 0.5; }
+# Software rendering is slow: a held arrow can repeat (skipping rows), so arrows get a short press. Return does
+# not repeat, so it is held longer to be sure a slow frame sees it.
+key() {
+    local hold=0.03
+    [ "$1" = Return ] && hold=0.15
+    xdotool keydown "$1"; sleep "$hold"; xdotool keyup "$1"; sleep 0.8
+}
 
 # shoot <name> <scenario> <key>...
 # Starts the app on <scenario>, sends the keys, then saves the window as <name>.png.
 shoot() {
     local name=$1 scenario=$2
     shift 2
+    [[ -z "${SHOTS_ONLY:-}" || $name == $SHOTS_ONLY ]] || return 0
     # Borealis loads ./resources, so the app runs from its build directory.
     (cd "$(dirname "$bin")" && exec "$bin" --fake "$scenario") >/dev/null 2>&1 &
     pid=$!
@@ -49,6 +56,14 @@ run() {
     shoot settings linked-game Down
     shoot account linked-game Down Down
     shoot link link-flow Down Down Right Return
+    # Settings > Hidden games is the eighth row of the Settings tab (seven Downs from Enabled).
+    local to_hidden=(Down Right Down Down Down Down Down Down Down)
+    shoot settings-hidden linked-game "${to_hidden[@]}"
+    shoot hidden-games linked-game "${to_hidden[@]}" Return
+    shoot hidden-games-selector linked-game "${to_hidden[@]}" Return Down Down Return
+    # One Down more than the rows: an extra press at the last row is harmless.
+    shoot hidden-games-end linked-game "${to_hidden[@]}" Return Down Down Down Down Down Down Down Down Down Down
+    shoot hidden-games-full hidden-full "${to_hidden[@]}" Return Down Return Down Return
 }
 
 if [ -z "${DRPC_SHOTS_INNER:-}" ]; then

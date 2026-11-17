@@ -40,6 +40,10 @@
     "show_paused": "Afficher les jeux en pause",
     "show_docked": "Afficher dock ou portable",
     "show_playtime": "Afficher le temps de jeu total",
+    "hidden_games": "Jeux masqués",
+    "hidden_none": "Aucun",
+    "hidden_one": "1 jeu",
+    "hidden_many": "{} jeux",
     "advanced": "Avancé",
     "debug_log": "Journal de débogage",
     "start_at_boot": "Démarrage au boot",
@@ -49,6 +53,18 @@
     "relay": "Relais : {}",
     "relay_unset": "Relais : non défini",
     "relay_hint": "modifier relay_url dans config.ini"
+  },
+  "hidden": {
+    "title": "Jeux masqués",
+    "intro": "Ce que Discord affiche pendant chaque jeu. Anonyme affiche « Playing a game » sans nom ni icône, Masqué n'affiche rien.",
+    "shown": "Affiché",
+    "private": "Anonyme",
+    "hidden": "Masqué",
+    "loading": "Chargement des jeux…",
+    "empty": "Aucun jeu installé",
+    "not_installed": "Non installé ({})",
+    "full": "64 jeux au maximum peuvent être en Anonyme ou Masqué. Remettre d'abord un autre jeu sur Affiché.",
+    "save_failed": "Impossible d'enregistrer la modification. Vérifier que NX Discord RPC est lancé."
   },
   "account": {
     "heading": "Compte Discord",

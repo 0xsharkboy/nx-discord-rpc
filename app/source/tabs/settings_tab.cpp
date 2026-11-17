@@ -2,6 +2,7 @@
 
 #include "boot_flag.hpp"
 #include "palette.hpp"
+#include "views/hidden_games_view.hpp"
 
 using namespace brls::literals;
 
@@ -32,6 +33,7 @@ SettingsTab::SettingsTab(drpc::Client& client) : client_(client) {
     add_toggle(list, "app/settings/show_paused"_i18n, &drpc::ipc::Settings::show_paused);
     add_toggle(list, "app/settings/show_docked"_i18n, &drpc::ipc::Settings::show_docked);
     add_toggle(list, "app/settings/show_playtime"_i18n, &drpc::ipc::Settings::show_playtime);
+    add_hidden_games(list);
 
     auto* advanced = make_header("app/settings/advanced"_i18n);
     advanced->setMarginTop(24);
@@ -60,6 +62,17 @@ void SettingsTab::add_toggle(brls::Box* list, const std::string& title, Field fi
     cell->init(title, false, [this, cell, field](bool on) { apply(cell, field, on); });
     list->addView(cell);
     toggles_.emplace_back(cell, field);
+}
+
+// Opens the per-game list; the detail counts the games that are not Shown.
+void SettingsTab::add_hidden_games(brls::Box* list) {
+    hidden_games_ = new brls::DetailCell();
+    hidden_games_->setText("app/settings/hidden_games"_i18n);
+    hidden_games_->registerClickAction([this](brls::View*) {
+        HiddenGamesView::open(client_);
+        return true;
+    });
+    list->addView(hidden_games_);
 }
 
 // Not a sysmodule setting: the cell reads and writes Atmosphere's boot2 flag file directly, so it stays out of
@@ -97,6 +110,7 @@ void SettingsTab::load() {
     drpc::ipc::Settings read{};
     loaded_ = client_.settings(read);
     if (loaded_) settings_ = read;
+    hidden_loaded_ = client_.hidden(*hidden_);
     sync();
 }
 
@@ -113,6 +127,13 @@ void SettingsTab::apply(brls::BooleanCell* cell, Field field, bool on) {
 }
 
 void SettingsTab::sync() {
+    hidden_games_->setAlpha(hidden_loaded_ ? 1.0f : kDisabledAlpha);
+    std::string count;
+    if (!hidden_loaded_) count.clear();
+    else if (hidden_->count == 0) count = "app/settings/hidden_none"_i18n;
+    else if (hidden_->count == 1) count = "app/settings/hidden_one"_i18n;
+    else count = brls::getStr("app/settings/hidden_many", std::to_string(hidden_->count));
+    if (hidden_games_->detail->getFullText() != count) hidden_games_->setDetailText(count);
     for (const auto& [cell, field] : toggles_) {
         cell->setAlpha(loaded_ ? 1.0f : kDisabledAlpha);
         const bool on = loaded_ && settings_.*field != 0;

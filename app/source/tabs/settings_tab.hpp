@@ -2,6 +2,7 @@
 
 #include <borealis.hpp>
 #include <cstdint>
+#include <memory>
 #include <string>
 #include <utility>
 #include <vector>
@@ -19,6 +20,7 @@ private:
 
     void add_toggle(brls::Box* list, const std::string& title, Field field);
     void add_boot_toggle(brls::Box* list);
+    void add_hidden_games(brls::Box* list);
     void apply(brls::BooleanCell* cell, Field field, bool on);
     void load();
     void sync();
@@ -27,6 +29,9 @@ private:
     drpc::ipc::Settings settings_{};
     bool loaded_ = false;
     std::vector<std::pair<brls::BooleanCell*, Field>> toggles_;
+    brls::DetailCell* hidden_games_ = nullptr;
+    std::unique_ptr<drpc::ipc::HiddenList> hidden_ = std::make_unique<drpc::ipc::HiddenList>();
+    bool hidden_loaded_ = false;
     brls::RepeatingTimer refresh_;
 };
 

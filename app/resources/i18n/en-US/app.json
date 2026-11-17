@@ -40,6 +40,10 @@
     "show_paused": "Show paused games",
     "show_docked": "Show docked or handheld",
     "show_playtime": "Show total playtime",
+    "hidden_games": "Hidden games",
+    "hidden_none": "None",
+    "hidden_one": "1 game",
+    "hidden_many": "{} games",
     "advanced": "Advanced",
     "debug_log": "Debug log",
     "start_at_boot": "Start at boot",
@@ -49,6 +53,18 @@
     "relay": "Relay: {}",
     "relay_unset": "Relay: not set",
     "relay_hint": "edit relay_url in config.ini"
+  },
+  "hidden": {
+    "title": "Hidden games",
+    "intro": "What Discord shows while each game runs. Playing a game hides its name and icon, Hidden shows nothing at all.",
+    "shown": "Shown",
+    "private": "Playing a game",
+    "hidden": "Hidden",
+    "loading": "Loading games…",
+    "empty": "No games installed",
+    "not_installed": "Not installed ({})",
+    "full": "64 games at most can be set to Playing a game or Hidden. Set another game back to Shown first.",
+    "save_failed": "Could not save the change. Check that NX Discord RPC is running."
   },
   "account": {
     "heading": "Discord account",

@@ -3,9 +3,15 @@
 #ifdef __SWITCH__
 #include <switch.h>
 
+#include <array>
 #include <cstdlib>
+#include <cstring>
 #include <map>
 #include <memory>
+#include <mutex>
+#include <string_view>
+
+#include "core/title_name.hpp"
 #endif
 
 namespace app::title_icon {
@@ -14,28 +20,53 @@ namespace app::title_icon {
 
 namespace {
 
+// Guards g_ready against exit() while the hidden games loader still reads control data on its thread.
+std::mutex g_mutex;
 bool g_ready = false;
-std::map<std::string, std::vector<uint8_t>> g_cache;
+std::map<std::string, std::vector<uint8_t>> g_cache;  // UI thread only
+
+// NACP names are not always NUL-terminated (strnlen is not declared in strict C++ mode).
+std::string_view entry_name(const NacpLanguageEntry& e) {
+    const char* end = static_cast<const char*>(std::memchr(e.name, 0, sizeof e.name));
+    return {e.name, end ? static_cast<size_t>(end - e.name) : sizeof e.name};
+}
+
+// About 144 KB: heap-allocated, never on the stack.
+bool read_locked(uint64_t id, NsApplicationControlData& data, u64& size) {
+    if (!g_ready || id == 0) return false;
+    size = 0;
+    const Result rc = nsGetApplicationControlData(NsApplicationControlSource_Storage, id, &data,
+                                                  sizeof(NsApplicationControlData), &size);
+    return R_SUCCEEDED(rc) && size >= sizeof(NacpStruct);
+}
+
+std::vector<uint8_t> icon_of(const NsApplicationControlData& data, u64 size) {
+    if (size <= sizeof(NacpStruct)) return {};
+    const size_t icon_size = size - sizeof(NacpStruct);
+    if (icon_size > sizeof(data.icon)) return {};
+    return std::vector<uint8_t>(data.icon, data.icon + icon_size);
+}
 
 std::vector<uint8_t> load(const std::string& title_id) {
     char* end = nullptr;
     const u64 id = std::strtoull(title_id.c_str(), &end, 16);
-    if (!g_ready || id == 0 || end == title_id.c_str() || *end != '\0') return {};
+    if (end == title_id.c_str() || *end != '\0') return {};
     auto data = std::make_unique<NsApplicationControlData>();
     u64 size = 0;
-    const Result rc = nsGetApplicationControlData(NsApplicationControlSource_Storage, id, data.get(),
-                                                  sizeof(NsApplicationControlData), &size);
-    if (R_FAILED(rc) || size <= sizeof(NacpStruct)) return {};
-    const size_t icon_size = size - sizeof(NacpStruct);
-    if (icon_size > sizeof(data->icon)) return {};
-    return std::vector<uint8_t>(data->icon, data->icon + icon_size);
+    const std::lock_guard lock(g_mutex);
+    if (!read_locked(id, *data, size)) return {};
+    return icon_of(*data, size);
 }
 
 }  // namespace
 
-void init() { g_ready = R_SUCCEEDED(nsInitialize()); }
+void init() {
+    const std::lock_guard lock(g_mutex);
+    g_ready = R_SUCCEEDED(nsInitialize());
+}
 
 void exit() {
+    const std::lock_guard lock(g_mutex);
     g_cache.clear();
     if (g_ready) nsExit();
     g_ready = false;
@@ -47,6 +78,42 @@ const std::vector<uint8_t>& get(const std::string& title_id) {
     return it->second;
 }
 
+bool read_control(uint64_t title_id, Control& out) {
+    auto data = std::make_unique<NsApplicationControlData>();
+    u64 size = 0;
+    {
+        const std::lock_guard lock(g_mutex);
+        if (!read_locked(title_id, *data, size)) return false;
+        NacpLanguageEntry* preferred = nullptr;
+        std::string_view preferred_name;
+        if (R_SUCCEEDED(nsGetApplicationDesiredLanguage(&data->nacp, &preferred)) && preferred)
+            preferred_name = entry_name(*preferred);
+        std::array<std::string_view, 16> entries;
+        for (size_t i = 0; i < entries.size(); ++i) entries[i] = entry_name(data->nacp.lang[i]);
+        // choose_title_name falls back to "Unknown game"; the screen prefers the title id then.
+        bool any = !preferred_name.empty();
+        for (std::string_view e : entries) any = any || !e.empty();
+        out.name = any ? drpc::choose_title_name(preferred_name, entries) : std::string();
+    }
+    out.jpeg = icon_of(*data, size);
+    return true;
+}
+
+bool list_applications(std::vector<uint64_t>& out) {
+    out.clear();
+    constexpr s32 kPage = 64;
+    auto page = std::make_unique<NsApplicationRecord[]>(kPage);
+    const std::lock_guard lock(g_mutex);
+    if (!g_ready) return false;
+    for (s32 offset = 0;;) {
+        s32 n = 0;
+        if (R_FAILED(nsListApplicationRecord(page.get(), kPage, offset, &n))) return offset > 0;
+        for (s32 i = 0; i < n; ++i) out.push_back(page[i].application_id);
+        if (n < kPage) return true;
+        offset += n;
+    }
+}
+
 #else
 
 void init() {}
@@ -56,6 +123,13 @@ void exit() {}
 const std::vector<uint8_t>& get(const std::string&) {
     static const std::vector<uint8_t> kNone;
     return kNone;
+}
+
+bool read_control(uint64_t, Control&) { return false; }
+
+bool list_applications(std::vector<uint64_t>& out) {
+    out.clear();
+    return false;
 }
 
 #endif

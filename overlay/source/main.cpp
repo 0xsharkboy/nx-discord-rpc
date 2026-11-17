@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "drpc/client.hpp"
+#include "drpc/hidden_titles.hpp"
 
 namespace {
 
@@ -18,6 +19,7 @@ constexpr int64_t kRefreshMs = 1000;
 constexpr u16 kLineHeight = 40;
 constexpr u16 kLinkHeight = 64;
 constexpr s32 kPadding = 10;
+constexpr int64_t kNoticeMs = 2000;
 
 drpc::Client* g_client = nullptr;
 ConnectError g_connect_error = ConnectError::None;
@@ -157,6 +159,7 @@ public:
 
         add_toggle(list, "Enabled", cur.enabled, &ipc::Settings::enabled);
         add_toggle(list, "Private mode", cur.private_mode, &ipc::Settings::private_mode);
+        add_this_game(list);
         add_toggle(list, "Show firmware", cur.show_firmware, &ipc::Settings::show_firmware);
         add_toggle(list, "Show HOME Menu", cur.show_home_menu, &ipc::Settings::show_home_menu);
         add_toggle(list, "Show paused", cur.show_paused, &ipc::Settings::show_paused);
@@ -176,6 +179,63 @@ public:
     }
 
 private:
+    // Cycles the running game through Shown, Playing a game and Hidden (its entry in the hidden list).
+    void add_this_game(tsl::elm::List* list) {
+        this_game_ = new tsl::elm::ListItem("This game");
+        this_game_->setClickListener([this](u64 keys) {
+            if (!(keys & HidNpadButton_A)) return false;
+            cycle_this_game();
+            return true;
+        });
+        list->addItem(this_game_);
+    }
+
+    void cycle_this_game() {
+        if (running_id_ == 0) return;
+        static ipc::HiddenList list;  // 1 KB, off the stack
+        if (!g_client->hidden(list)) return notice("Not saved");
+        const drpc::TitleVisibility next = drpc::next_visibility(drpc::visibility_of(list, running_id_));
+        if (drpc::set_visibility(list, running_id_, next) == drpc::SetVisibility::Full) return notice("List full (64)");
+        if (!g_client->set_hidden(list)) return notice("Not saved");
+        notice_until_ms_ = -1;
+        show_visibility(next);
+    }
+
+    void notice(const char* text) {
+        notice_until_ms_ = now_ms() + kNoticeMs;
+        this_game_->setValue(text, true);
+    }
+
+    void show_visibility(drpc::TitleVisibility v) {
+        switch (v) {
+            case drpc::TitleVisibility::Shown:
+                this_game_->setValue("Shown");
+                return;
+            case drpc::TitleVisibility::Private:
+                this_game_->setValue("Playing a game");
+                return;
+            case drpc::TitleVisibility::Hidden:
+                this_game_->setValue("Hidden");
+                return;
+        }
+    }
+
+    void refresh_this_game() {
+        if (!this_game_) return;  // not built when the settings could not be read
+        if (notice_until_ms_ >= 0 && now_ms() < notice_until_ms_) return;
+        notice_until_ms_ = -1;
+        if (running_id_ == 0) {
+            this_game_->setValue("No game running", true);
+            return;
+        }
+        static ipc::HiddenList list;
+        if (!g_client->hidden(list)) {
+            this_game_->setValue("Unavailable", true);
+            return;
+        }
+        show_visibility(drpc::visibility_of(list, running_id_));
+    }
+
     void add_toggle(tsl::elm::List* list, const char* label, bool initial, uint8_t ipc::Settings::*field) {
         auto* item = new tsl::elm::ToggleListItem(label, initial);
         item->setStateChangedListener([item, field](bool state) {
@@ -197,10 +257,14 @@ private:
         if (!g_client->status(s)) {
             link_text_ = "Lost contact with NX Discord RPC";
             presence_text_.clear();
+            running_id_ = 0;
+            if (this_game_) this_game_->setValue("Unavailable", true);
             return;
         }
         link_text_ = link_line(s);
         presence_text_ = presence_line(s);
+        running_id_ = s.running_title_id >= ipc::kMinReportableTitleId ? s.running_title_id : 0;
+        refresh_this_game();
 
         ipc::Settings cur{};
         if (!g_client->settings(cur)) return;
@@ -216,6 +280,9 @@ private:
     };
 
     std::vector<Toggle> toggles_;
+    tsl::elm::ListItem* this_game_ = nullptr;
+    uint64_t running_id_ = 0;  // the running game whatever its visibility, 0 when none
+    int64_t notice_until_ms_ = -1;
     std::string link_text_;
     std::string presence_text_;
     int64_t last_refresh_ms_ = -1;

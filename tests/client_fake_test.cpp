@@ -319,3 +319,13 @@ TEST_CASE("fake last relay status follows the scenario") {
         CHECK(st.last_relay_status == k.status);
     }
 }
+
+TEST_CASE("fake hidden-full: the list is full and valid") {
+    auto c = make_fake_client("hidden-full");
+    REQUIRE(c);
+    REQUIRE(c->connect() == ConnectError::None);
+    ipc::HiddenList l;
+    REQUIRE(c->hidden(l));
+    CHECK(l.count == ipc::kMaxHiddenTitles);
+    CHECK(ipc::valid_hidden(l));
+}

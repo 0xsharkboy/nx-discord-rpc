@@ -28,7 +28,8 @@ list(APPEND APP_SOURCES
     ${REPO_ROOT}/common/source/shared/discord_ids.cpp
     ${REPO_ROOT}/common/source/shared/net_log.cpp
     ${REPO_ROOT}/sysmodule/source/core/http.cpp
-    ${REPO_ROOT}/sysmodule/source/core/relay_url.cpp)
+    ${REPO_ROOT}/sysmodule/source/core/relay_url.cpp
+    ${REPO_ROOT}/sysmodule/source/core/title_name.cpp)
 if (PLATFORM_SWITCH)
     list(APPEND APP_SOURCES
         ${REPO_ROOT}/common/source/client_switch.cpp

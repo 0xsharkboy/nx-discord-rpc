@@ -52,6 +52,7 @@ struct Scenario {
     bool unlink_fails = false;
     uint32_t remote_version = ipc::kProtocolVersion + 1;
     int32_t relay_status = 204;
+    bool hidden_full = false;  // the hidden list holds kMaxHiddenTitles entries
 };
 
 Scenario no_key(std::string_view name) {
@@ -138,6 +139,8 @@ const Scenario* find_scenario(std::string_view name) {
         Scenario long_names{"long-names"};
         long_names.long_names = true;
         long_names.username = "a_very_long_discord_username_32c";
+        Scenario hidden_full{"hidden-full"};
+        hidden_full.hidden_full = true;
 
         return std::to_array<Scenario>({
             Scenario{"linked-game"},
@@ -162,6 +165,7 @@ const Scenario* find_scenario(std::string_view name) {
             unlink_failed,
             unnamed,
             long_names,
+            hidden_full,
         });
     }();
     for (const auto& s : kScenarios) {
@@ -183,6 +187,10 @@ public:
         hidden_.count = 2;
         hidden_.items[0] = {0x01007EF00011E000ULL, static_cast<uint8_t>(ipc::TitleVisibility::Private), {}};
         hidden_.items[1] = {0x0100152000022000ULL, static_cast<uint8_t>(ipc::TitleVisibility::Hidden), {}};
+        // hidden-full: games that are not installed fill the rest of the list.
+        for (uint64_t i = 0; s.hidden_full && hidden_.count < ipc::kMaxHiddenTitles; ++i)
+            hidden_.items[hidden_.count++] = {0x0100C00000000000ULL + (i << 16),
+                                              static_cast<uint8_t>(ipc::TitleVisibility::Hidden), {}};
         std::memset(&link_, 0, sizeof link_);
         if (key_ && state_ == ipc::LinkState::Linked) {
             link_.phase = ipc::LinkPhase::Linked;
