@@ -60,7 +60,7 @@ currently shown on Discord and the state of the relay.
 
 The Status tab also previews what Discord shows for the game you are playing: its icon, name,
 details line and a timer that matches Discord's. In private mode, or for a game set to Playing a
-game, the preview shows the Switch artwork with "Nintendo Switch" and "Playing a game", never the
+game, the preview shows the Switch artwork with "Nintendo Switch" and "Playing a game" (or "Paused" while paused), never the
 game. For a hidden game, or with the presence off, it says that nothing is shown on Discord.
 
 As a fallback, you can link without the app: write the API key issued by the relay to
@@ -74,7 +74,7 @@ The Settings tab of the app and the overlay edit the same settings. A change app
 second and is written to `config.ini` after about 2 seconds without further changes. The app has
 Enabled, Private mode, Show firmware version, Show HOME Menu, Show paused games, Show docked or
 handheld, Show total playtime and Debug log. The overlay has the same toggles except Debug log, and
-labels them "Show firmware", "Show paused", "Show docked" and "Show playtime". The relay URL cannot be changed
+labels them "Show firmware", "Show paused", "Show docked" and "Show playtime". It also has "This game", which cycles the running game through Shown, Playing a game and Hidden (see [Hidden games](#hidden-games)). The relay URL cannot be changed
 from either: edit `relay_url` in `config.ini`.
 
 The app also has Hidden games (see [Hidden games](#hidden-games)) and Check for updates (see
@@ -156,7 +156,7 @@ against `SHA256SUMS` and installs nothing unless all of them match. It then repl
 `toolbox.json`, replaces the sysmodule and restarts it. The app cannot replace itself while it runs:
 it stages `nx-discord-rpc.nro.new`, and the sysmodule swaps it in a few seconds after you close the
 app. The app tells the sysmodule it is open with a heartbeat file, `app.running`, in
-`sdmc:/config/nx-discord-rpc/`. If an update fails, nothing is changed. A release without the
+`sdmc:/config/nx-discord-rpc/`. A failed download or checksum leaves everything unchanged. If it stops while replacing files, the app says so, and you can try again or update manually. A release without the
 individual files (v0.4.0 and older) cannot be installed from the app: it then says to update
 manually from GitHub.
 
