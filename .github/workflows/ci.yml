@@ -57,9 +57,14 @@ jobs:
             echo "See README for installation instructions." > release/NOTES.md
           fi
           printf '\n%s\n' "Source code: this tag (clone with \`git clone --recursive\`)." >> release/NOTES.md
+      # Created as a draft with every file, then published in one step: the app reads releases/latest, which never
+      # lists a draft, so no console sees a release without its files.
       - uses: softprops/action-gh-release@v2
         with:
-          # The single files are what the in-app updater downloads; their names must not change.
+          draft: true
+          # The single files are what the in-app updater downloads; their names must not change. The app reads at
+          # most about 20 assets of a release (json_extract kMaxCaptures = 64, three values per asset): keep the
+          # list short.
           files: |
             release/*.zip
             release/exefs.nsp
@@ -69,3 +74,7 @@ jobs:
             release/SHA256SUMS
           fail_on_unmatched_files: true
           body_path: release/NOTES.md
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release edit "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --draft=false

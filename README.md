@@ -130,8 +130,9 @@ Settings > Hidden games lists the games installed on the console, each with one 
 At most 64 games can be set to Playing a game or Hidden. The list is saved as `hidden_titles` in
 `config.ini` (see the table above) and applies within about a second. The overlay has a "This game"
 entry that cycles the running game through the three states, so you can change it without leaving
-the game. A hidden or private game sends nothing that identifies it to the relay: no name, no title
-id and no icon, and no icon upload.
+the game. For a game set to Playing a game, the relay still receives the elapsed time and the details
+line (such as "Docked"), but no game name, title id, icon hash, playtime or icon upload. For a Hidden
+game it receives nothing at all.
 
 ## Test connection
 
@@ -148,14 +149,18 @@ Privacy: with it off, your friends see nothing.
 At start, the app asks GitHub for the latest release, and the Status tab shows a banner with an
 Update button when a newer version exists. Turn this off with Check for updates in Settings, which
 writes `check_updates=false` to `sdmc:/config/nx-discord-rpc/app.ini`. Check for updates now, in the
-same section, checks on demand.
+same section, checks on demand. When the app cannot reach the sysmodule (it is not running, or its
+protocol does not match the app), the blocking screen offers Check for updates and Update too, since an
+update is often the fix; the update then starts the sysmodule. If the sysmodule does not start again
+after an update, the app says so: press Start now, or restart the console.
 
 Update downloads `SHA256SUMS` and the four files of the release (`exefs.nsp`, `toolbox.json`,
 `nx-discord-rpc.ovl` and `nx-discord-rpc.nro`) from GitHub, over verified TLS. It checks each file
 against `SHA256SUMS` and installs nothing unless all of them match. It then replaces the overlay and
 `toolbox.json`, replaces the sysmodule and restarts it. The app cannot replace itself while it runs:
 it stages `nx-discord-rpc.nro.new`, and the sysmodule swaps it in a few seconds after you close the
-app. The app tells the sysmodule it is open with a heartbeat file, `app.running`, in
+app: close it, wait about 10 seconds, then reopen it. Reopened sooner, the app is still the old one;
+it then says an update is ready instead of offering it again. The app tells the sysmodule it is open with a heartbeat file, `app.running`, in
 `sdmc:/config/nx-discord-rpc/`. A failed download or checksum leaves everything unchanged. If it stops while replacing files, the app says so, and you can try again or update manually. A release without the
 individual files (v0.4.0 and older) cannot be installed from the app: it then says to update
 manually from GitHub.
@@ -164,7 +169,8 @@ manually from GitHub.
 
 - **What the relay receives:** your Discord link (to show the presence on your account), the name and
   title id of the game you are playing, the details line, the elapsed time and the hash of the game's icon.
-  For a game set to Playing a game or Hidden, it receives none of this about the game.
+  For a game set to Playing a game, it still receives the elapsed time and the details line, but no
+  game name, title id, icon hash, playtime or icon upload. For a Hidden game it receives nothing.
   The icon image is sent only when the relay does not have it yet.
 - **Icons:** each image is stored once, with no link to you or to a title. The console reads the
   playtime itself and sends only the text.
@@ -199,7 +205,8 @@ manually from GitHub.
   `app.running` (heartbeat while the app is open), `log.txt`, `avatar.png` and `avatar.key`. A
   `nx-discord-rpc.nro.new` next to the app, in `sdmc:/switch/nx-discord-rpc/`, is an update waiting
   for the app to close.
-- The log is `sdmc:/config/nx-discord-rpc/log.txt`. Keys are masked in it. Turn on Debug log in the
+- The log is `sdmc:/config/nx-discord-rpc/log.txt`. Keys are masked in it. Games set to Playing a game or
+  Hidden, and every game in private mode, appear in it by title id only. Turn on Debug log in the
   Settings tab (`debug_log`) for more detail.
 - If the app says "NX Discord RPC is not running", press Start now and turn Start at boot back on in
   Settings if it is off. If it does not start, check that the sysmodule is installed in
