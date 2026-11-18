@@ -27,7 +27,10 @@ list(APPEND APP_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/lib/qrcodegen/qrcodegen.cpp
     ${REPO_ROOT}/common/source/shared/discord_ids.cpp
     ${REPO_ROOT}/common/source/shared/net_log.cpp
+    ${REPO_ROOT}/common/source/shared/sha256.cpp
     ${REPO_ROOT}/sysmodule/source/core/http.cpp
+    ${REPO_ROOT}/sysmodule/source/core/json_extract.cpp
+    ${REPO_ROOT}/sysmodule/source/core/nro_swap.cpp
     ${REPO_ROOT}/sysmodule/source/core/relay_url.cpp
     ${REPO_ROOT}/sysmodule/source/core/title_name.cpp)
 if (PLATFORM_SWITCH)

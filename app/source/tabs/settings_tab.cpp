@@ -1,5 +1,6 @@
 #include "tabs/settings_tab.hpp"
 
+#include "app_settings.hpp"
 #include "boot_flag.hpp"
 #include "palette.hpp"
 #include "views/hidden_games_view.hpp"
@@ -19,9 +20,28 @@ brls::Header* make_header(const std::string& title) {
     return header;
 }
 
+// Puts a small note under the cell's title, inside the cell, so its separator stays below both.
+void add_hint(brls::BooleanCell* cell, const std::string& hint) {
+    auto* text = new brls::Box(brls::Axis::COLUMN);
+    text->setGrow(1);
+    text->setJustifyContent(brls::JustifyContent::CENTER);
+    brls::Label* title = cell->title;
+    title->setGrow(0);
+    cell->removeView(title, false);
+    text->addView(title);
+
+    auto* note = new brls::Label();
+    note->setText(hint);
+    note->setFontSize(16);
+    note->setTextColor(palette::text_faint());
+    text->addView(note);
+
+    cell->addView(text, 0);
+}
+
 }  // namespace
 
-SettingsTab::SettingsTab(drpc::Client& client) : client_(client) {
+SettingsTab::SettingsTab(drpc::Client& client, UpdateManager& updater) : client_(client), updater_(updater) {
     auto* list = new brls::Box(brls::Axis::COLUMN);
     list->setPadding(32, 56, 40, 56);
 
@@ -49,6 +69,8 @@ SettingsTab::SettingsTab(drpc::Client& client) : client_(client) {
     relay->setDetailText("app/settings/relay_hint"_i18n);
     relay->setDetailTextColor(palette::text_faint());
     list->addView(relay);
+
+    add_updates(list);
 
     setContentView(list);
 
@@ -87,22 +109,7 @@ void SettingsTab::add_boot_toggle(brls::Box* list) {
         dialog->open();
     });
 
-    // The hint sits under the title inside the cell, so the cell's separator stays below both.
-    auto* text = new brls::Box(brls::Axis::COLUMN);
-    text->setGrow(1);
-    text->setJustifyContent(brls::JustifyContent::CENTER);
-    brls::Label* title = cell->title;
-    title->setGrow(0);
-    cell->removeView(title, false);
-    text->addView(title);
-
-    auto* note = new brls::Label();
-    note->setText("app/settings/start_at_boot_hint"_i18n);
-    note->setFontSize(16);
-    note->setTextColor(palette::text_faint());
-    text->addView(note);
-
-    cell->addView(text, 0);
+    add_hint(cell, "app/settings/start_at_boot_hint"_i18n);
     list->addView(cell);
 }
 
@@ -139,6 +146,134 @@ void SettingsTab::sync() {
         const bool on = loaded_ && settings_.*field != 0;
         if (cell->isOn() != on) cell->setOn(on, false);
     }
+}
+
+SettingsTab::~SettingsTab() { updater_.changed().unsubscribe(update_sub_); }
+
+// The app's own setting (app.ini) and the manual check. Last in the list, so the rows above keep their places.
+void SettingsTab::add_updates(brls::Box* list) {
+    auto* header = make_header("app/settings/updates"_i18n);
+    header->setMarginTop(24);
+    list->addView(header);
+
+    auto* toggle = new brls::BooleanCell();
+    toggle->init("app/settings/check_updates"_i18n, load_app_settings(app_settings_path()).check_updates,
+                 [toggle](bool on) {
+                     AppSettings s = load_app_settings(app_settings_path());
+                     s.check_updates = on;
+                     if (save_app_settings(app_settings_path(), s)) return;
+                     toggle->setOn(!on, false);
+                     auto* dialog = new brls::Dialog("app/settings/check_updates_failed"_i18n);
+                     dialog->addButton("app/settings/close"_i18n, [] {});
+                     dialog->open();
+                 });
+    add_hint(toggle, "app/settings/check_updates_hint"_i18n);
+    list->addView(toggle);
+
+    update_cell_ = new brls::DetailCell();
+    update_cell_->setDetailTextColor(palette::accent_light());
+    update_cell_->registerClickAction([this](brls::View*) {
+        update_clicked();
+        return true;
+    });
+    list->addView(update_cell_);
+
+    update_sub_ = updater_.changed().subscribe([this] { render_update(); });
+    render_update();
+}
+
+void SettingsTab::update_clicked() {
+    switch (updater_.state().phase) {
+        case UpdatePhase::Checking:
+        case UpdatePhase::Downloading:
+        case UpdatePhase::Done:
+            return;
+        case UpdatePhase::Available:
+        case UpdatePhase::Failed:
+        case UpdatePhase::Partial:
+            awaiting_ = true;
+            updater_.install();
+            return;
+        case UpdatePhase::Idle:
+        case UpdatePhase::UpToDate:
+        case UpdatePhase::ManualOnly:
+        case UpdatePhase::CheckFailed:
+            break;
+    }
+    awaiting_ = true;
+    updater_.check(true);
+}
+
+void SettingsTab::render_update() {
+    const UpdateState& s = updater_.state();
+    const std::string current = std::string("v") + APP_VERSION_STRING;
+    std::string title = "app/settings/check_now"_i18n;
+    std::string detail;
+    std::string message;  // the dialog, when this tab asked
+    bool offer_install = false;
+    switch (s.phase) {
+        case UpdatePhase::Idle:
+            break;
+        case UpdatePhase::Checking:
+            detail = "app/update/short/checking"_i18n;
+            break;
+        case UpdatePhase::UpToDate:
+            detail = "app/update/short/up_to_date"_i18n;
+            message = brls::getStr("app/update/up_to_date", current);
+            break;
+        case UpdatePhase::Available:
+            title = brls::getStr("app/settings/update_to", s.tag);
+            detail = "app/update/short/available"_i18n;
+            message = brls::getStr("app/update/available", s.tag, current);
+            offer_install = true;
+            break;
+        case UpdatePhase::ManualOnly:
+            detail = brls::getStr("app/update/short/manual", s.tag);
+            message = brls::getStr("app/update/manual", s.tag);
+            break;
+        case UpdatePhase::CheckFailed:
+            detail = "app/update/short/check_failed"_i18n;
+            message = "app/update/check_failed"_i18n;
+            break;
+        case UpdatePhase::Downloading:
+            title = brls::getStr("app/settings/update_to", s.tag);
+            detail = brls::getStr("app/update/short/downloading", std::to_string(s.percent()));
+            break;
+        case UpdatePhase::Done:
+            detail = "app/update/short/done"_i18n;
+            message = "app/update/done"_i18n;
+            break;
+        case UpdatePhase::Failed:
+            title = brls::getStr("app/settings/update_to", s.tag);
+            detail = "app/update/short/failed"_i18n;
+            message = "app/update/failed"_i18n;
+            break;
+        case UpdatePhase::Partial:
+            title = brls::getStr("app/settings/update_to", s.tag);
+            detail = "app/update/short/partial"_i18n;
+            message = "app/update/partial"_i18n;
+            break;
+    }
+    if (update_cell_->title->getFullText() != title) update_cell_->setText(title);
+    if (update_cell_->detail->getFullText() != detail) update_cell_->setDetailText(detail);
+    update_cell_->detail->setTextColor(s.phase == UpdatePhase::Failed || s.phase == UpdatePhase::Partial ||
+                                               s.phase == UpdatePhase::CheckFailed
+                                           ? palette::red()
+                                           : palette::accent_light());
+
+    if (!awaiting_ || message.empty()) return;
+    awaiting_ = false;
+    auto* dialog = new brls::Dialog(message);
+    if (offer_install) {
+        dialog->addButton("app/update/later"_i18n, [] {});
+        dialog->addButton("app/update/update"_i18n, [this] {
+            awaiting_ = true;
+            updater_.install();
+        });
+    } else {
+        dialog->addButton("app/settings/close"_i18n, [] {});
+    }
+    dialog->open();
 }
 
 }  // namespace app

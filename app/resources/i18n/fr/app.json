@@ -92,7 +92,13 @@
     "close": "Fermer",
     "relay": "Relais : {}",
     "relay_unset": "Relais : non défini",
-    "relay_hint": "modifier relay_url dans config.ini"
+    "relay_hint": "modifier relay_url dans config.ini",
+    "updates": "Mises à jour",
+    "check_updates": "Rechercher les mises à jour",
+    "check_updates_hint": "Au lancement, demande la dernière version à GitHub",
+    "check_updates_failed": "Impossible d'enregistrer le réglage. Vérifier que la carte SD n'est pas protégée en écriture.",
+    "check_now": "Rechercher une mise à jour maintenant",
+    "update_to": "Installer la {}"
   },
   "hidden": {
     "title": "Jeux masqués",
@@ -152,5 +158,29 @@
     "source": "Code source",
     "privacy": "Confidentialité",
     "privacy_body": "Le relais reçoit le lien Discord, le nom du jeu en cours, le temps écoulé et l'icône. Il ne conserve aucun historique de jeu et ne voit jamais le mot de passe Discord."
+  },
+  "update": {
+    "available": "La version {} est disponible (version actuelle : {}).",
+    "manual": "La version {} est disponible, mais elle ne peut pas être installée depuis l'application : la mettre à jour manuellement depuis GitHub.",
+    "downloading": "Téléchargement de la {}… {} %",
+    "done": "Mise à jour installée et NX Discord RPC redémarré. Fermer puis rouvrir l'application pour terminer.",
+    "failed": "La mise à jour a échoué et rien n'a été modifié. Vérifier la connexion Internet et réessayer.",
+    "partial": "La mise à jour s'est interrompue. Réessayer, ou la faire manuellement depuis GitHub.",
+    "up_to_date": "La dernière version est déjà installée ({}).",
+    "check_failed": "Impossible de rechercher les mises à jour. Vérifier la connexion Internet et réessayer.",
+    "update": "Mettre à jour",
+    "try_again": "Réessayer",
+    "later": "Plus tard",
+    "short": {
+      "checking": "Recherche…",
+      "up_to_date": "À jour",
+      "available": "Nouvelle version",
+      "manual": "{} sur GitHub",
+      "check_failed": "Recherche impossible",
+      "downloading": "Téléchargement… {} %",
+      "done": "Relancer l'application",
+      "failed": "Échec, rien n'a changé",
+      "partial": "Installation partielle"
+    }
   }
 }

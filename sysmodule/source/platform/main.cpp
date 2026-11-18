@@ -431,6 +431,8 @@ void publish(SharedState& shared, const Snapshot& s) {
         if (const auto wake = power.take_wake_report()) {
             log_wake(*wake);
             client.on_wake();
+            // The app's heartbeat may have aged during sleep: give it time to beat again before a swap.
+            next_swap_check = std::max(next_swap_check, mono_ms() + nro_swap::kHeartbeatStaleMs);
         }
         if (const Result rc = power.take_error()) {
             char buf[64];

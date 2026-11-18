@@ -4,6 +4,8 @@
 #include <cstdio>
 #include <utility>
 
+#include "app_settings.hpp"
+#include "core/nro_swap.hpp"
 #include "drpc/protocol.hpp"
 #include "palette.hpp"
 #include "sysmodule_launcher.hpp"
@@ -61,10 +63,14 @@ std::string blocking_message(drpc::ConnectError error, uint32_t remote_version) 
     return {};
 }
 
-AppWindow::AppWindow(std::unique_ptr<drpc::Client> client) : client_(std::move(client)) {}
+AppWindow::AppWindow(std::unique_ptr<drpc::Client> client)
+    : client_(std::move(client)), updater_(std::make_unique<UpdateManager>(*client_, make_update_backend())) {}
 
 void AppWindow::open() {
     apply_theme();
+    heartbeat_.beat();
+    heartbeat_timer_.setCallback([this] { heartbeat_.beat(); });
+    heartbeat_timer_.start(drpc::nro_swap::kHeartbeatMs);
     brls::Application::setGlobalQuit(true);
     const drpc::ConnectError error = client_->connect();
     if (error != drpc::ConnectError::None) {
@@ -130,8 +136,9 @@ void AppWindow::show_blocking(const std::string& message, bool offer_start) {
 brls::AppletFrame* AppWindow::make_tabs() {
     auto* tabs = new brls::TabFrame();
     drpc::Client& client = *client_;
-    tabs->addTab("app/tabs/status"_i18n, [&client] { return new StatusTab(client); });
-    tabs->addTab("app/tabs/settings"_i18n, [&client] { return new SettingsTab(client); });
+    UpdateManager& updater = *updater_;
+    tabs->addTab("app/tabs/status"_i18n, [&client, &updater] { return new StatusTab(client, updater); });
+    tabs->addTab("app/tabs/settings"_i18n, [&client, &updater] { return new SettingsTab(client, updater); });
     tabs->addTab("app/tabs/account"_i18n, [&client] { return new AccountTab(client); });
     tabs->addSeparator();
     tabs->addTab("app/tabs/about"_i18n, [&client] { return new AboutTab(client); });
@@ -139,7 +146,16 @@ brls::AppletFrame* AppWindow::make_tabs() {
     return new brls::AppletFrame(tabs);
 }
 
-void AppWindow::show_tabs() { brls::Application::pushActivity(new brls::Activity(make_tabs())); }
+void AppWindow::show_tabs() {
+    brls::Application::pushActivity(new brls::Activity(make_tabs()));
+    auto_check_updates();
+}
+
+void AppWindow::auto_check_updates() {
+    if (auto_checked_) return;
+    auto_checked_ = true;
+    if (load_app_settings(app_settings_path()).check_updates) updater_->check(false);
+}
 
 void AppWindow::start_sysmodule() {
     if (starting_ || !start_button_) return;
@@ -216,6 +232,7 @@ void AppWindow::connected() {
     activity->registerExitAction();  // the global quit action lived on the old content
     activity->willAppear(true);
     brls::Application::giveFocus(activity->getDefaultFocus());
+    auto_check_updates();
 }
 
 void AppWindow::start_failed(const std::string& message) {

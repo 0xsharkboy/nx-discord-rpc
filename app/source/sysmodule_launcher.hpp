@@ -14,4 +14,10 @@ struct LaunchResult {
 // anything and always fail.
 LaunchResult launch_sysmodule();
 
+// For the updater: terminates the sysmodule through pm so its exefs.nsp can be replaced, then (restart) launches it
+// again, retrying while pm still tracks the old process. Both block briefly; call them off the UI thread. Desktop
+// builds do nothing.
+void stop_sysmodule();
+LaunchResult restart_sysmodule();
+
 }  // namespace app

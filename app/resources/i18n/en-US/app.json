@@ -92,7 +92,13 @@
     "close": "Close",
     "relay": "Relay: {}",
     "relay_unset": "Relay: not set",
-    "relay_hint": "edit relay_url in config.ini"
+    "relay_hint": "edit relay_url in config.ini",
+    "updates": "Updates",
+    "check_updates": "Check for updates",
+    "check_updates_hint": "At start, asks GitHub for the latest version",
+    "check_updates_failed": "Could not save the setting. Check that the SD card is not write protected.",
+    "check_now": "Check for updates now",
+    "update_to": "Update to {}"
   },
   "hidden": {
     "title": "Hidden games",
@@ -152,5 +158,29 @@
     "source": "Source code",
     "privacy": "Privacy",
     "privacy_body": "The relay receives your Discord link, the current game name, elapsed time and icon. It keeps no play history and never sees your Discord password."
+  },
+  "update": {
+    "available": "Version {} is available (you have {}).",
+    "manual": "Version {} is available. It cannot be installed from the app: update manually from GitHub.",
+    "downloading": "Downloading {}… {}%",
+    "done": "Update installed and NX Discord RPC restarted. Close and reopen this app to finish.",
+    "failed": "The update failed and nothing was changed. Check the internet connection and try again.",
+    "partial": "The update stopped partway. Try again, or update manually from GitHub.",
+    "up_to_date": "You have the latest version ({}).",
+    "check_failed": "Could not check for updates. Check the internet connection and try again.",
+    "update": "Update",
+    "try_again": "Try again",
+    "later": "Later",
+    "short": {
+      "checking": "Checking…",
+      "up_to_date": "Up to date",
+      "available": "New version",
+      "manual": "{} on GitHub",
+      "check_failed": "Could not check",
+      "downloading": "Downloading… {}%",
+      "done": "Restart the app",
+      "failed": "Failed, nothing changed",
+      "partial": "Partly installed"
+    }
   }
 }

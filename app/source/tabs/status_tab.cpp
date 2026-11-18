@@ -6,6 +6,7 @@
 #include "presentation.hpp"
 #include "views/connection_test_view.hpp"
 #include "views/preview_card.hpp"
+#include "views/update_banner.hpp"
 
 using namespace brls::literals;
 
@@ -53,7 +54,7 @@ NVGcolor tone_color(Tone tone) {
 
 }  // namespace
 
-StatusTab::StatusTab(drpc::Client& client) : brls::Box(brls::Axis::COLUMN), client_(client) {
+StatusTab::StatusTab(drpc::Client& client, UpdateManager& updater) : brls::Box(brls::Axis::COLUMN), client_(client) {
     setPadding(48, 56, 40, 56);
 
     card_ = new PreviewCard();
@@ -89,6 +90,11 @@ StatusTab::StatusTab(drpc::Client& client) : brls::Box(brls::Axis::COLUMN), clie
         return true;
     });
     addView(test);
+
+    // Below the test button, so that button keeps the first focus.
+    auto* banner = new UpdateBanner(updater);
+    banner->setMarginTop(24);
+    addView(banner);
 
     refresh();
     timer_.setCallback([this] { refresh(); });

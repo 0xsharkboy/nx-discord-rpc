@@ -46,7 +46,11 @@ add_executable(nxdrpc_tests
   hidden_titles_test.cpp
   game_list_test.cpp
   diagnostics_test.cpp
+  sha256_test.cpp
+  update_http_test.cpp
+  updater_test.cpp
   nro_swap_test.cpp
+  app_settings_test.cpp
   ../sysmodule/source/core/json_writer.cpp
   ../sysmodule/source/core/settings.cpp
   ../sysmodule/source/core/title_name.cpp
@@ -65,11 +69,15 @@ add_executable(nxdrpc_tests
   ../common/source/client_fake.cpp
   ../common/source/shared/discord_ids.cpp
   ../common/source/shared/net_log.cpp
+  ../common/source/shared/sha256.cpp
   ../app/source/presentation.cpp
   ../app/source/avatar_cache.cpp
   ../app/source/boot_flag.cpp
   ../app/source/game_list.cpp
   ../app/source/diagnostics.cpp
+  ../app/source/update_http.cpp
+  ../app/source/updater.cpp
+  ../app/source/app_settings.cpp
 )
 target_compile_options(nxdrpc_tests PRIVATE -Wall -Wextra)
 target_compile_definitions(nxdrpc_tests PRIVATE

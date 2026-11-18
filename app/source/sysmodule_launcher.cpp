@@ -11,6 +11,8 @@ namespace app {
 namespace {
 
 constexpr u64 kProgramId = 0x4200000000D15C0D;
+constexpr int kRestartAttempts = 15;
+constexpr s64 kRestartWaitNs = 200'000'000;
 
 }  // namespace
 
@@ -25,9 +27,29 @@ LaunchResult launch_sysmodule() {
     return {true, 0};
 }
 
+void stop_sysmodule() {
+    if (R_FAILED(pmshellInitialize())) return;
+    // Fails when it is not running, which is fine.
+    pmshellTerminateProgram(kProgramId);
+    pmshellExit();
+}
+
+LaunchResult restart_sysmodule() {
+    // pm forgets a terminated process shortly after it exits; until then a launch is refused.
+    LaunchResult last;
+    for (int attempt = 0; attempt < kRestartAttempts; ++attempt) {
+        last = launch_sysmodule();
+        if (last.ok) return last;
+        svcSleepThread(kRestartWaitNs);
+    }
+    return last;
+}
+
 #else
 
 LaunchResult launch_sysmodule() { return {}; }
+void stop_sysmodule() {}
+LaunchResult restart_sysmodule() { return {}; }
 
 #endif
 

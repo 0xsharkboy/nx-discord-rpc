@@ -3,6 +3,7 @@
 #include <borealis.hpp>
 
 #include "drpc/client.hpp"
+#include "update_manager.hpp"
 
 namespace app {
 
@@ -10,7 +11,7 @@ class PreviewCard;
 
 class StatusTab : public brls::Box {
 public:
-    explicit StatusTab(drpc::Client& client);
+    StatusTab(drpc::Client& client, UpdateManager& updater);
 
 private:
     void refresh();

@@ -27,19 +27,29 @@ trap cleanup EXIT
 # Software rendering is slow: a held arrow can repeat (skipping rows), so arrows get a short press. Return does
 # not repeat, so it is held longer to be sure a slow frame sees it.
 key() {
+    # wait: gives a fake update time to run.
+    if [ "$1" = wait ]; then sleep 2.5; return; fi
     local hold=0.03
     [ "$1" = Return ] && hold=0.15
     xdotool keydown "$1"; sleep "$hold"; xdotool keyup "$1"; sleep 0.8
 }
 
 # shoot <name> <scenario> <key>...
-# Starts the app on <scenario>, sends the keys, then saves the window as <name>.png.
+# Starts the app on <scenario>, sends the keys, then saves the window as <name>.png. The caller may set
+# update=<fake update scenario> (see app/source/update_backend.hpp) and no_auto=1 (Check for updates off).
 shoot() {
     local name=$1 scenario=$2
     shift 2
     [[ -z "${SHOTS_ONLY:-}" || $name == $SHOTS_ONLY ]] || return 0
     # Borealis loads ./resources, so the app runs from its build directory.
-    (cd "$(dirname "$bin")" && exec "$bin" --fake "$scenario") >/dev/null 2>&1 &
+    # A temp dir of its own: app.ini and the update heartbeat never leak between shots.
+    local tmp
+    tmp=$(mktemp -d)
+    if [ -n "${no_auto:-}" ]; then
+        mkdir -p "$tmp/nx-discord-rpc-config"
+        printf 'check_updates=false\n' > "$tmp/nx-discord-rpc-config/app.ini"
+    fi
+    (cd "$(dirname "$bin")" && TMPDIR=$tmp NXDRPC_FAKE_UPDATE=${update:-} exec "$bin" --fake "$scenario") >/dev/null 2>&1 &
     pid=$!
     # Wait for the window, then give the first frames time to render.
     timeout 30 xdotool search --sync --onlyvisible --name "" >/dev/null
@@ -51,6 +61,7 @@ shoot() {
     cleanup
     wait "$pid" 2>/dev/null || true
     pid=
+    rm -rf "$tmp"
 }
 
 run() {
@@ -73,6 +84,23 @@ run() {
     # One Down more than the rows: an extra press at the last row is harmless.
     shoot hidden-games-end linked-game "${to_hidden[@]}" Return Down Down Down Down Down Down Down Down Down Down
     shoot hidden-games-full hidden-full "${to_hidden[@]}" Return Down Return Down Return
+    # Updates (fake GitHub). The Status banner sits under Test connection: Right, then Down reaches Update.
+    update=available shoot update-banner linked-game
+    update=manual shoot update-manual linked-game
+    update=slow shoot update-progress linked-game Right Down Return
+    update=available shoot update-done linked-game Right Down Return wait
+    update=installfail shoot update-failed linked-game Right Down Return wait
+    update=partial shoot update-partial linked-game Right Down Return wait
+    # Settings > Check for updates now is the last row: more Downs than rows is harmless.
+    local to_check=(Down Right Down Down Down Down Down Down Down Down Down Down Down Down Down Down Down Down Down Down)
+    update=available shoot update-settings linked-game "${to_check[@]}"
+    update=slow shoot update-settings-progress linked-game "${to_check[@]}" Return
+    update=uptodate no_auto=1 shoot update-settings-uptodate linked-game "${to_check[@]}" Return
+    update=checkfail no_auto=1 shoot update-settings-checkfail linked-game "${to_check[@]}" Return
+    update=available no_auto=1 shoot update-settings-available linked-game "${to_check[@]}" Return
+    update=manual no_auto=1 shoot update-settings-manual linked-game "${to_check[@]}" Return
+    update=installfail shoot update-settings-failed linked-game "${to_check[@]}" Return wait
+    update=available shoot update-settings-done linked-game "${to_check[@]}" Return wait
 }
 
 if [ -z "${DRPC_SHOTS_INNER:-}" ]; then
