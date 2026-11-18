@@ -46,8 +46,9 @@ constexpr int64_t kProfileRefreshMs = 24 * 60 * 60 * 1000;
 constexpr int64_t kPlaytimeRefreshMs = 600'000;
 // A title whose icon could not be hashed is read again at most this often.
 constexpr int64_t kIconHashRetryMs = 60'000;
-// How often a staged app update (nx-discord-rpc.nro.new) is looked for.
-constexpr int64_t kNroSwapCheckMs = 5'000;
+// How often a staged app update (nx-discord-rpc.nro.new) is looked for (a stat while none is staged). Short, so
+// the app's "wait about 10 seconds" holds even when a relay request (up to 8 s) delays the check.
+constexpr int64_t kNroSwapCheckMs = 2'000;
 
 void log_wake(const PowerNet::WakeReport& wake) {
     log::info("Console awake; sleep acknowledged after " + std::to_string(wake.ack_ms) + " ms" +

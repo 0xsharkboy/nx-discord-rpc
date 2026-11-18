@@ -116,7 +116,7 @@ Nintendo Switch". In private mode the game name, icon and playtime are hidden, w
 Handheld still shows if turned on.
 
 Title icons are sent automatically. The console sends the icon's hash, and the relay asks for the
-image only if it does not have it yet. None are uploaded in private mode or on the HOME Menu.
+image only if it does not have it yet. None are uploaded in private mode, for a game set to Playing a game or Hidden, or on the HOME Menu.
 
 ## Hidden games
 

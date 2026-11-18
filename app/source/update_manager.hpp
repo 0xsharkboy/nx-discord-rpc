@@ -26,7 +26,7 @@ enum class UpdatePhase {
     CheckFailed,  // only after a manual check
     Downloading,
     Done,         // installed (see UpdateState::start_failed); the app must be closed for its .nro to be swapped
-    Ready,        // at start: an update is staged already (the app was reopened before the swap); nothing to check
+    Ready,        // at start: an update is staged already (the app was reopened before the swap); no quiet check
     Failed,       // download or hash failed: nothing changed
     Partial,      // a replace failed after others succeeded
 };

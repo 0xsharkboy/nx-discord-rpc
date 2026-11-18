@@ -66,7 +66,10 @@ void UpdateManager::check(bool manual) {
     }
     if (busy()) return;
     // A finished install wants a restart, not another check.
-    if (state_.phase == UpdatePhase::Done || state_.phase == UpdatePhase::Ready) return;
+    if (state_.phase == UpdatePhase::Done) return;
+    // A staged update is not offered again at start, but a manual check stays possible: should the swap never
+    // happen (the sysmodule cannot start, the .nro stays locked), installing again is the way out.
+    if (state_.phase == UpdatePhase::Ready && !manual) return;
     UpdateState next;
     next.phase = UpdatePhase::Checking;
     next.manual = manual;

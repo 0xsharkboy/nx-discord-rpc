@@ -75,6 +75,7 @@ void UpdateBanner::set_not_running(bool not_running) {
 void UpdateBanner::clicked() {
     switch (updater_.state().phase) {
         case UpdatePhase::Idle:
+        case UpdatePhase::Ready:
         case UpdatePhase::UpToDate:
         case UpdatePhase::CheckFailed:
             updater_.check(true);
@@ -109,6 +110,8 @@ void UpdateBanner::render() {
         case UpdatePhase::Ready:
             // Not running: the sysmodule that swaps the staged .nro in must be started first.
             text = blocking && not_running_ ? "app/update/ready_start"_i18n : "app/update/ready"_i18n;
+            // A way out should the swap never happen (see UpdateManager::check).
+            if (blocking) button = "app/update/check"_i18n;
             break;
         case UpdatePhase::Failed:
             text = "app/update/failed"_i18n;
@@ -155,9 +158,11 @@ void UpdateBanner::render() {
     fill_->setWidthPercentage(float(s.percent()));
     if (button.empty()) {
         const bool had_focus = button_->isFocused();
-        // A blocking screen may have nothing else to focus: the banner itself takes it (with no highlight).
-        if (blocking) setFocusable(true);
-        if (had_focus) brls::Application::giveFocus(blocking ? this : getParent());
+        // The mismatch screen has nothing else to focus: the banner itself takes it (with no highlight). The
+        // not-running screen keeps Start now, where the focus goes back.
+        const bool self_focus = blocking && !not_running_;
+        setFocusable(self_focus);
+        if (had_focus) brls::Application::giveFocus(self_focus ? this : getParent());
         button_->setVisibility(brls::Visibility::GONE);
     } else {
         button_->setText(button);

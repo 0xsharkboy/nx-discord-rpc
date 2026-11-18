@@ -191,12 +191,11 @@ void AppWindow::poll_start(int attempt) {
     if (error == drpc::ConnectError::VersionMismatch) {
         // It started, but this app cannot talk to it: show the same message as at startup, with nothing to retry.
         message_->setText(blocking_message(error, client_->remote_version()));
-        brls::Box* body = start_button_->getParent();
-        if (banner_) banner_->set_not_running(false);
-        // The update banner, which stays, takes the focus.
-        brls::Application::giveFocus(body);
         start_note_->setVisibility(brls::Visibility::GONE);
         start_button_->setVisibility(brls::Visibility::GONE);
+        // The update banner, which stays, takes the focus from the hidden button.
+        banner_->set_not_running(false);
+        brls::Application::giveFocus(banner_);
         start_note_ = nullptr;
         start_button_ = nullptr;
         starting_ = false;

@@ -187,7 +187,6 @@ void SettingsTab::update_clicked() {
         case UpdatePhase::Checking:
         case UpdatePhase::Downloading:
         case UpdatePhase::Done:
-        case UpdatePhase::Ready:
             return;
         case UpdatePhase::Available:
         case UpdatePhase::Failed:
@@ -196,6 +195,7 @@ void SettingsTab::update_clicked() {
             updater_.install();
             return;
         case UpdatePhase::Idle:
+        case UpdatePhase::Ready:
         case UpdatePhase::UpToDate:
         case UpdatePhase::ManualOnly:
         case UpdatePhase::CheckFailed:
