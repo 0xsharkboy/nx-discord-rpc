@@ -88,9 +88,18 @@ void log_heap() {
     log::info(buf);
 }
 
-void log_title_change(const std::optional<RunningTitle>& title) {
+// Users post log.txt publicly: a game kept off Discord (Hidden, Playing a game, private mode) is logged by id only.
+void log_title_change(const std::optional<RunningTitle>& title, const Settings& settings) {
     if (title) {
-        log::info("Running title " + format_title_id(title->title_id) + ": " + title->name);
+        const std::string id = format_title_id(title->title_id);
+        const TitleVisibility visibility = visibility_of(settings, title->title_id);
+        if (visibility == TitleVisibility::Hidden) {
+            log::info("Running title " + id + " (hidden)");
+        } else if (visibility == TitleVisibility::Private || settings.private_mode) {
+            log::info("Running title " + id + " (private)");
+        } else {
+            log::info("Running title " + id + ": " + title->name);
+        }
     } else {
         log::info("HOME Menu");
     }
@@ -493,7 +502,7 @@ void publish(SharedState& shared, const Snapshot& s) {
             polled = true;
             shown_id = id;
             elapsed.restart();
-            log_title_change(title);
+            log_title_change(title, settings);
         }
 
         SceneInput scene;
