@@ -46,6 +46,31 @@ struct SslSession {
     }
     bool ok;
 };
+
+// Borealis makes the Simplified Chinese shared font the default on the Switch. Its accented Latin letters
+// (é, à, è...) are wide pinyin glyphs, which space French words out ("R é glages"). Make the Standard shared
+// font the default, as the system UI does, and keep every font Borealis loaded as a fallback. Runs after
+// createWindow (fonts loaded) and before the first Label, which caches the default font.
+void use_standard_font() {
+    PlFontData standard;
+    if (R_FAILED(plGetSharedFontByType(&standard, PlSharedFontType_Standard))) return;
+    const int chinese = brls::Application::getFont(brls::FONT_CHINESE_SIMPLIFIED);
+    if (chinese == brls::FONT_INVALID) return;
+    if (!brls::Application::loadFontFromMemory(brls::FONT_CHINESE_SIMPLIFIED, standard.address, standard.size, false))
+        return;
+    NVGcontext* vg = brls::Application::getNVGContext();
+    const int base = brls::Application::getFont(brls::FONT_CHINESE_SIMPLIFIED);
+    // nanovg looks fallbacks up one level only: add each one to the new default directly.
+    nvgAddFallbackFontId(vg, base, chinese);
+    for (const std::string& name : {brls::FONT_CHINESE_SIMPLIFIED_EXT, brls::FONT_CHINESE_TRADITIONAL,
+                                    brls::FONT_KOREAN_REGULAR, brls::FONT_SWITCH_ICONS, brls::FONT_MATERIAL_ICONS,
+                                    std::string("emoji")}) {
+        const int id = brls::Application::getFont(name);
+        if (id != brls::FONT_INVALID) nvgAddFallbackFontId(vg, base, id);
+    }
+    if (brls::Application::getDefaultFont() != base)
+        brls::Logger::warning("Default font was cached before the Standard font swap");
+}
 #endif
 
 }  // namespace
@@ -65,6 +90,9 @@ int main(int argc, char* argv[]) {
         return EXIT_FAILURE;
     }
     brls::Application::createWindow("app/title"_i18n);
+#ifdef __SWITCH__
+    use_standard_font();
+#endif
 
     app::title_icon::init();
     app::AppWindow window(std::move(client));
