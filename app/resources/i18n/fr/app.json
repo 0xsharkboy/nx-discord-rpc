@@ -7,7 +7,7 @@
     "about": "À propos"
   },
   "blocking": {
-    "not_running": "NX Discord RPC n'est pas lancé. Le démarrer maintenant, puis réactiver Démarrage au boot dans Réglages s'il est désactivé. S'il ne démarre pas, vérifier qu'il est installé dans atmosphere/contents/4200000000D15C0D et redémarrer la console.",
+    "not_running": "NX Discord RPC n'est pas lancé. Le démarrer maintenant, puis réactiver Lancer au démarrage dans Réglages s'il est désactivé. S'il ne démarre pas, vérifier qu'il est installé dans atmosphere/contents/4200000000D15C0D et redémarrer la console.",
     "start_now": "Démarrer",
     "starting": "Démarrage…",
     "start_failed": "Impossible de démarrer NX Discord RPC (erreur {}).",
@@ -68,7 +68,8 @@
       "retrying": "La dernière mise à jour a échoué. Nouvel essai dans {} s",
       "rate_limited": "Trop de mises à jour. Nouvel essai sous peu",
       "relay_error": "Le relais n'a pas pu traiter la dernière mise à jour (erreur {}). Nouvel essai en cours",
-      "refused": "Le relais a refusé la dernière mise à jour (erreur {})"
+      "refused": "Le relais a refusé la dernière mise à jour (erreur {})",
+      "no_sysmodule": "Le sysmodule est injoignable. Rouvrir l'application pour en savoir plus"
     }
   },
   "settings": {
@@ -78,7 +79,7 @@
     "show_firmware": "Afficher la version du firmware",
     "show_home_menu": "Afficher le menu HOME",
     "show_paused": "Afficher les jeux en pause",
-    "show_docked": "Afficher dock ou portable",
+    "show_docked": "Afficher le mode dock ou portable",
     "show_playtime": "Afficher le temps de jeu total",
     "hidden_games": "Jeux masqués",
     "hidden_none": "Aucun",
@@ -86,9 +87,9 @@
     "hidden_many": "{} jeux",
     "advanced": "Avancé",
     "debug_log": "Journal de débogage",
-    "start_at_boot": "Démarrage au boot",
+    "start_at_boot": "Lancer au démarrage",
     "start_at_boot_hint": "Pris en compte au prochain démarrage",
-    "start_at_boot_failed": "Impossible de modifier Démarrage au boot. Vérifier que NX Discord RPC est installé dans atmosphere/contents/4200000000D15C0D et que la carte SD n'est pas protégée en écriture.",
+    "start_at_boot_failed": "Impossible de modifier Lancer au démarrage. Vérifier que NX Discord RPC est installé dans atmosphere/contents/4200000000D15C0D et que la carte SD n'est pas protégée en écriture.",
     "close": "Fermer",
     "relay": "Relais : {}",
     "relay_unset": "Relais : non défini",
@@ -102,7 +103,7 @@
   },
   "hidden": {
     "title": "Jeux masqués",
-    "intro": "Ce que Discord affiche pendant chaque jeu. Anonyme affiche « Playing a game » sans nom ni icône, Masqué n'affiche rien.",
+    "intro": "Ce que Discord affiche pendant chaque jeu. Anonyme affiche « Playing a game » sans nom ni icône ; Masqué n'affiche rien.",
     "shown": "Affiché",
     "private": "Anonyme",
     "hidden": "Masqué",
@@ -119,7 +120,7 @@
     "nokey": "Lier le compte Discord pour afficher les jeux en cours.",
     "broken": "Lien Discord rompu. Lier à nouveau",
     "unauthorized": "Clé refusée par le relais. Lier à nouveau",
-    "unlinking": "Déliaison…",
+    "unlinking": "Dissociation…",
     "link": "Lier avec Discord",
     "unlink": "Délier",
     "unlink_confirm": "Délier le compte Discord ? Rien ne sera affiché sur Discord tant qu'il n'est pas lié à nouveau.",
@@ -163,7 +164,13 @@
     "available": "La version {} est disponible (version actuelle : {}).",
     "manual": "La version {} est disponible, mais elle ne peut pas être installée depuis l'application : la mettre à jour manuellement depuis GitHub.",
     "downloading": "Téléchargement de la {}… {} %",
-    "done": "Mise à jour installée et NX Discord RPC redémarré. Fermer puis rouvrir l'application pour terminer.",
+    "done": "Mise à jour installée et NX Discord RPC redémarré. Fermer l'application, attendre environ 10 secondes, puis la rouvrir.",
+    "done_start_failed": "Mise à jour installée, mais NX Discord RPC n'a pas redémarré. Fermer puis rouvrir l'application et appuyer sur Démarrer, ou redémarrer la console.",
+    "ready": "Une mise à jour est prête : fermer l'application et attendre environ 10 secondes, puis la rouvrir.",
+    "ready_start": "Une mise à jour est prête. Appuyer sur Démarrer, puis fermer l'application, attendre environ 10 secondes et la rouvrir.",
+    "blocking_idle": "Une version plus récente de NX Discord RPC est peut-être disponible sur GitHub.",
+    "check": "Rechercher les mises à jour",
+    "checking": "Recherche des mises à jour…",
     "failed": "La mise à jour a échoué et rien n'a été modifié. Vérifier la connexion Internet et réessayer.",
     "partial": "La mise à jour s'est interrompue. Réessayer, ou la faire manuellement depuis GitHub.",
     "up_to_date": "La dernière version est déjà installée ({}).",

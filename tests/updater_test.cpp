@@ -268,9 +268,11 @@ TEST_CASE("install_replaces_every_file") {
     };
     hooks.start_sysmodule = [&] {
         events.push_back("start:" + read(dir.path / "atmosphere/contents/4200000000D15C0D/exefs.nsp").substr(0, 1));
+        return true;
     };
     const InstallResult r = install(rel.fetch(), rel.config, release, hooks);
     CHECK(r.outcome == InstallOutcome::Done);
+    CHECK(r.sysmodule_started);
     CHECK(read(dir.path / "switch/.overlays/nx-discord-rpc.ovl") == "overlay v0.6.0");
     CHECK(read(dir.path / "atmosphere/contents/4200000000D15C0D/toolbox.json") == rel.files["toolbox.json"]);
     CHECK(read(dir.path / "atmosphere/contents/4200000000D15C0D/exefs.nsp") == rel.files["exefs.nsp"]);
@@ -384,6 +386,7 @@ TEST_CASE("install_partial_when_a_replace_fails") {
     hooks.start_sysmodule = [&] {
         events.push_back("start");
         fs::permissions(contents, fs::perms::owner_all);
+        return true;
     };
     const InstallResult r = install(rel.fetch(), rel.config, release, hooks);
     CHECK(r.outcome == InstallOutcome::Partial);
@@ -408,4 +411,69 @@ TEST_CASE("clean_leftovers_keeps_the_staged_nro") {
     CHECK_FALSE(fs::exists(dir.path / "atmosphere/contents/4200000000D15C0D/exefs.nsp.new"));
     CHECK_FALSE(fs::exists(dir.path / "switch/nx-discord-rpc/nx-discord-rpc.nro.part"));
     CHECK(fs::exists(dir.path / "switch/nx-discord-rpc/nx-discord-rpc.nro.new"));
+}
+
+TEST_CASE("install_reports_a_sysmodule_that_did_not_start") {
+    TempDir dir;
+    install_old(dir.path);
+    FakeRelease rel(dir.path);
+    rel.serve(rel.sums());
+    const Release release = check(rel.fetch(), rel.config, "0.5.0").release;
+    InstallHooks hooks;
+    hooks.start_sysmodule = [] { return false; };
+    const InstallResult r = install(rel.fetch(), rel.config, release, hooks);
+    // Every file is in place; only the restart failed, which the app reports (Start now, or reboot).
+    CHECK(r.outcome == InstallOutcome::Done);
+    CHECK_FALSE(r.sysmodule_started);
+    CHECK(read(dir.path / "atmosphere/contents/4200000000D15C0D/exefs.nsp") == rel.files["exefs.nsp"]);
+    CHECK(read(dir.path / "switch/nx-discord-rpc/nx-discord-rpc.nro.new") == rel.files["nx-discord-rpc.nro"]);
+}
+
+TEST_CASE("install_with_the_sysmodule_not_running") {
+    TempDir dir;
+    install_old(dir.path);
+    FakeRelease rel(dir.path);
+    rel.serve(rel.sums());
+    const Release release = check(rel.fetch(), rel.config, "0.5.0").release;
+    // From the not-running screen: stopping finds nothing (a no-op), starting launches it.
+    bool launched = false;
+    InstallHooks hooks;
+    hooks.stop_sysmodule = [] {};
+    hooks.start_sysmodule = [&] {
+        launched = true;
+        return true;
+    };
+    const InstallResult r = install(rel.fetch(), rel.config, release, hooks);
+    CHECK(r.outcome == InstallOutcome::Done);
+    CHECK(r.sysmodule_started);
+    CHECK(launched);
+}
+
+TEST_CASE("check_stops_when_cancelled") {
+    TempDir dir;
+    FakeRelease rel(dir.path);
+    rel.serve(rel.sums());
+    CHECK(check(rel.fetch(), rel.config, "0.5.0", [] { return true; }).outcome == CheckOutcome::Failed);
+    CHECK(check(rel.fetch(), rel.config, "0.5.0", [] { return false; }).outcome == CheckOutcome::Available);
+}
+
+TEST_CASE("start_with_a_staged_update_offers_nothing") {
+    TempDir dir;
+    Config config;
+    config.root = dir.path.string();
+    CHECK_FALSE(staged_ready(config));
+    CHECK(start_action(staged_ready(config), true) == StartAction::Check);
+    CHECK(start_action(staged_ready(config), false) == StartAction::None);
+
+    // After an install, until the sysmodule swaps the .nro in: the reopened app is the old one, so it must not
+    // check (and offer the same update again), even with Check for updates off it says to wait.
+    write(dir.path / "switch/nx-discord-rpc/nx-discord-rpc.nro.new", "verified");
+    CHECK(staged_ready(config));
+    CHECK(start_action(staged_ready(config), true) == StartAction::Ready);
+    CHECK(start_action(staged_ready(config), false) == StartAction::Ready);
+
+    // A download in progress (.part) is not a staged update.
+    fs::remove(dir.path / "switch/nx-discord-rpc/nx-discord-rpc.nro.new");
+    write(dir.path / "switch/nx-discord-rpc/nx-discord-rpc.nro.part", "partial");
+    CHECK_FALSE(staged_ready(config));
 }

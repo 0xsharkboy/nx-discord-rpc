@@ -104,10 +104,24 @@ struct CheckResult {
     Release release;  // set for Available and ManualOnly
 };
 
-CheckResult check(const Fetch& fetch, const Config& config, std::string_view app_version);
+// cancelled, when set, is checked as the answer comes in: true stops the check (as a failure).
+CheckResult check(const Fetch& fetch, const Config& config, std::string_view app_version,
+                  const std::function<bool()>& cancelled = {});
+
+// A verified update of the app is staged (nx-discord-rpc.nro.new, never written unverified), waiting for the
+// sysmodule to swap it in after the app closes. That takes a few seconds: an app reopened before then is the
+// old one, and must not offer the same update again.
+bool staged_ready(const Config& config);
+
+enum class StartAction {
+    None,   // Check for updates is off
+    Check,  // the quiet check
+    Ready,  // an update is staged: say to close the app and wait, check nothing
+};
+StartAction start_action(bool staged, bool check_updates);
 
 enum class InstallOutcome {
-    Done,       // every file replaced; the sysmodule was restarted
+    Done,       // every file replaced (see InstallResult::sysmodule_started)
     Failed,     // a download or a hash failed: nothing on the SD card changed
     Partial,    // a replace failed after others succeeded
 };
@@ -115,9 +129,10 @@ enum class InstallOutcome {
 struct InstallHooks {
     // done bytes, total bytes (0 when unknown); called from the worker.
     std::function<void(uint64_t, uint64_t)> progress;
-    // Around exefs.nsp: stop the sysmodule before it is replaced, start it again after.
+    // Around exefs.nsp: stop the sysmodule before it is replaced (not running counts as stopped), start it
+    // again after. start_sysmodule returns whether it started.
     std::function<void()> stop_sysmodule;
-    std::function<void()> start_sysmodule;
+    std::function<bool()> start_sysmodule;
     // Checked between reads: true stops the download (as a failure, nothing changed).
     std::function<bool()> cancelled;
 };
@@ -125,6 +140,8 @@ struct InstallHooks {
 struct InstallResult {
     InstallOutcome outcome = InstallOutcome::Failed;
     std::string detail;  // English, for the log only
+    // False when start_sysmodule failed: Done then asks the user to start it (Start now) or reboot.
+    bool sysmodule_started = true;
 };
 
 // Downloads SHA256SUMS then every file to its .new name (.part for the nro), hashing as it goes. Only when all

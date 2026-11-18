@@ -91,6 +91,15 @@ run() {
     update=available shoot update-done linked-game Right Down Return wait
     update=installfail shoot update-failed linked-game Right Down Return wait
     update=partial shoot update-partial linked-game Right Down Return wait
+    update=startfail shoot update-done-startfail linked-game Right Down Return wait
+    # Reopened before the sysmodule swapped the staged .nro in: no check, a note to wait instead.
+    update=ready shoot update-ready linked-game
+    # The blocking screens offer the updater too.
+    update=available shoot blocking-update missing
+    update=available shoot blocking-mismatch-update mismatch
+    update=ready shoot blocking-ready missing
+    update=uptodate no_auto=1 shoot blocking-idle mismatch
+    update=startfail shoot blocking-done-startfail mismatch Return wait
     # Settings > Check for updates now is the last row: more Downs than rows is harmless.
     local to_check=(Down Right Down Down Down Down Down Down Down Down Down Down Down Down Down Down Down Down Down Down)
     update=available shoot update-settings linked-game "${to_check[@]}"

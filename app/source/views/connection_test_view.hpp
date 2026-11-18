@@ -34,6 +34,7 @@ private:
 
     drpc::Client& client_;
     diag::Facts facts_{};
+    bool status_read_ = false;  // the sysmodule answered Status at least once
     bool running_ = false;
     unsigned run_ = 0;  // results from an older run are dropped
 

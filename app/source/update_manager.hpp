@@ -25,7 +25,8 @@ enum class UpdatePhase {
     ManualOnly,   // a newer release without the single files (v0.4.0 and older): update from GitHub
     CheckFailed,  // only after a manual check
     Downloading,
-    Done,         // installed; the sysmodule restarted; the app must be restarted
+    Done,         // installed (see UpdateState::start_failed); the app must be closed for its .nro to be swapped
+    Ready,        // at start: an update is staged already (the app was reopened before the swap); nothing to check
     Failed,       // download or hash failed: nothing changed
     Partial,      // a replace failed after others succeeded
 };
@@ -35,6 +36,7 @@ struct UpdateState {
     std::string tag;  // the newer version, when one was found
     uint64_t done = 0, total = 0;
     bool manual = false;  // the last check came from Settings > Check for updates now
+    bool start_failed = false;  // Done, but the sysmodule did not start again
 
     // 0 to 100.
     int percent() const;
@@ -50,6 +52,8 @@ public:
     UpdateManager(const UpdateManager&) = delete;
     UpdateManager& operator=(const UpdateManager&) = delete;
 
+    // Once, at start: Ready when an update is staged already, else the quiet check when Check for updates is on.
+    void start(bool check_updates);
     // A quiet check (at start) shows nothing on failure; a manual one reports it.
     void check(bool manual);
     void install();

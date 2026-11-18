@@ -50,7 +50,8 @@ enum class Reason : uint8_t {
     RateLimited,
     RelayError,   // code: the HTTP status
     Refused,      // code: the HTTP status
-    Last = Refused,
+    NoSysmodule,  // the sysmodule never answered, so its Status (relay host, link) is unknown
+    Last = NoSysmodule,
 };
 
 struct Step {
@@ -70,6 +71,7 @@ struct Healthz {
 
 struct Facts {
     drpc::ipc::Status status;              // the sysmodule's, read when the test finished
+    bool no_status = false;                // the sysmodule could not be asked for its Status even once
     std::optional<bool> network;           // the console's internet connection; nullopt until checked
     std::optional<Healthz> healthz;        // nullopt until checked (never made without a relay host)
 };

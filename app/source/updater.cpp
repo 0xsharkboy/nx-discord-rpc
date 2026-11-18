@@ -194,14 +194,16 @@ Target target_for(const Config& config, std::string_view name) {
     return t;
 }
 
-CheckResult check(const Fetch& fetch, const Config& config, std::string_view app_version) {
+CheckResult check(const Fetch& fetch, const Config& config, std::string_view app_version,
+                  const std::function<bool()>& cancelled) {
     CheckResult result;
     ReleaseReader reader;
     http::Options options;
     options.user_agent = config.user_agent;
     options.accept = "application/vnd.github+json";
     options.max_body = kMaxApiBytes;
-    const http::Result got = fetch(config.latest_url(), options, [&reader](std::span<const uint8_t> d) {
+    const http::Result got = fetch(config.latest_url(), options, [&reader, &cancelled](std::span<const uint8_t> d) {
+        if (cancelled && cancelled()) return false;
         reader.feed({reinterpret_cast<const char*>(d.data()), d.size()});
         return true;
     });
@@ -215,6 +217,13 @@ CheckResult check(const Fetch& fetch, const Config& config, std::string_view app
     result.outcome = release->installable() ? CheckOutcome::Available : CheckOutcome::ManualOnly;
     result.release = std::move(*release);
     return result;
+}
+
+bool staged_ready(const Config& config) { return exists(staged_nro(config)); }
+
+StartAction start_action(bool staged, bool check_updates) {
+    if (staged) return StartAction::Ready;
+    return check_updates ? StartAction::Check : StartAction::None;
 }
 
 void clean_leftovers(const Config& config) {
@@ -281,6 +290,7 @@ InstallResult install(const Fetch& fetch, const Config& config, const Release& r
 
     // Replace, one file at a time (see nro_swap::swap), so a failure from here on can leave a mix of versions.
     bool replaced_any = false;
+    bool started = true;
     for (std::string_view name : kFiles) {
         const Target target = target_for(config, name);
         bool ok;
@@ -290,19 +300,21 @@ InstallResult install(const Fetch& fetch, const Config& config, const Release& r
         } else if (name == "exefs.nsp") {
             if (hooks.stop_sysmodule) hooks.stop_sysmodule();
             ok = replace_file(target.path, target.staged);
-            if (hooks.start_sysmodule) hooks.start_sysmodule();
+            if (hooks.start_sysmodule) started = hooks.start_sysmodule();
         } else {
             make_parent_dirs(config.root, target.path);
             ok = replace_file(target.path, target.staged);
         }
         if (!ok) {
             clean_leftovers(config);
-            const std::string detail = "could not replace " + target.path;
-            return {replaced_any ? InstallOutcome::Partial : InstallOutcome::Failed, detail};
+            std::string detail = "could not replace " + target.path;
+            if (!started) detail += "; the sysmodule did not start";
+            return {replaced_any ? InstallOutcome::Partial : InstallOutcome::Failed, detail, started};
         }
         replaced_any = true;
     }
     if (hooks.progress) hooks.progress(total, total);
+    if (!started) return {InstallOutcome::Done, "installed " + release.tag + "; the sysmodule did not start", false};
     return {InstallOutcome::Done, "installed " + release.tag};
 }
 

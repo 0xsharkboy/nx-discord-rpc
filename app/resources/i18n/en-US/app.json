@@ -68,7 +68,8 @@
       "retrying": "The last update failed. Retrying in {}s",
       "rate_limited": "Too many updates. Retrying shortly",
       "relay_error": "The relay failed the last update (error {}). Retrying",
-      "refused": "The relay refused the last update (error {})"
+      "refused": "The relay refused the last update (error {})",
+      "no_sysmodule": "The sysmodule is not reachable. Reopen the app to see why"
     }
   },
   "settings": {
@@ -102,7 +103,7 @@
   },
   "hidden": {
     "title": "Hidden games",
-    "intro": "What Discord shows while each game runs. Playing a game hides its name and icon, Hidden shows nothing at all.",
+    "intro": "What Discord shows while each game runs. Playing a game hides its name and icon; Hidden shows nothing at all.",
     "shown": "Shown",
     "private": "Playing a game",
     "hidden": "Hidden",
@@ -163,7 +164,13 @@
     "available": "Version {} is available (you have {}).",
     "manual": "Version {} is available. It cannot be installed from the app: update manually from GitHub.",
     "downloading": "Downloading {}… {}%",
-    "done": "Update installed and NX Discord RPC restarted. Close and reopen this app to finish.",
+    "done": "Update installed and NX Discord RPC restarted. Close the app, wait about 10 seconds, then reopen it.",
+    "done_start_failed": "Update installed, but NX Discord RPC did not start again. Close and reopen the app, then press Start now, or restart the console.",
+    "ready": "An update is ready: close the app and wait about 10 seconds, then reopen it.",
+    "ready_start": "An update is ready. Press Start now, then close the app, wait about 10 seconds and reopen it.",
+    "blocking_idle": "A newer version of NX Discord RPC may be available on GitHub.",
+    "check": "Check for updates",
+    "checking": "Checking for updates…",
     "failed": "The update failed and nothing was changed. Check the internet connection and try again.",
     "partial": "The update stopped partway. Try again, or update manually from GitHub.",
     "up_to_date": "You have the latest version ({}).",

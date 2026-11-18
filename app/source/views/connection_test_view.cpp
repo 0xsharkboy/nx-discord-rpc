@@ -173,7 +173,14 @@ void ConnectionTestView::open(drpc::Client& client) {
 void ConnectionTestView::read_status() {
     // Kept from the last read when the sysmodule cannot be asked (the app then shows its own blocking screen).
     drpc::ipc::Status status{};
-    if (client_.status(status)) facts_.status = status;
+    if (client_.status(status)) {
+        facts_.status = status;
+        facts_.no_status = false;
+        status_read_ = true;
+    } else if (!status_read_) {
+        // Never read: an empty relay host would read as an invalid relay_url.
+        facts_.no_status = true;
+    }
 }
 
 void ConnectionTestView::start() {

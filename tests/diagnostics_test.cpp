@@ -86,6 +86,19 @@ TEST_CASE("diagnostics_steps_no_network_skips_the_rest") {
     CHECK(app::diag::needs_help(steps));
 }
 
+TEST_CASE("diagnostics_steps_without_status") {
+    // The sysmodule never answered Status: its empty relay host must not read as an invalid relay_url.
+    Facts f{};
+    f.no_status = true;
+    f.network = true;
+    const Steps steps = app::diag::diagnose(f);
+    CHECK(step(steps, StepId::Relay).result == Result::Failed);
+    CHECK(step(steps, StepId::Relay).reason == Reason::NoSysmodule);
+    CHECK(step(steps, StepId::Key).result == Result::Skipped);
+    CHECK(app::diag::finished(steps));
+    CHECK(std::string(app::diag::reason_key(Reason::NoSysmodule)) == "app/diag/reason/no_sysmodule");
+}
+
 TEST_CASE("diagnostics_steps_relay_url_invalid") {
     ipc::Status st = linked_status();
     st.relay_host[0] = '\0';

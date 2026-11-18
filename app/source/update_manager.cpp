@@ -40,6 +40,23 @@ void UpdateManager::set(UpdateState state) {
     changed_.fire();
 }
 
+void UpdateManager::start(bool check_updates) {
+    if (state_.phase != UpdatePhase::Idle) return;
+    switch (update::start_action(backend_->staged_ready(), check_updates)) {
+        case update::StartAction::None:
+            return;
+        case update::StartAction::Check:
+            check(false);
+            return;
+        case update::StartAction::Ready: {
+            UpdateState s;
+            s.phase = UpdatePhase::Ready;
+            set(s);
+            return;
+        }
+    }
+}
+
 void UpdateManager::check(bool manual) {
     if (state_.phase == UpdatePhase::Checking && manual && !state_.manual) {
         // Asked for while the quiet check at start runs: that one reports now.
@@ -49,7 +66,7 @@ void UpdateManager::check(bool manual) {
     }
     if (busy()) return;
     // A finished install wants a restart, not another check.
-    if (state_.phase == UpdatePhase::Done) return;
+    if (state_.phase == UpdatePhase::Done || state_.phase == UpdatePhase::Ready) return;
     UpdateState next;
     next.phase = UpdatePhase::Checking;
     next.manual = manual;
@@ -57,8 +74,9 @@ void UpdateManager::check(bool manual) {
 
     std::weak_ptr<bool> alive = alive_;
     std::shared_ptr<UpdateBackend> backend = backend_;
-    run([this, alive, backend] {
-        auto result = std::make_shared<update::CheckResult>(backend->check());
+    std::shared_ptr<std::atomic<bool>> cancel = cancel_;
+    run([this, alive, backend, cancel] {
+        auto result = std::make_shared<update::CheckResult>(backend->check([cancel] { return cancel->load(); }));
         brls::sync([this, alive, result] {
             if (alive.expired()) return;
             const bool manual = state_.manual;
@@ -131,9 +149,11 @@ void UpdateManager::install() {
         if (result.outcome == update::InstallOutcome::Done) brls::Logger::info("Update: {}", result.detail);
         else brls::Logger::error("Update failed: {}", result.detail);
         const update::InstallOutcome outcome = result.outcome;
-        brls::sync([this, alive, outcome] {
+        const bool started = result.sysmodule_started;
+        brls::sync([this, alive, outcome, started] {
             if (alive.expired()) return;
             UpdateState s = state_;
+            s.start_failed = !started;
             switch (outcome) {
                 case update::InstallOutcome::Done:
                     s.phase = UpdatePhase::Done;

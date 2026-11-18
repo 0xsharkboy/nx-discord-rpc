@@ -187,6 +187,7 @@ void SettingsTab::update_clicked() {
         case UpdatePhase::Checking:
         case UpdatePhase::Downloading:
         case UpdatePhase::Done:
+        case UpdatePhase::Ready:
             return;
         case UpdatePhase::Available:
         case UpdatePhase::Failed:
@@ -241,7 +242,10 @@ void SettingsTab::render_update() {
             break;
         case UpdatePhase::Done:
             detail = "app/update/short/done"_i18n;
-            message = "app/update/done"_i18n;
+            message = s.start_failed ? "app/update/done_start_failed"_i18n : "app/update/done"_i18n;
+            break;
+        case UpdatePhase::Ready:
+            detail = "app/update/short/done"_i18n;
             break;
         case UpdatePhase::Failed:
             title = brls::getStr("app/settings/update_to", s.tag);

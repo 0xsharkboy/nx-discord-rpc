@@ -13,6 +13,7 @@
 #include "tabs/account_tab.hpp"
 #include "tabs/settings_tab.hpp"
 #include "tabs/status_tab.hpp"
+#include "views/update_banner.hpp"
 
 using namespace brls::literals;
 
@@ -24,6 +25,7 @@ namespace {
 // every 5 s (kIpcRetryMs), for instance after colliding with a connect probe.
 constexpr long kStartPollMs = 500;
 constexpr int kStartPollAttempts = 24;
+constexpr float kBlockingBannerWidth = 1000;
 
 void apply_theme() {
     const NVGcolor accent = palette::accent();
@@ -121,16 +123,21 @@ void AppWindow::show_blocking(const std::string& message, bool offer_start) {
         message_ = label;
         start_button_ = button;
         start_note_ = note;
-    } else {
-        body->setFocusable(true);
-        body->setHideHighlight(true);
-        body->setHideClickAnimation(true);
     }
+
+    // The updater needs no connection to the sysmodule: offer it here too, since an update is often the fix.
+    auto* banner = new UpdateBanner(*updater_, UpdateBanner::Place::Blocking);
+    banner->set_not_running(offer_start);
+    banner->setWidth(kBlockingBannerWidth);
+    banner->setMarginTop(40);
+    body->addView(banner);
+    banner_ = banner;
 
     auto* frame = new brls::AppletFrame(body);
     frame->setFooterVisibility(brls::Visibility::GONE);
     blocking_ = new brls::Activity(frame);
     brls::Application::pushActivity(blocking_);
+    start_updates();
 }
 
 brls::AppletFrame* AppWindow::make_tabs() {
@@ -148,13 +155,13 @@ brls::AppletFrame* AppWindow::make_tabs() {
 
 void AppWindow::show_tabs() {
     brls::Application::pushActivity(new brls::Activity(make_tabs()));
-    auto_check_updates();
+    start_updates();
 }
 
-void AppWindow::auto_check_updates() {
-    if (auto_checked_) return;
-    auto_checked_ = true;
-    if (load_app_settings(app_settings_path()).check_updates) updater_->check(false);
+void AppWindow::start_updates() {
+    if (updates_started_) return;
+    updates_started_ = true;
+    updater_->start(load_app_settings(app_settings_path()).check_updates);
 }
 
 void AppWindow::start_sysmodule() {
@@ -185,9 +192,8 @@ void AppWindow::poll_start(int attempt) {
         // It started, but this app cannot talk to it: show the same message as at startup, with nothing to retry.
         message_->setText(blocking_message(error, client_->remote_version()));
         brls::Box* body = start_button_->getParent();
-        body->setFocusable(true);
-        body->setHideHighlight(true);
-        body->setHideClickAnimation(true);
+        if (banner_) banner_->set_not_running(false);
+        // The update banner, which stays, takes the focus.
         brls::Application::giveFocus(body);
         start_note_->setVisibility(brls::Visibility::GONE);
         start_button_->setVisibility(brls::Visibility::GONE);
@@ -217,6 +223,7 @@ void AppWindow::connected() {
     message_ = nullptr;
     start_note_ = nullptr;
     start_button_ = nullptr;
+    banner_ = nullptr;
     starting_ = false;
 
     // The not-running screen was the first activity, which borealis never pops: swap its content for the
@@ -232,7 +239,7 @@ void AppWindow::connected() {
     activity->registerExitAction();  // the global quit action lived on the old content
     activity->willAppear(true);
     brls::Application::giveFocus(activity->getDefaultFocus());
-    auto_check_updates();
+    start_updates();
 }
 
 void AppWindow::start_failed(const std::string& message) {

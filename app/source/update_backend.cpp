@@ -20,8 +20,9 @@ namespace {
 
 #ifdef __SWITCH__
 
-// Whole-request budgets: the API answer is small; the nro is about 2.7 MB.
-constexpr int64_t kApiBudgetMs = 20'000;
+// Whole-request budgets: the API answer is small; the nro is about 2.7 MB. A check cannot be stopped while it
+// connects, so closing the app during one waits for at most kApiBudgetMs.
+constexpr int64_t kApiBudgetMs = 10'000;
 constexpr int64_t kFileBudgetMs = 180'000;
 
 class SwitchBackend final : public UpdateBackend {
@@ -31,12 +32,16 @@ public:
         config_.root = "sdmc:";
     }
 
-    update::CheckResult check() override { return update::check(fetch(kApiBudgetMs), config_, APP_VERSION_STRING); }
+    update::CheckResult check(const std::function<bool()>& cancelled) override {
+        return update::check(fetch(kApiBudgetMs), config_, APP_VERSION_STRING, cancelled);
+    }
+
+    bool staged_ready() override { return update::staged_ready(config_); }
 
     update::InstallResult install(const update::Release& release, const update::InstallHooks& hooks) override {
         update::InstallHooks h = hooks;
         h.stop_sysmodule = [] { stop_sysmodule(); };
-        h.start_sysmodule = [] { restart_sysmodule(); };
+        h.start_sysmodule = [] { return restart_sysmodule().ok; };
         return update::install(fetch(kFileBudgetMs), config_, release, h);
     }
 
@@ -60,7 +65,9 @@ class FakeBackend final : public UpdateBackend {
 public:
     explicit FakeBackend(std::string scenario) : scenario_(std::move(scenario)) {}
 
-    update::CheckResult check() override {
+    bool staged_ready() override { return scenario_ == "ready"; }
+
+    update::CheckResult check(const std::function<bool()>&) override {
         std::this_thread::sleep_for(std::chrono::milliseconds(400));
         update::CheckResult r;
         if (scenario_ == "uptodate") {
@@ -69,7 +76,7 @@ public:
             r.outcome = update::CheckOutcome::ManualOnly;
             r.release.tag = "v0.6.0";
         } else if (scenario_ == "available" || scenario_ == "installfail" || scenario_ == "partial" ||
-                   scenario_ == "slow") {
+                   scenario_ == "slow" || scenario_ == "startfail") {
             r.outcome = update::CheckOutcome::Available;
             r.release.tag = "v0.6.0";
             r.release.assets["nx-discord-rpc.nro"].size = 2'713'430;
@@ -92,6 +99,7 @@ public:
         }
         if (scenario_ == "installfail") return {update::InstallOutcome::Failed, "fake failure"};
         if (scenario_ == "partial") return {update::InstallOutcome::Partial, "fake partial"};
+        if (scenario_ == "startfail") return {update::InstallOutcome::Done, "fake install, sysmodule not started", false};
         return {update::InstallOutcome::Done, "fake install"};
     }
 

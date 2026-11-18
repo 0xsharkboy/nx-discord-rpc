@@ -33,6 +33,8 @@ Step network(const Facts& f) {
 
 Step relay(const Facts& f, const Step& net) {
     if (net.result != Result::Ok) return after(StepId::Relay, net);
+    // An empty Status is not an invalid relay_url: nothing could be read.
+    if (f.no_status) return make(StepId::Relay, Result::Failed, Reason::NoSysmodule);
     if (f.status.relay_host[0] == '\0' || f.status.health == RelayHealth::NoUrl)
         return make(StepId::Relay, Result::Failed, Reason::NoUrl);
     if (!f.healthz) return make(StepId::Relay, Result::Pending, Reason::Checking);
@@ -142,6 +144,7 @@ const char* reason_key(Reason reason) {
         case Reason::RateLimited: return "app/diag/reason/rate_limited";
         case Reason::RelayError: return "app/diag/reason/relay_error";
         case Reason::Refused: return "app/diag/reason/refused";
+        case Reason::NoSysmodule: return "app/diag/reason/no_sysmodule";
     }
     return "app/diag/reason/checking";
 }
