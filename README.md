@@ -59,9 +59,10 @@ you are playing appears on your profile within a few seconds. The Status tab sho
 currently shown on Discord and the state of the relay.
 
 The Status tab also previews what Discord shows for the game you are playing: its icon, name,
-details line and a timer that matches Discord's. In private mode, or for a game set to Playing a
-game, the preview shows the Switch artwork with "Nintendo Switch" and "Playing a game" (or "Paused" while paused), never the
-game. For a hidden game, or with the presence off, it says that nothing is shown on Discord.
+details line and a timer that matches Discord's. In private mode, or for a game set to Playing
+a game, the preview shows the Switch artwork with "Nintendo Switch" and "Playing a game" (or
+"Paused" while paused), never the game. For a hidden game, or with the presence off, it says
+that nothing is shown on Discord.
 
 As a fallback, you can link without the app: write the API key issued by the relay to
 `sdmc:/config/nx-discord-rpc/api_key.txt`. The sysmodule imports it at boot, or within 30 seconds
@@ -70,17 +71,19 @@ or a broken Discord link, a new `api_key.txt` is needed.
 
 ## Settings
 
-The Settings tab of the app and the overlay edit the same settings. A change applies within about a
-second and is written to `config.ini` after about 2 seconds without further changes. The app has
-Enabled, Private mode, Show firmware version, Show HOME Menu, Show paused games, Show docked or
-handheld, Show total playtime and Debug log. The overlay has the same toggles except Debug log, and
-labels them "Show firmware", "Show paused", "Show docked" and "Show playtime". It also has "This game", which cycles the running game through Shown, Playing a game and Hidden (see [Hidden games](#hidden-games)). The relay URL cannot be changed
-from either: edit `relay_url` in `config.ini`.
+The Settings tab of the app and the overlay edit the same settings. A change applies within about
+a second and is written to `config.ini` after about 2 seconds without further changes. The app
+has Enabled, Private mode, Show firmware version, Show HOME Menu, Show paused games, Show docked
+or handheld, Show total playtime and Debug log. The overlay has the same toggles except Debug
+log, and labels them "Show firmware", "Show paused", "Show docked" and "Show playtime". It also
+has "This game", which cycles the running game through Shown, Playing a game and Hidden (see
+[Hidden games](#hidden-games)). The relay URL cannot be changed from either: edit `relay_url`
+in `config.ini`.
 
 The app also has Hidden games (see [Hidden games](#hidden-games)) and Check for updates (see
-[Updates](#updates)). It also has Start at boot, which is not stored in `config.ini`: it adds or removes the
-sysmodule's `boot2.flag` for Atmosphère and applies at the next boot. When the sysmodule is not
-running, the app offers Start now, which starts it for the current session only.
+[Updates](#updates)). It also has Start at boot, which is not stored in `config.ini`: it adds
+or removes the sysmodule's `boot2.flag` for Atmosphère and applies at the next boot. When the
+sysmodule is not running, the app offers Start now, which starts it for the current session only.
 
 ![Settings tab of the app](docs/images/switch/settings.jpg)
 
@@ -115,8 +118,9 @@ Show HOME Menu on, the HOME Menu itself shows "In the HOME Menu". A game being p
 Nintendo Switch". In private mode the game name, icon and playtime are hidden, while Docked or
 Handheld still shows if turned on.
 
-Title icons are sent automatically. The console sends the icon's hash, and the relay asks for the
-image only if it does not have it yet. None are uploaded in private mode, for a game set to Playing a game or Hidden, or on the HOME Menu.
+Title icons are sent automatically. The console sends the icon's hash, and the relay asks for
+the image only if it does not have it yet. None are uploaded in private mode, for a game set
+to Playing a game or Hidden, or on the HOME Menu.
 
 ## Hidden games
 
@@ -156,20 +160,21 @@ after an update, the app says so: press Start now, or restart the console.
 
 Update downloads `SHA256SUMS` and the four files of the release (`exefs.nsp`, `toolbox.json`,
 `nx-discord-rpc.ovl` and `nx-discord-rpc.nro`) from GitHub, over verified TLS. It checks each file
-against `SHA256SUMS` and installs nothing unless all of them match. It then replaces the overlay and
-`toolbox.json`, replaces the sysmodule and restarts it. The app cannot replace itself while it runs:
-it stages `nx-discord-rpc.nro.new`, and the sysmodule swaps it in a few seconds after you close the
-app: close it, wait about 10 seconds, then reopen it. Reopened sooner, the app is still the old one;
-it then says an update is ready instead of offering it again. The app tells the sysmodule it is open with a heartbeat file, `app.running`, in
-`sdmc:/config/nx-discord-rpc/`. A failed download or checksum leaves everything unchanged. If it stops while replacing files, the app says so, and you can try again or update manually. A release without the
-individual files (v0.4.0 and older) cannot be installed from the app: it then says to update
-manually from GitHub.
+against `SHA256SUMS` and installs nothing unless all of them match. It then replaces the overlay
+and `toolbox.json`, replaces the sysmodule and restarts it. The app cannot replace itself while
+it runs: it stages `nx-discord-rpc.nro.new`, and the sysmodule swaps it in a few seconds after
+you close the app: close it, wait about 10 seconds, then reopen it. Reopened sooner, the app is
+still the old one; it then says an update is ready instead of offering it again. The app tells the
+sysmodule it is open with a heartbeat file, `app.running`, in `sdmc:/config/nx-discord-rpc/`. A
+failed download or checksum leaves everything unchanged. If it stops while replacing files, the
+app says so, and you can try again or update manually. A release without the individual files
+(v0.4.0 and older) cannot be installed from the app: it then says to update manually from GitHub.
 
 ## Privacy
 
 - **What the relay receives:** your Discord link (to show the presence on your account), the name and
-  title id of the game you are playing, the details line, the elapsed time and the hash of the game's icon.
-  For a game set to Playing a game, it still receives the elapsed time and the details line, but no
+  title id of the game you are playing, the details line, the elapsed time and the hash of the game's
+  icon. For a game set to Playing a game, it still receives the elapsed time and the details line, but no
   game name, title id, icon hash, playtime or icon upload. For a Hidden game it receives nothing.
   The icon image is sent only when the relay does not have it yet.
 - **Icons:** each image is stored once, with no link to you or to a title. The console reads the
@@ -205,8 +210,8 @@ manually from GitHub.
   `app.running` (heartbeat while the app is open), `log.txt`, `avatar.png` and `avatar.key`. A
   `nx-discord-rpc.nro.new` next to the app, in `sdmc:/switch/nx-discord-rpc/`, is an update waiting
   for the app to close.
-- The log is `sdmc:/config/nx-discord-rpc/log.txt`. Keys are masked in it. Games set to Playing a game or
-  Hidden, and every game in private mode, appear in it by title id only. Turn on Debug log in the
+- The log is `sdmc:/config/nx-discord-rpc/log.txt`. Keys are masked in it. Games set to Playing a game
+  or Hidden, and every game in private mode, appear in it by title id only. Turn on Debug log in the
   Settings tab (`debug_log`) for more detail.
 - If the app says "NX Discord RPC is not running", press Start now and turn Start at boot back on in
   Settings if it is off. If it does not start, check that the sysmodule is installed in
@@ -233,9 +238,9 @@ Everything comes from the Nix flake.
     build/app-desktop/nx-discord-rpc --fake linked-game
 
 The README screenshots are captures from a console. `nix develop .#desktop -c make screenshots`
-renders the same screens from the desktop build into `build/screenshots/`. Before trusting a
-build on a console, run the [hardware checklist](docs/hardware-checklist.md). The wire protocol is
-described in [docs/protocol.md](docs/protocol.md), a copy of
+renders the same screens from the desktop build into `build/screenshots/`. Before trusting
+a build on a console, run the [hardware checklist](docs/hardware-checklist.md). The
+wire protocol is described in [docs/protocol.md](docs/protocol.md), a copy of
 [nx-discord-rpc-relay/docs/protocol.md](https://github.com/0xsharkboy/nx-discord-rpc-relay/blob/main/docs/protocol.md).
 
 ## Third-party code

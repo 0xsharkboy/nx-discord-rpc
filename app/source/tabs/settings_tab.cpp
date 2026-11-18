@@ -256,8 +256,13 @@ void SettingsTab::render_update() {
             title = brls::getStr("app/settings/update_to", s.tag);
             detail = "app/update/short/partial"_i18n;
             message = "app/update/partial"_i18n;
+            if (s.start_failed) message += " " + "app/update/partial_start_failed"_i18n;
             break;
     }
+    // A manual check from Ready must not hide that the staged update still waits for the app to close.
+    if (s.staged && !message.empty() &&
+        (s.phase == UpdatePhase::UpToDate || s.phase == UpdatePhase::CheckFailed))
+        message = "app/update/ready"_i18n + " " + message;
     if (update_cell_->title->getFullText() != title) update_cell_->setText(title);
     if (update_cell_->detail->getFullText() != detail) update_cell_->setDetailText(detail);
     update_cell_->detail->setTextColor(s.phase == UpdatePhase::Failed || s.phase == UpdatePhase::Partial ||

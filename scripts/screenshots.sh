@@ -76,6 +76,7 @@ run() {
     shoot settings linked-game Down
     shoot account linked-game Down Down
     shoot link link-flow Down Down Right Return
+    shoot about linked-game Down Down Down
     # Settings > Hidden games is the eighth row of the Settings tab (seven Downs from Enabled).
     local to_hidden=(Down Right Down Down Down Down Down Down Down)
     shoot settings-hidden linked-game "${to_hidden[@]}"
@@ -99,6 +100,7 @@ run() {
     update=available shoot blocking-mismatch-update mismatch
     update=ready shoot blocking-ready missing
     update=uptodate no_auto=1 shoot blocking-idle mismatch
+    update=uptodate shoot blocking-uptodate mismatch
     update=startfail shoot blocking-done-startfail mismatch Return wait
     # Settings > Check for updates now is the last row: more Downs than rows is harmless.
     local to_check=(Down Right Down Down Down Down Down Down Down Down Down Down Down Down Down Down Down Down Down Down)

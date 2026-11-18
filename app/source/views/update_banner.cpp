@@ -119,11 +119,14 @@ void UpdateBanner::render() {
             break;
         case UpdatePhase::Partial:
             text = "app/update/partial"_i18n;
+            if (s.start_failed) text += " " + "app/update/partial_start_failed"_i18n;
             button = "app/update/try_again"_i18n;
             break;
         case UpdatePhase::Idle:
             if (!blocking) break;
-            text = "app/update/blocking_idle"_i18n;
+            // After a quiet check that found nothing newer, say so rather than "may be available".
+            text = s.checked ? brls::getStr("app/update/up_to_date", std::string("v") + APP_VERSION_STRING)
+                             : "app/update/blocking_idle"_i18n;
             button = "app/update/check"_i18n;
             break;
         case UpdatePhase::Checking:
@@ -140,6 +143,10 @@ void UpdateBanner::render() {
             button = "app/update/try_again"_i18n;
             break;
     }
+    // A manual check from Ready must not hide that the staged update still waits for the app to close.
+    if (s.staged && !text.empty() &&
+        (s.phase == UpdatePhase::UpToDate || s.phase == UpdatePhase::CheckFailed || s.phase == UpdatePhase::Idle))
+        text = "app/update/ready"_i18n + " " + text;
     if (text.empty()) {
         // The button may hold the focus (it was just clicked): hand it back before hiding.
         if (button_->isFocused()) brls::Application::giveFocus(getParent());

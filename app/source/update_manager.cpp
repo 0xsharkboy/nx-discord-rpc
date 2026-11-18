@@ -51,6 +51,7 @@ void UpdateManager::start(bool check_updates) {
         case update::StartAction::Ready: {
             UpdateState s;
             s.phase = UpdatePhase::Ready;
+            s.staged = true;
             set(s);
             return;
         }
@@ -73,6 +74,7 @@ void UpdateManager::check(bool manual) {
     UpdateState next;
     next.phase = UpdatePhase::Checking;
     next.manual = manual;
+    next.staged = state_.staged;
     set(next);
 
     std::weak_ptr<bool> alive = alive_;
@@ -85,9 +87,11 @@ void UpdateManager::check(bool manual) {
             const bool manual = state_.manual;
             UpdateState s;
             s.manual = manual;
+            s.staged = state_.staged;
             switch (result->outcome) {
                 case update::CheckOutcome::UpToDate:
                     s.phase = manual ? UpdatePhase::UpToDate : UpdatePhase::Idle;
+                    s.checked = !manual;
                     break;
                 case update::CheckOutcome::Available:
                     s.phase = UpdatePhase::Available;

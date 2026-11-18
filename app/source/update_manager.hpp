@@ -36,7 +36,9 @@ struct UpdateState {
     std::string tag;  // the newer version, when one was found
     uint64_t done = 0, total = 0;
     bool manual = false;  // the last check came from Settings > Check for updates now
-    bool start_failed = false;  // Done, but the sysmodule did not start again
+    bool start_failed = false;  // Done or Partial, but the sysmodule did not start again
+    bool staged = false;   // a verified update waits for the app to close (kept across a manual check from Ready)
+    bool checked = false;  // Idle after a quiet check that found nothing newer
 
     // 0 to 100.
     int percent() const;

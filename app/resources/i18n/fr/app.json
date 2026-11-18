@@ -158,7 +158,7 @@
     "protocol_version": "Version du protocole",
     "source": "Code source",
     "privacy": "Confidentialité",
-    "privacy_body": "Le relais reçoit le lien Discord, le nom du jeu en cours, le temps écoulé et l'icône. Il ne conserve aucun historique de jeu et ne voit jamais le mot de passe Discord."
+    "privacy_body": "Le relais reçoit le lien Discord, le nom du jeu en cours, le temps écoulé et l'empreinte de l'icône. Un jeu réglé sur Anonyme n'envoie ni nom, ni identifiant, ni icône, et un jeu masqué n'envoie rien. Il ne conserve aucun historique de jeu et ne voit jamais le mot de passe Discord."
   },
   "update": {
     "available": "La version {} est disponible (version actuelle : {}).",
@@ -173,6 +173,7 @@
     "checking": "Recherche des mises à jour…",
     "failed": "La mise à jour a échoué et rien n'a été modifié. Vérifier la connexion Internet et réessayer.",
     "partial": "La mise à jour s'est interrompue. Réessayer, ou la faire manuellement depuis GitHub.",
+    "partial_start_failed": "NX Discord RPC n'a pas redémarré : appuyer sur Démarrer dans cette application, ou redémarrer la console.",
     "up_to_date": "La dernière version est déjà installée ({}).",
     "check_failed": "Impossible de rechercher les mises à jour. Vérifier la connexion Internet et réessayer.",
     "update": "Mettre à jour",
