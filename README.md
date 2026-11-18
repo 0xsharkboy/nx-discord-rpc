@@ -138,6 +138,8 @@ the game. For a game set to Playing a game, the relay still receives the elapsed
 line (such as "Docked"), but no game name, title id, icon hash, playtime or icon upload. For a Hidden
 game it receives nothing at all.
 
+![Hidden games screen of the app](docs/images/switch/hidden-games.jpg)
+
 ## Test connection
 
 If nothing shows on your profile, open the Status tab and choose Test connection. It checks, in
@@ -157,6 +159,8 @@ same section, checks on demand. When the app cannot reach the sysmodule (it is n
 protocol does not match the app), the blocking screen offers Check for updates and Update too, since an
 update is often the fix; the update then starts the sysmodule. If the sysmodule does not start again
 after an update, the app says so: press Start now, or restart the console.
+
+![Updates section of the Settings tab](docs/images/switch/settings-updates.jpg)
 
 Update downloads `SHA256SUMS` and the four files of the release (`exefs.nsp`, `toolbox.json`,
 `nx-discord-rpc.ovl` and `nx-discord-rpc.nro`) from GitHub, over verified TLS. It checks each file
