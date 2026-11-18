@@ -14,8 +14,10 @@ NX Discord RPC shows the game being played on your Switch as Discord Rich Presen
 name, the elapsed time and the game's icon. It has three parts:
 
 - a sysmodule that runs in the background, starts at boot and reports the running game;
-- an app, started from the Homebrew Menu, that shows the status, edits the settings and links your
-  Discord account;
+- an app, started from the Homebrew Menu, that shows the status, edits the settings, picks the games
+  to hide, tests the connection, updates itself and links your Discord account. It follows the
+  console language: it is available in English and French, and any other language falls back to
+  English;
 - an overlay for Tesla Menu or Ultrahand that toggles the settings while you play.
 
 The console does not talk to Discord directly. It sends the current game to a relay, which shows it
@@ -37,6 +39,9 @@ receives and keeps.
    (`switch/.overlays/nx-discord-rpc.ovl`) in place.
 3. Reboot the console so the sysmodule starts.
 
+To update later, use the app (see [Updates](#updates)). Releases before v0.5.0 have no updater: they
+must be updated manually once, by extracting the new zip over the old files.
+
 ## Link your Discord account
 
 1. Open the Homebrew Menu and start NX Discord RPC.
@@ -53,6 +58,11 @@ The app then shows your Discord picture, "Linked as" followed by your Discord us
 you are playing appears on your profile within a few seconds. The Status tab shows what is
 currently shown on Discord and the state of the relay.
 
+The Status tab also previews what Discord shows for the game you are playing: its icon, name,
+details line and a timer that matches Discord's. In private mode, or for a game set to Playing a
+game, the preview shows the Switch artwork with "Nintendo Switch" and "Playing a game", never the
+game. For a hidden game, or with the presence off, it says that nothing is shown on Discord.
+
 As a fallback, you can link without the app: write the API key issued by the relay to
 `sdmc:/config/nx-discord-rpc/api_key.txt`. The sysmodule imports it at boot, or within 30 seconds
 while it has no working key, saves it to `config.ini`, then deletes the file. After a rejected key
@@ -67,7 +77,8 @@ handheld, Show total playtime and Debug log. The overlay has the same toggles ex
 labels them "Show firmware", "Show paused", "Show docked" and "Show playtime". The relay URL cannot be changed
 from either: edit `relay_url` in `config.ini`.
 
-The app also has Start at boot, which is not stored in `config.ini`: it adds or removes the
+The app also has Hidden games (see [Hidden games](#hidden-games)) and Check for updates (see
+[Updates](#updates)). It also has Start at boot, which is not stored in `config.ini`: it adds or removes the
 sysmodule's `boot2.flag` for Atmosphère and applies at the next boot. When the sysmodule is not
 running, the app offers Start now, which starts it for the current session only.
 
@@ -92,7 +103,7 @@ while the console is off (SD card in a PC), never on a running console.
 | `admin_key` | empty | No longer used. Icons always use the API key. Leave it empty: a v0.4 relay no longer shows the icons a v0.3 console uploads with it |
 | `username` | empty | The Discord username shown by the app and the overlay. Informational only |
 | `discord_id`, `avatar` | empty | Your Discord user id and avatar hash, used to show your picture. Written by the sysmodule, not meant to be edited |
-| `hidden_titles` | empty | Games shown as "Playing a game" or not at all, as `0100ABCD12345000:private,0100ABCD12346000:hide` (16 hex digits each, at most 64). Invalid entries are dropped |
+| `hidden_titles` | empty | Per-game visibility, edited in Settings > Hidden games. Games shown as "Playing a game" (`private`) or not at all (`hide`), as `0100ABCD12345000:private,0100ABCD12346000:hide` (16 hex digits each, at most 64). Invalid entries are dropped |
 
 With Show paused games on, a game shows "Paused · HOME Menu", "Paused · Nintendo eShop",
 "Paused · Album" or "Paused · User page" while one of those screens is in front. Other screens a
@@ -107,10 +118,53 @@ Handheld still shows if turned on.
 Title icons are sent automatically. The console sends the icon's hash, and the relay asks for the
 image only if it does not have it yet. None are uploaded in private mode or on the HOME Menu.
 
+## Hidden games
+
+Settings > Hidden games lists the games installed on the console, each with one of three states:
+
+- **Shown**: reported as usual.
+- **Playing a game**: Discord shows "Nintendo Switch" and "Playing a game", with no game name, icon
+  or playtime, like private mode for this game only.
+- **Hidden**: nothing is shown on Discord while this game runs.
+
+At most 64 games can be set to Playing a game or Hidden. The list is saved as `hidden_titles` in
+`config.ini` (see the table above) and applies within about a second. The overlay has a "This game"
+entry that cycles the running game through the three states, so you can change it without leaving
+the game. A hidden or private game sends nothing that identifies it to the relay: no name, no title
+id and no icon, and no icon upload.
+
+## Test connection
+
+If nothing shows on your profile, open the Status tab and choose Test connection. It checks, in
+order: Internet connection, Relay reachable, API key accepted, Discord link and Presence on
+Discord. Each step turns green or shows a short reason, and the steps after a failed one read "Not
+checked". When something fails, the app shows a QR code and the address of the relay status page,
+<https://stats.uptimerobot.com/aGuK3xhz7J>, to see whether the relay is down for everyone. At the
+end it reminds you to turn on sharing your activity in Discord, under User Settings > Activity
+Privacy: with it off, your friends see nothing.
+
+## Updates
+
+At start, the app asks GitHub for the latest release, and the Status tab shows a banner with an
+Update button when a newer version exists. Turn this off with Check for updates in Settings, which
+writes `check_updates=false` to `sdmc:/config/nx-discord-rpc/app.ini`. Check for updates now, in the
+same section, checks on demand.
+
+Update downloads `SHA256SUMS` and the four files of the release (`exefs.nsp`, `toolbox.json`,
+`nx-discord-rpc.ovl` and `nx-discord-rpc.nro`) from GitHub, over verified TLS. It checks each file
+against `SHA256SUMS` and installs nothing unless all of them match. It then replaces the overlay and
+`toolbox.json`, replaces the sysmodule and restarts it. The app cannot replace itself while it runs:
+it stages `nx-discord-rpc.nro.new`, and the sysmodule swaps it in a few seconds after you close the
+app. The app tells the sysmodule it is open with a heartbeat file, `app.running`, in
+`sdmc:/config/nx-discord-rpc/`. If an update fails, nothing is changed. A release without the
+individual files (v0.4.0 and older) cannot be installed from the app: it then says to update
+manually from GitHub.
+
 ## Privacy
 
 - **What the relay receives:** your Discord link (to show the presence on your account), the name and
   title id of the game you are playing, the details line, the elapsed time and the hash of the game's icon.
+  For a game set to Playing a game or Hidden, it receives none of this about the game.
   The icon image is sent only when the relay does not have it yet.
 - **Icons:** each image is stored once, with no link to you or to a title. The console reads the
   playtime itself and sends only the text.
@@ -124,6 +178,10 @@ image only if it does not have it yet. None are uploaded in private mode or on t
   token. The request carries the app's User-Agent (`nx-discord-rpc/<version>`), and Discord sees your
   console's IP address. The picture is cached in `sdmc:/config/nx-discord-rpc/avatar.png` and
   `avatar.key`, which the app deletes after you unlink.
+- **Update check:** when the app checks for updates or downloads one, it contacts `api.github.com`
+  and `github.com` (which redirects to GitHub's file servers). GitHub sees your console's IP address
+  and the app's User-Agent (`nx-discord-rpc/<version>`). No token is sent. You can turn the check
+  off in Settings.
 - **Unlinking:** choose Unlink in the Account tab. Revoking NX RPC in Discord stops the presence;
   Unlink in the app also deletes your data on the relay. You can revoke it in Discord, under
   User Settings > Authorized Apps.
@@ -137,11 +195,17 @@ image only if it does not have it yet. None are uploaded in private mode or on t
 
 ## Troubleshooting
 
+- Files in `sdmc:/config/nx-discord-rpc/`: `config.ini` (settings), `app.ini` (app settings),
+  `app.running` (heartbeat while the app is open), `log.txt`, `avatar.png` and `avatar.key`. A
+  `nx-discord-rpc.nro.new` next to the app, in `sdmc:/switch/nx-discord-rpc/`, is an update waiting
+  for the app to close.
 - The log is `sdmc:/config/nx-discord-rpc/log.txt`. Keys are masked in it. Turn on Debug log in the
   Settings tab (`debug_log`) for more detail.
 - If the app says "NX Discord RPC is not running", press Start now and turn Start at boot back on in
   Settings if it is off. If it does not start, check that the sysmodule is installed in
   `atmosphere/contents/4200000000D15C0D` on the SD card, then reboot.
+- The relay status page, <https://stats.uptimerobot.com/aGuK3xhz7J>, tells whether the relay is down.
+  Status > Test connection checks each step from the console to Discord.
 - Nothing shows on my profile: in Discord, User Settings > Activity Privacy, turn on sharing your
   activity.
 - If the Status tab says "Relay rejected the key. Link again" or "Discord link broken. Link again",
