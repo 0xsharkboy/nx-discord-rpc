@@ -38,6 +38,7 @@ drpc::ipc::Settings valid_settings() {
     s.show_paused = 1;
     s.show_docked = 0;
     s.show_playtime = 1;
+    s.show_badge = 1;
     return s;
 }
 
@@ -112,13 +113,16 @@ TEST_CASE("GetLink with an undersized out buffer is a bad buffer") {
     check_protocol_version(state);
 }
 
-TEST_CASE("SetSettings with 7 bytes is bad input") {
-    SharedState state;
-    const std::vector<uint8_t> in = bytes_of(valid_settings());
-    const DispatchResult r = call(state, Cmd::SetSettings, std::span<const uint8_t>(in.data(), 7));
-    CHECK(r.rc == drpc::kRcBadInput);
-    CHECK_FALSE(state.take_settings().has_value());
-    check_protocol_version(state);
+TEST_CASE("SetSettings shorter than the struct is bad input (15 bytes, or a protocol 5 payload of 8)") {
+    for (const size_t size : {size_t{15}, size_t{8}}) {
+        CAPTURE(size);
+        SharedState state;
+        const std::vector<uint8_t> in = bytes_of(valid_settings());
+        const DispatchResult r = call(state, Cmd::SetSettings, std::span<const uint8_t>(in.data(), size));
+        CHECK(r.rc == drpc::kRcBadInput);
+        CHECK_FALSE(state.take_settings().has_value());
+        check_protocol_version(state);
+    }
 }
 
 TEST_CASE("SetSettings with a boolean other than 0 or 1 is bad input") {

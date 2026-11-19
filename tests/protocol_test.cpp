@@ -6,7 +6,7 @@
 #include "core/ipc_convert.hpp"
 #include "drpc/protocol.hpp"
 
-TEST_CASE("ipc settings is 8 bytes") {
+TEST_CASE("ipc settings is 16 bytes") {
     CHECK(sizeof(drpc::ipc::Settings) == 16);
 }
 
@@ -36,6 +36,7 @@ TEST_CASE("to_ipc and apply_ipc round trip the booleans") {
     s.show_paused = false;
     s.show_docked = true;
     s.show_playtime = true;
+    s.show_badge = false;
     const drpc::ipc::Settings wire = drpc::to_ipc(s);
     drpc::Settings back;
     drpc::apply_ipc(wire, back);

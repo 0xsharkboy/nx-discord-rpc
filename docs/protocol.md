@@ -420,7 +420,7 @@ Protocol version 5 reports a relay that refuses this console's version (`426 cli
 
 Protocol version 6 grows the Settings struct to 16 bytes: `uint8_t show_badge` at offset 8 (0 or 1;
 the sysmodule then sends `"badge": true` with each presence, see `badge` above) and 7 reserved
-bytes, zero, for later settings.
+bytes for later settings: senders write zero, the sysmodule ignores them.
 
 ## Examples
 
