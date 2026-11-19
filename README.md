@@ -3,9 +3,9 @@
 Show the game you are playing on your Nintendo Switch as your Discord status.
 
 <p align="center">
-  <img src="docs/images/discord-profile.png" alt="Discord profile showing a Switch game played through NX Discord RPC" height="340">
+  <img src="docs/images/discord-profile.png" alt="Discord profile showing a Switch game played through NX Discord RPC" width="25%">
   &nbsp;&nbsp;
-  <img src="docs/images/switch/status.jpg" alt="Status tab of the app on a Switch" height="340">
+  <img src="docs/images/switch/status.jpg" alt="Status tab of the app on a Switch" width="70%">
 </p>
 
 ## What it does
