@@ -150,6 +150,8 @@ checked". When something fails, the app shows a QR code and the address of the r
 end it reminds you to turn on sharing your activity in Discord, under User Settings > Activity
 Privacy: with it off, your friends see nothing.
 
+![Connection test with every step OK](docs/images/switch/connection-test.jpg)
+
 ## Updates
 
 At start, the app asks GitHub for the latest release, and the Status tab shows a banner with an
@@ -160,7 +162,10 @@ protocol does not match the app), the blocking screen offers Check for updates a
 update is often the fix; the update then starts the sysmodule. If the sysmodule does not start again
 after an update, the app says so: press Start now, or restart the console.
 
-![Updates section of the Settings tab](docs/images/switch/settings-updates.jpg)
+<p align="center">
+  <img src="docs/images/switch/update-available.jpg" alt="Update banner in the Status tab" width="49%">
+  <img src="docs/images/switch/settings-updates.jpg" alt="Updates section of the Settings tab" width="49%">
+</p>
 
 Update downloads `SHA256SUMS` and the four files of the release (`exefs.nsp`, `toolbox.json`,
 `nx-discord-rpc.ovl` and `nx-discord-rpc.nro`) from GitHub, over verified TLS. It checks each file
