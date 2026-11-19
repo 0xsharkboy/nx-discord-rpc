@@ -47,7 +47,7 @@ void check_protocol_version(SharedState& state) {
     REQUIRE(r.raw_out.size() == sizeof(uint32_t));
     uint32_t version = 0;
     std::memcpy(&version, r.raw_out.data(), sizeof(version));
-    CHECK(version == 5);
+    CHECK(version == drpc::ipc::kProtocolVersion);
 }
 
 }  // namespace
@@ -139,7 +139,7 @@ TEST_CASE("SetSettings with a boolean other than 0 or 1 is bad input") {
 
 TEST_CASE("SetSettings rejects a new field holding 2") {
     for (uint8_t drpc::ipc::Settings::*field : {&drpc::ipc::Settings::show_paused, &drpc::ipc::Settings::show_docked,
-                                                &drpc::ipc::Settings::show_playtime}) {
+                                                &drpc::ipc::Settings::show_playtime, &drpc::ipc::Settings::show_badge}) {
         SharedState state;
         drpc::ipc::Settings s = valid_settings();
         s.*field = 2;

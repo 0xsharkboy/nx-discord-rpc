@@ -169,6 +169,7 @@ public:
         add_toggle(list, "Show paused", cur.show_paused, &ipc::Settings::show_paused);
         add_toggle(list, "Show docked", cur.show_docked, &ipc::Settings::show_docked);
         add_toggle(list, "Show playtime", cur.show_playtime, &ipc::Settings::show_playtime);
+        add_toggle(list, "Show badge", cur.show_badge, &ipc::Settings::show_badge);
 
         frame->setContent(list);
         refresh();

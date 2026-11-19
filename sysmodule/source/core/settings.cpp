@@ -128,6 +128,7 @@ Settings parse_settings(std::string_view ini) {
         else if (key == "show_paused") parse_bool(value, s.show_paused);
         else if (key == "show_docked") parse_bool(value, s.show_docked);
         else if (key == "show_playtime") parse_bool(value, s.show_playtime);
+        else if (key == "show_badge") parse_bool(value, s.show_badge);
         else if (key == "debug_log") parse_bool(value, s.debug_log);
         else if (key == "relay_url") s.relay_url = value;
         else if (key == "api_key") s.api_key = normalize_api_key(value).value_or(std::string{});
@@ -150,6 +151,7 @@ std::string serialize_settings(const Settings& s) {
     out += std::string("show_paused = ") + b(s.show_paused) + "\n";
     out += std::string("show_docked = ") + b(s.show_docked) + "\n";
     out += std::string("show_playtime = ") + b(s.show_playtime) + "\n";
+    out += std::string("show_badge = ") + b(s.show_badge) + "\n";
     out += std::string("debug_log = ") + b(s.debug_log) + "\n";
     out += "relay_url = " + s.relay_url + "\n";
     out += "api_key = " + s.api_key + "\n";

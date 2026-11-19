@@ -257,6 +257,7 @@ Auth: API key. Body (at most 4096 bytes):
 | `elapsed_s` | integer | Optional, 0–31536000. Floats, booleans and strings are refused. |
 | `title_id` | string | Optional, a valid title id. Matches an icon upload to the current title. |
 | `icon` | string | Optional, 64 lowercase hex characters: the SHA-256 of the raw JPEG bytes of the title's icon. Anything else is refused with `400 invalid_body`. `null` counts as absent. |
+| `badge` | boolean | Optional. `true` adds the NX Discord RPC badge to the presence: a small image over the game icon (`/badge.png`), the tooltip "NX Discord RPC", and a link opened by a click (`BADGE_URL` on the relay, by default the project page). Absent, `null` or `false`: no badge. Anything else is refused with `400 invalid_body`. |
 
 `name` and `details` are shown exactly as sent. `null` counts as absent for the optional fields.
 The image is chosen in this order: the icon named by `icon` when the relay stores it, then an icon
@@ -368,6 +369,11 @@ A console that sends `icon` follows these rules:
 A console from before v0.4.0 sends no `icon`, gets `204`, and uploads its icon once after its first
 presence for a title. The relay attaches that upload to the account's current presence.
 
+### `GET /badge.png`
+
+No auth, never refused. The badge image (PNG) used as the small image of presences that ask for the
+badge. **200** with `Content-Type: image/png` and `Cache-Control: public, max-age=86400`.
+
 ### `GET /healthz`
 
 No auth. **200** with the text body `ok`.
@@ -411,6 +417,10 @@ Protocol version 5 reports a relay that refuses this console's version (`426 cli
   meets a network error, a 429 or a 5xx is retried on the normal backoff. Link and Unlink are still
   sent when the user asks for them (the relay never refuses `DELETE /v1/me`). The state is never
   saved: after an update, the new sysmodule starts clean.
+
+Protocol version 6 grows the Settings struct to 16 bytes: `uint8_t show_badge` at offset 8 (0 or 1;
+the sysmodule then sends `"badge": true` with each presence, see `badge` above) and 7 reserved
+bytes, zero, for later settings.
 
 ## Examples
 

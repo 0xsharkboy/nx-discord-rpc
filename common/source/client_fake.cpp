@@ -204,6 +204,7 @@ public:
         settings_.show_firmware = 1;
         settings_.show_home_menu = 1;
         settings_.show_paused = 1;
+        settings_.show_badge = 1;
         // Two sample entries, neither of them the running title.
         std::memset(&hidden_, 0, sizeof hidden_);
         hidden_.count = 2;
@@ -283,7 +284,7 @@ public:
         if (!connected_) return false;
         if (in.enabled > 1 || in.private_mode > 1 || in.show_firmware > 1 ||
             in.show_home_menu > 1 || in.debug_log > 1 ||
-            in.show_paused > 1 || in.show_docked > 1 || in.show_playtime > 1) {
+            in.show_paused > 1 || in.show_docked > 1 || in.show_playtime > 1 || in.show_badge > 1) {
             return false;
         }
         settings_ = in;

@@ -76,6 +76,7 @@ std::optional<Report> render_report(const SceneInput& in, const Settings& settin
 
     r.name = truncate_utf8(r.name, kMaxFieldBytes);
     r.details = truncate_utf8(r.details, kMaxFieldBytes);
+    r.badge = settings.show_badge;
     return r;
 }
 
@@ -89,6 +90,7 @@ std::string report_json(const Report& report, std::optional<int64_t> elapsed_s) 
     }
     if (report.title_id) w.key("title_id").value(*report.title_id);
     if (report.icon) w.key("icon").value(*report.icon);
+    if (report.badge) w.key("badge").value(true);
     w.end_object();
     return w.str();
 }

@@ -17,7 +17,7 @@ inline constexpr std::string_view kDefaultRelayUrl = "https://nx-discord-rpc.0xs
 struct Settings {
     bool enabled = true, private_mode = false,
          show_paused = true, show_firmware = false, show_home_menu = false, debug_log = false,
-         show_docked = false, show_playtime = false;
+         show_docked = false, show_playtime = false, show_badge = true;
     std::string relay_url{kDefaultRelayUrl};
     std::string api_key, admin_key;
     std::string username;

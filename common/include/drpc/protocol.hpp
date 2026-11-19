@@ -7,7 +7,7 @@
 namespace drpc::ipc {
 
 inline constexpr char kServiceName[] = "drpc";
-inline constexpr uint32_t kProtocolVersion = 5;
+inline constexpr uint32_t kProtocolVersion = 6;
 
 enum class Cmd : uint32_t {
     GetProtocolVersion = 0,
@@ -37,6 +37,9 @@ inline constexpr uint64_t kMinReportableTitleId = 0x0100000000010000ULL;
 
 struct Settings {
     uint8_t enabled, private_mode, show_paused, show_firmware, show_home_menu, debug_log, show_docked, show_playtime;
+    // Protocol 6.
+    uint8_t show_badge;
+    uint8_t reserved[7];
 };
 
 struct Status {
@@ -130,7 +133,7 @@ inline void terminate_strings(Link& l) {
     terminate(l.username);
 }
 
-static_assert(sizeof(Settings) == 8);
+static_assert(sizeof(Settings) == 16);
 static_assert(sizeof(Status) == 520);
 static_assert(offsetof(Status, discord_id) == 56);
 static_assert(offsetof(Status, avatar) == 80);

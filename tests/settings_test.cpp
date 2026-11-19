@@ -216,3 +216,12 @@ TEST_CASE("visibility_of finds a title, Shown otherwise") {
     CHECK(drpc::visibility_of(s, 0x0100A0D02127E000ULL) == TitleVisibility::Hidden);
     CHECK(drpc::visibility_of(s, 0x0100000000010000ULL) == TitleVisibility::Shown);
 }
+
+TEST_CASE("show_badge defaults to true, parses and serializes") {
+    CHECK(drpc::parse_settings("enabled = 1\n").show_badge);
+    const auto s = drpc::parse_settings("show_badge = false\n");
+    CHECK_FALSE(s.show_badge);
+    const std::string out = drpc::serialize_settings(s);
+    CHECK(out.find("show_badge = false\n") != std::string::npos);
+    CHECK(drpc::parse_settings(out) == s);
+}

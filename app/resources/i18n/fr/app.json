@@ -85,6 +85,7 @@
     "show_paused": "Afficher les jeux en pause",
     "show_docked": "Afficher le mode dock ou portable",
     "show_playtime": "Afficher le temps de jeu total",
+    "show_badge": "Afficher le badge NX Discord RPC",
     "hidden_games": "Jeux masqués",
     "hidden_none": "Aucun",
     "hidden_one": "1 jeu",

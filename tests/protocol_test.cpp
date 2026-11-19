@@ -7,15 +7,16 @@
 #include "drpc/protocol.hpp"
 
 TEST_CASE("ipc settings is 8 bytes") {
-    CHECK(sizeof(drpc::ipc::Settings) == 8);
+    CHECK(sizeof(drpc::ipc::Settings) == 16);
 }
 
-TEST_CASE("ipc settings layout and protocol 5") {
+TEST_CASE("ipc settings layout and protocol 6") {
     using drpc::ipc::Settings;
-    CHECK(drpc::ipc::kProtocolVersion == 5);
+    CHECK(drpc::ipc::kProtocolVersion == 6);
     CHECK(offsetof(Settings, show_paused) == 2);
     CHECK(offsetof(Settings, show_docked) == 6);
     CHECK(offsetof(Settings, show_playtime) == 7);
+    CHECK(offsetof(Settings, show_badge) == 8);
 }
 
 TEST_CASE("ipc status layout carries the Discord id and avatar (protocol 2)") {

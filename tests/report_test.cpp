@@ -156,7 +156,8 @@ TEST_CASE("empty game name falls back") {
 TEST_CASE("report json") {
     auto r = render_report(game(), base());
     CHECK(report_json(*r, 754) ==
-          R"({"name":"Zelda","details":"on Nintendo Switch","elapsed_s":754,"title_id":"0100A0D02127E000"})");
+          R"({"name":"Zelda","details":"on Nintendo Switch","elapsed_s":754,"title_id":"0100A0D02127E000",)"
+          R"("badge":true})");
     CHECK(report_json(*r, -5).find("\"elapsed_s\":0") != std::string::npos);
     CHECK(report_json(*r, 99999999999LL).find("\"elapsed_s\":31536000") != std::string::npos);
     SceneInput in = game();
@@ -292,7 +293,7 @@ TEST_CASE("report_json_includes_icon_when_set") {
     r->icon = "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08";
     CHECK(report_json(*r, 754) ==
           R"({"name":"Zelda","details":"on Nintendo Switch","elapsed_s":754,"title_id":"0100A0D02127E000",)"
-          R"("icon":"9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08"})");
+          R"("icon":"9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08","badge":true})");
 }
 
 TEST_CASE("render_report never sets the icon") {
@@ -364,4 +365,23 @@ TEST_CASE("a Shown entry or another title's entry renders the game as usual") {
     REQUIRE(r);
     CHECK(r->name == "Zelda");
     CHECK(r->title_id == std::optional<std::string>{"0100A0D02127E000"});
+}
+
+TEST_CASE("the badge flag follows show_badge and is sent only when on") {
+    auto s = base();
+    s.show_badge = true;
+    auto on = render_report(game(), s);
+    REQUIRE(on);
+    CHECK(on->badge);
+    CHECK(report_json(*on, 10).find("\"badge\":true") != std::string::npos);
+    s.show_badge = false;
+    auto off = render_report(game(), s);
+    REQUIRE(off);
+    CHECK_FALSE(off->badge);
+    CHECK(report_json(*off, 10).find("badge") == std::string::npos);
+    s.show_badge = true;
+    s.private_mode = true;
+    auto priv = render_report(game(), s);
+    REQUIRE(priv);
+    CHECK(priv->badge);
 }

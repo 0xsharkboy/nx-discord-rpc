@@ -74,8 +74,9 @@ or a broken Discord link, a new `api_key.txt` is needed.
 The Settings tab of the app and the overlay edit the same settings. A change applies within about
 a second and is written to `config.ini` after about 2 seconds without further changes. The app
 has Enabled, Private mode, Show firmware version, Show HOME Menu, Show paused games, Show docked
-or handheld, Show total playtime and Debug log. The overlay has the same toggles except Debug
-log, and labels them "Show firmware", "Show paused", "Show docked" and "Show playtime". It also
+or handheld, Show total playtime, Show NX Discord RPC badge and Debug log. The overlay has the
+same toggles except Debug log, and labels them "Show firmware", "Show paused", "Show docked",
+"Show playtime" and "Show badge". It also
 has "This game", which cycles the running game through Shown, Playing a game and Hidden (see
 [Hidden games](#hidden-games)). The relay URL cannot be changed from either: edit `relay_url`
 in `config.ini`.
@@ -100,6 +101,7 @@ while the console is off (SD card in a PC), never on a running console.
 | `show_paused` | `true` | Show a game as paused while another screen is in front |
 | `show_docked` | `false` | Append Docked or Handheld |
 | `show_playtime` | `false` | Append the total playtime of the game on this console, all profiles together |
+| `show_badge` | `true` | Show the NX Discord RPC badge on your status: a small logo over the game icon, the tooltip "NX Discord RPC", and a link to this project. Needs a relay from v0.7.0 on |
 | `debug_log` | `false` | Write debug lines to the log |
 | `relay_url` | `https://nx-discord-rpc.0xsharkboy.dev` | The relay's base URL (https only), editable in `config.ini` only. Empty uses the default. An invalid URL disables sending, and the API key never goes to another host |
 | `api_key` | empty | The API key issued by the relay when you link. Written by the sysmodule, not meant to be edited |
@@ -117,6 +119,10 @@ for example "45 min total" or "152 h total". With
 Show HOME Menu on, the HOME Menu itself shows "In the HOME Menu". A game being played shows "on
 Nintendo Switch". In private mode the game name, icon and playtime are hidden, while Docked or
 Handheld still shows if turned on.
+
+Show NX Discord RPC badge, on by default, adds the NX Discord RPC logo as a small circle over the
+game icon on your status, with the tooltip "NX Discord RPC"; a click opens this project page. It
+names the tool, not the game, so it also shows in private mode. Relays older than v0.7.0 ignore it.
 
 Title icons are sent automatically. The console sends the icon's hash, and the relay asks for
 the image only if it does not have it yet. None are uploaded in private mode, for a game set
@@ -184,9 +190,10 @@ app says so, and you can try again or update manually. A release without the ind
 ## Privacy
 
 - **What the relay receives:** your Discord link (to show the presence on your account), the name and
-  title id of the game you are playing, the details line, the elapsed time and the hash of the game's
-  icon. For a game set to Playing a game, it still receives the elapsed time and the details line, but no
-  game name, title id, icon hash, playtime or icon upload. For a Hidden game it receives nothing.
+  title id of the game you are playing, the details line, the elapsed time, the hash of the game's
+  icon and whether to show the NX Discord RPC badge. For a game set to Playing a game, it still
+  receives the elapsed time and the details line, but no game name, title id, icon hash, playtime
+  or icon upload. For a Hidden game it receives nothing.
   The icon image is sent only when the relay does not have it yet.
 - **Icons:** each image is stored once, with no link to you or to a title. The console reads the
   playtime itself and sends only the text.
