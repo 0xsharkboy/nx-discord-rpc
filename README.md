@@ -154,14 +154,15 @@ Privacy: with it off, your friends see nothing.
 
 ## Updates
 
-At start, the app asks GitHub for the latest release, and the Status tab shows a banner with an
-Update button when a newer version exists. Turn this off with Check for updates in Settings, which
-writes `check_updates=false` to `sdmc:/config/nx-discord-rpc/app.ini`. Check for updates now, in the
-same section, checks on demand. When the relay no longer serves this version ("Update required"),
-the app checks once even with Check for updates off. When the app cannot reach the sysmodule (it
-is not running, or its protocol does not match the app), the blocking screen offers Check for
-updates and Update too, since an update is often the fix; the update then starts the sysmodule. If the sysmodule does not start again
-after an update, the app says so: press Start now, or restart the console.
+At start, the app asks GitHub for the latest release, and the Status tab shows a banner
+with an Update button when a newer version exists. Turn this off with Check for updates in
+Settings, which writes `check_updates=false` to `sdmc:/config/nx-discord-rpc/app.ini`. Check
+for updates now, in the same section, checks on demand. When the relay no longer serves this
+version ("Update required"), the app checks once even with Check for updates off. When the
+app cannot reach the sysmodule (it is not running, or its protocol does not match the app),
+the blocking screen offers Check for updates and Update too, since an update is often the fix;
+the update then starts the sysmodule. If the sysmodule does not start again after an update,
+the app says so: press Start now, or restart the console.
 
 <p align="center">
   <img src="docs/images/switch/update-available.jpg" alt="Update banner in the Status tab" width="49%">
