@@ -1,6 +1,7 @@
 #include "core/report.hpp"
 
 #include <algorithm>
+#include <utility>
 
 #include "core/json_writer.hpp"
 
@@ -44,6 +45,34 @@ std::string truncate_utf8(std::string_view s, size_t max_bytes) {
     return std::string{s.substr(0, end)};
 }
 
+std::string repair_utf8(std::string s) {
+    const auto byte = [&s](size_t i) { return static_cast<unsigned char>(s[i]); };
+    const auto in = [](unsigned char c, unsigned char lo, unsigned char hi) { return c >= lo && c <= hi; };
+    size_t i = 0;
+    while (i < s.size()) {
+        const unsigned char c = byte(i);
+        size_t len = 0;
+        unsigned char lo = 0x80, hi = 0xBF;  // the allowed range of the second byte
+        if (c < 0x80) len = 1;
+        else if (in(c, 0xC2, 0xDF)) len = 2;
+        else if (c == 0xE0) len = 3, lo = 0xA0;
+        else if (in(c, 0xE1, 0xEC) || in(c, 0xEE, 0xEF)) len = 3;
+        else if (c == 0xED) len = 3, hi = 0x9F;
+        else if (c == 0xF0) len = 4, lo = 0x90;
+        else if (in(c, 0xF1, 0xF3)) len = 4;
+        else if (c == 0xF4) len = 4, hi = 0x8F;
+        bool ok = len > 0 && i + len <= s.size();
+        for (size_t k = 1; ok && k < len; ++k) ok = k == 1 ? in(byte(i + 1), lo, hi) : in(byte(i + k), 0x80, 0xBF);
+        if (ok) {
+            i += len;
+        } else {
+            s[i] = '?';
+            ++i;
+        }
+    }
+    return s;
+}
+
 std::optional<Report> render_report(const SceneInput& in, const Settings& settings) {
     if (!settings.enabled) return std::nullopt;
     // A per-title choice: Hidden sends nothing at all, Private renders like private mode.
@@ -74,8 +103,8 @@ std::optional<Report> render_report(const SceneInput& in, const Settings& settin
         append_part(r.details, format_playtime(*in.playtime_s));
     if (settings.show_firmware) append_part(r.details, in.firmware);
 
-    r.name = truncate_utf8(r.name, kMaxFieldBytes);
-    r.details = truncate_utf8(r.details, kMaxFieldBytes);
+    r.name = truncate_utf8(repair_utf8(std::move(r.name)), kMaxFieldBytes);
+    r.details = truncate_utf8(repair_utf8(std::move(r.details)), kMaxFieldBytes);
     r.badge = settings.show_badge;
     return r;
 }

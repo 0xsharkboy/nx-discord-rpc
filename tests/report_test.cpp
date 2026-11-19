@@ -385,3 +385,19 @@ TEST_CASE("the badge flag follows show_badge and is sent only when on") {
     REQUIRE(priv);
     CHECK(priv->badge);
 }
+
+TEST_CASE("a game name that is not valid UTF-8 is repaired before it is sent") {
+    SceneInput in = game();
+    // Latin-1, a cut sequence, a UTF-16 surrogate and an overlong slash, as a NACP may hold them.
+    in.game_name = std::string("Pok") + "\xE9" + "mon " + "\xC3" + "( " + "\xED\xA0\x80" + " " + "\xC0\xAF";
+    auto r = render_report(in, base());
+    REQUIRE(r);
+    CHECK(r->name == "Pok?mon ?( ??? ??");
+    CHECK(valid_utf8(r->name));
+    CHECK(valid_utf8(report_json(*r, std::nullopt)));
+
+    // Valid text is left alone, and a name cut by the NACP field ends on a whole character.
+    CHECK(repair_utf8("Pok\xC3\xA9mon \xE2\x82\xAC \xF0\x9F\x8E\xAE") == "Pok\xC3\xA9mon \xE2\x82\xAC \xF0\x9F\x8E\xAE");
+    CHECK(repair_utf8("ab\xE2\x82") == "ab??");
+    CHECK(repair_utf8("\xF4\x90\x80\x80") == "????");
+}
