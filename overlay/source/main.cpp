@@ -38,9 +38,9 @@ std::string link_line(const ipc::Status& s) {
         case ipc::LinkState::LinkBroken:
             return "Discord link broken";
         case ipc::LinkState::Outdated:
-            // Two lines at most, like Not linked; min_version is "" when the relay named none.
-            if (!s.min_version[0]) return "Update required\nUpdate from the NX Discord RPC app";
-            return std::string("Update required (") + s.min_version + " or newer)\nUpdate from the NX Discord RPC app";
+            // Two short lines at most, like Not linked; min_version is "" when the relay named none.
+            if (!s.min_version[0]) return "Update required\nOpen the NX Discord RPC app";
+            return std::string("Update required: ") + s.min_version + "+\nOpen the NX Discord RPC app";
     }
     return {};
 }
