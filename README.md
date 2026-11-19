@@ -249,6 +249,13 @@ app says so, and you can try again or update manually. A release without the ind
 - If Unlink cannot reach the relay, the app offers Forget locally. It only clears the key on the
   console, and Discord keeps the authorization until you remove it in Discord's settings.
 
+## Feedback
+
+Questions and feedback are welcome in the
+[GBAtemp thread](https://gbatemp.net/threads/nx-discord-rpc-discord-rich-presence-for-your-switch-the-official-way-no-pc-no-token-on-the-console.686699/).
+For bugs, please [open an issue](https://github.com/0xsharkboy/nx-discord-rpc/issues/new/choose): the form asks for
+what is needed (versions, emuMMC or sysMMC, your log).
+
 ## Building from source
 
 Everything comes from the Nix flake.
