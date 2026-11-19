@@ -173,7 +173,7 @@ the app says so: press Start now, or restart the console.
 
 <p align="center">
   <img src="docs/images/switch/update-available.jpg" alt="Update banner in the Status tab" width="49%">
-  <img src="docs/images/switch/settings-updates.jpg" alt="Updates section of the Settings tab" width="49%">
+  <img src="docs/images/switch/settings-updates.jpg" alt="Badge, Hidden games and Updates in the Settings tab" width="49%">
 </p>
 
 Update downloads `SHA256SUMS` and the four files of the release (`exefs.nsp`, `toolbox.json`,
