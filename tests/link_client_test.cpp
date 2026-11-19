@@ -656,3 +656,38 @@ TEST_CASE("link: a 426 without a readable version is still Outdated") {
     CHECK(c.view(0).failure == LinkFailure::Outdated);
     CHECK(c.view(0).min_version.empty());
 }
+
+TEST_CASE("fetch_me_426_reports_outdated") {
+    LinkClient c;
+    c.request_username();
+    auto fx = answer(c, 0, resp(426, kOutdatedBody), Kind::FetchMe);
+    REQUIRE(fx.outdated_min_version);
+    CHECK(*fx.outdated_min_version == "0.7.0");
+    CHECK_FALSE(fx.username);
+    CHECK_FALSE(fx.profile);
+    CHECK_FALSE(fx.clear_key);
+    // A body without a readable version still reports Outdated.
+    c.request_username();
+    fx = answer(c, 0, resp(426, "Upgrade Required"), Kind::FetchMe);
+    REQUIRE(fx.outdated_min_version);
+    CHECK(fx.outdated_min_version->empty());
+    // Other failures report nothing.
+    c.request_username();
+    CHECK_FALSE(answer(c, 0, resp(503), Kind::FetchMe).outdated_min_version);
+}
+
+TEST_CASE("unlink_426_reports_outdated_not_failed") {
+    LinkClient c;
+    c.unlink();
+    auto fx = answer(c, 0, resp(426, kOutdatedBody), Kind::Unlink);
+    REQUIRE(fx.outdated_min_version);
+    CHECK(*fx.outdated_min_version == "0.7.0");
+    CHECK_FALSE(fx.clear_key);
+    // Not Failed: the app would offer to forget the key locally.
+    CHECK(c.unlink_result() == UnlinkResult::None);
+    CHECK_FALSE(c.next(0));
+    // Other answers are unchanged.
+    c.unlink();
+    CHECK_FALSE(answer(c, 0, resp(503), Kind::Unlink).outdated_min_version);
+    CHECK(c.unlink_result() == UnlinkResult::Failed);
+}

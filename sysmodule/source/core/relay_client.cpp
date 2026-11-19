@@ -4,6 +4,7 @@
 #include <iterator>
 #include <utility>
 
+#include "core/client_version.hpp"
 #include "core/http.hpp"
 #include "core/json_extract.hpp"
 
@@ -23,28 +24,9 @@ constexpr int64_t kIconRetryMs[] = {60000, 300000, 900000};
 constexpr int kIconRetrySteps = int(std::size(kIconRetryMs));
 // While the relay refuses this client version: one presence request this often, in case the minimum was lowered.
 constexpr int64_t kOutdatedRetryMs = 6 * 60 * 60 * 1000;
-// Longest min_version accepted: it must fit ipc::Status::min_version with its NUL.
-constexpr size_t kMinVersionMaxLen = 15;
 
 bool is_retryable(int status) { return status == 0 || is_transient_http_status(status); }
 bool is_success(int status) { return status >= 200 && status < 300; }
-
-// X.Y.Z: three non-empty runs of digits.
-bool valid_version(std::string_view v) {
-    if (v.empty() || v.size() > kMinVersionMaxLen) return false;
-    int dots = 0;
-    char prev = '.';
-    for (char c : v) {
-        if (c == '.') {
-            if (prev == '.') return false;
-            ++dots;
-        } else if (c < '0' || c > '9') {
-            return false;
-        }
-        prev = c;
-    }
-    return dots == 2 && prev != '.';
-}
 
 }  // namespace
 
@@ -57,16 +39,6 @@ std::optional<bool> parse_need_icon(std::string_view body) {
     if (c->value == "true") return true;
     if (c->value == "false") return false;
     return std::nullopt;
-}
-
-std::string parse_min_version(std::string_view body) {
-    // Longer than kMinVersionMaxLen on purpose: a cut value must still be rejected as too long.
-    json::Extractor e({"min_version"}, 32);
-    e.feed(body);
-    if (!e.finish()) return {};
-    const json::Capture* c = e.find("min_version");
-    if (!c || !c->is_string || !valid_version(c->value)) return {};
-    return c->value;
 }
 
 void RelayClient::Backoff::fail(const Outcome& out, int64_t now_ms) {
@@ -95,6 +67,11 @@ void RelayClient::set_key(bool has_api_key) {
 void RelayClient::set_report(std::optional<Report> report, std::optional<int64_t> elapsed_s) {
     desired_ = std::move(report);
     elapsed_s_ = elapsed_s;
+}
+
+void RelayClient::set_outdated(std::string min_version, int64_t now_ms) {
+    if (link_ == LinkState::NoKey) return;
+    on_outdated(std::move(min_version), now_ms);
 }
 
 void RelayClient::on_wake() {
@@ -156,8 +133,8 @@ void RelayClient::on_outcome(const Request& req, const Outcome& out, int64_t now
 
 void RelayClient::on_presence_outcome(const Outcome& out, int64_t now_ms) {
     last_presence_status_ = out.status == 0 ? -1 : out.status;
-    if (out.status == 426) {
-        on_outdated(out, now_ms);
+    if (out.status == kHttpUpgradeRequired) {
+        on_outdated(out.min_version, now_ms);
         return;
     }
     if (is_retryable(out.status)) {
@@ -211,8 +188,8 @@ void RelayClient::unqueue_icon(const std::string& title_id) {
 
 void RelayClient::on_delete_outcome(const Outcome& out, int64_t now_ms) {
     last_presence_status_ = out.status == 0 ? -1 : out.status;
-    if (out.status == 426) {
-        on_outdated(out, now_ms);
+    if (out.status == kHttpUpgradeRequired) {
+        on_outdated(out.min_version, now_ms);
         return;
     }
     if (is_retryable(out.status)) {
@@ -233,8 +210,8 @@ void RelayClient::on_delete_outcome(const Outcome& out, int64_t now_ms) {
 void RelayClient::on_icon_outcome(const Request& req, const Outcome& out, int64_t now_ms) {
     // No queue check: an outcome that lands after the title left the screen still counts for it.
     // A 426 is not a final rejection of the icon: it stays queued for when the relay accepts this version.
-    if (out.status == 426) {
-        on_outdated(out, now_ms);
+    if (out.status == kHttpUpgradeRequired) {
+        on_outdated(out.min_version, now_ms);
         return;
     }
     if (out.status == 401) {
@@ -271,9 +248,9 @@ void RelayClient::on_icon_outcome(const Request& req, const Outcome& out, int64_
     unqueue_icon(req.title_id);
 }
 
-void RelayClient::on_outdated(const Outcome& out, int64_t now_ms) {
+void RelayClient::on_outdated(std::string min_version, int64_t now_ms) {
     link_ = LinkState::Outdated;
-    min_version_ = out.min_version;
+    min_version_ = std::move(min_version);
     outdated_retry_ms_ = now_ms + kOutdatedRetryMs;
     // The relay answered: no backoff window, the UIs show Outdated rather than a retry countdown.
     backoff_.reset();

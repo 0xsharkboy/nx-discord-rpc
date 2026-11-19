@@ -5,6 +5,7 @@
 #include <string>
 #include <vector>
 
+#include "core/client_version.hpp"
 #include "core/http.hpp"
 #include "drpc/tls_transport.hpp"
 #include "platform/icon_source.hpp"
@@ -89,7 +90,7 @@ Outcome execute(const RelayUrl& url, const Request& req, std::string_view api_ke
     const HttpResponse response = relay_round_trip(url, head, body);
     Outcome out{response.status, response.retry_after_s, std::nullopt, {}};
     if (req.kind == Request::Kind::PutPresence && response.status == 200) out.need_icon = parse_need_icon(response.body);
-    if (response.status == 426) out.min_version = parse_min_version(response.body);
+    if (response.status == kHttpUpgradeRequired) out.min_version = parse_min_version(response.body);
     return out;
 }
 

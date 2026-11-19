@@ -158,6 +158,9 @@ void AccountTab::refresh() {
     if (first_refresh_ && status.unlink == UnlinkResult::InProgress) awaiting_unlink_ = true;
     first_refresh_ = false;
     if (awaiting_unlink_ && status.unlink == UnlinkResult::Done) awaiting_unlink_ = false;
+    // The relay refused this version: no unlink result comes, the Outdated state says why.
+    if (awaiting_unlink_ && status.link == LinkState::Outdated && status.unlink == UnlinkResult::None)
+        awaiting_unlink_ = false;
     if (awaiting_unlink_ && status.unlink == UnlinkResult::Failed) {
         awaiting_unlink_ = false;
         offer_forget();

@@ -59,8 +59,10 @@ struct Status {
     uint8_t reserved[3];
     int32_t last_relay_status;  // last HTTP status of a presence PUT or DELETE; 0 none yet, -1 network error
     uint64_t running_title_id;  // the running application whatever its visibility, 0 on the HOME Menu
-    // Protocol 5: the minimum client version the relay asked for in its last 426 answer (presence or
-    // linking), "" when unknown or not Outdated.
+    // Protocol 5: the minimum client version named by the relay's last 426 answer, "" when unknown. It is
+    // filled while link is Outdated and while the last link attempt failed with LinkFailure::Outdated, so it
+    // can be set while link is not Outdated: key the UI on link == Outdated or the link failure, never on
+    // a non-empty min_version.
     char min_version[16];
 };
 

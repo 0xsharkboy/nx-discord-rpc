@@ -58,6 +58,7 @@ add_executable(nxdrpc_tests
   ../sysmodule/source/core/relay_url.cpp
   ../sysmodule/source/core/report.cpp
   ../sysmodule/source/core/relay_client.cpp
+  ../sysmodule/source/core/client_version.cpp
   ../sysmodule/source/core/ipc_convert.cpp
   ../sysmodule/source/core/json_extract.cpp
   ../sysmodule/source/core/link_client.cpp

@@ -29,10 +29,6 @@ struct Outcome {
 // The boolean need_icon of a 200 PUT /v1/presence answer; nullopt when absent, not a boolean or not JSON.
 std::optional<bool> parse_need_icon(std::string_view body);
 
-// The min_version of a 426 answer when it is a string of the form X.Y.Z (digits only, at most 15
-// characters); "" otherwise.
-std::string parse_min_version(std::string_view body);
-
 // Outdated: the relay refuses this client version (HTTP 426). Kept in memory only, never in config.ini.
 enum class LinkState { NoKey, Ok, Unauthorized, LinkBroken, Outdated };
 
@@ -48,6 +44,9 @@ public:
     void on_outcome(const Request& req, const Outcome& out, int64_t now_ms);
     // Re-send at once after sleep, ignoring any open backoff window.
     void on_wake();
+    // A 426 on a request this client does not send (GET or DELETE /v1/me): Outdated as if a presence
+    // request had been refused. Ignored without a key.
+    void set_outdated(std::string min_version, int64_t now_ms);
     LinkState link_state() const { return link_; }
     // The minimum version named by the 426 that made the state Outdated; "" in any other state.
     const std::string& min_version() const { return min_version_; }
@@ -82,7 +81,7 @@ private:
     void unqueue_icon(const std::string& title_id);
     void forget_shown();
     // A 426 on any request: Outdated, one presence request again after kOutdatedRetryMs.
-    void on_outdated(const Outcome& out, int64_t now_ms);
+    void on_outdated(std::string min_version, int64_t now_ms);
     // Any answer other than a 426 or a retryable one: the relay accepts this version again.
     void leave_outdated();
 

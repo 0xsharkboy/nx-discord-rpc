@@ -217,6 +217,10 @@ void clear_key(Store& s, RelayClient& client, int64_t now_ms) {
 }
 
 void apply_link_effect(const LinkEffect& effect, Store& s, RelayClient& client, LinkClient& link, int64_t now_ms) {
+    if (effect.outdated_min_version) {
+        client.set_outdated(*effect.outdated_min_version, now_ms);
+        return;
+    }
     if (effect.clear_key) {
         clear_key(s, client, now_ms);
         return;

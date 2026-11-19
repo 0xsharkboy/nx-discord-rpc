@@ -1,5 +1,6 @@
 #include <doctest/doctest.h>
 
+#include "core/client_version.hpp"
 #include "core/relay_client.hpp"
 
 #include <optional>
@@ -1034,4 +1035,25 @@ TEST_CASE("min_version_parsed_from_body") {
     CHECK(parse_min_version(R"({"min_version":"0.7.0")").empty());
     CHECK(parse_min_version("").empty());
     CHECK(parse_min_version("Upgrade Required").empty());
+}
+
+TEST_CASE("outdated_from_account_request: a 426 on /v1/me makes the client Outdated") {
+    auto c = keyed();
+    // Nothing to report (presence off): only the account request reaches the relay.
+    c.set_outdated("0.7.0", 1000);
+    CHECK(c.link_state() == LinkState::Outdated);
+    CHECK(c.min_version() == "0.7.0");
+    CHECK_FALSE(c.backoff_left_ms(1000).has_value());
+    c.set_report(home(), std::nullopt);
+    CHECK_FALSE(c.next(1000 + kOutdatedRetryMs - 1));
+    auto probe = c.next(1000 + kOutdatedRetryMs);
+    REQUIRE(probe);
+    CHECK(probe->kind == Kind::PutPresence);
+}
+
+TEST_CASE("outdated_from_account_request: ignored without a key") {
+    RelayClient c;
+    c.set_outdated("0.7.0", 0);
+    CHECK(c.link_state() == LinkState::NoKey);
+    CHECK(c.min_version().empty());
 }

@@ -30,6 +30,8 @@ struct LinkEffect {
     std::optional<std::string> username;
     bool clear_key = false;
     std::optional<Profile> profile;
+    // A 426 on GET or DELETE /v1/me: the relay refuses this version; the minimum it names, "" when unknown.
+    std::optional<std::string> outdated_min_version;
 };
 
 struct LinkView {
@@ -72,6 +74,8 @@ private:
     void fail(ipc::LinkFailure failure, int retry_after_s = 0);
     // A 426: Failed with Outdated and the minimum version the body names.
     void fail_outdated(const LinkResponse& resp);
+    // A 426 on an account request (GET or DELETE /v1/me): the effect that makes the relay client Outdated.
+    static LinkEffect outdated_effect(const LinkResponse& resp);
     void finish(ipc::LinkPhase phase);
     bool expired(int64_t now_ms) const;
 

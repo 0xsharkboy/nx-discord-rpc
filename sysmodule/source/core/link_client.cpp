@@ -4,9 +4,9 @@
 #include <charconv>
 #include <utility>
 
+#include "core/client_version.hpp"
 #include "core/http.hpp"
 #include "core/json_extract.hpp"
-#include "core/relay_client.hpp"
 #include "core/settings.hpp"
 #include "drpc/discord_ids.hpp"
 
@@ -22,8 +22,6 @@ constexpr int64_t kDefaultExpiresS = 300;
 constexpr int64_t kDefaultIntervalS = 5;
 constexpr int64_t kMinIntervalS = 2;
 constexpr int64_t kMaxRetryAfterS = 3600;
-// The relay refuses this client version, before reading anything else of the request.
-constexpr int kUpgradeRequired = 426;
 
 bool is_retryable(int status) { return status == 0 || is_transient_http_status(status); }
 
@@ -140,7 +138,7 @@ void LinkClient::on_start(const LinkResponse& resp, int64_t now_ms) {
         fail(LinkFailure::Unreachable);
         return;
     }
-    if (resp.status == kUpgradeRequired) {
+    if (resp.status == kHttpUpgradeRequired) {
         fail_outdated(resp);
         return;
     }
@@ -177,7 +175,7 @@ LinkEffect LinkClient::on_poll(const LinkResponse& resp, int64_t now_ms) {
         next_poll_ms_ = now_ms + wait_ms;
         return {};
     }
-    if (resp.status == kUpgradeRequired) {
+    if (resp.status == kHttpUpgradeRequired) {
         fail_outdated(resp);
         return {};
     }
@@ -210,10 +208,16 @@ LinkEffect LinkClient::on_poll(const LinkResponse& resp, int64_t now_ms) {
         std::string username = normalize_username(string_at(e, "username").value_or(""));
         finish(LinkPhase::Linked);
         username_ = username;
-        return LinkEffect{std::move(*key), std::move(username), false, profile_from(e)};
+        return LinkEffect{std::move(*key), std::move(username), false, profile_from(e), std::nullopt};
     }
     fail(LinkFailure::Other);
     return {};
+}
+
+LinkEffect LinkClient::outdated_effect(const LinkResponse& resp) {
+    LinkEffect effect;
+    effect.outdated_min_version = parse_min_version(resp.body);
+    return effect;
 }
 
 LinkEffect LinkClient::on_unlink(const LinkResponse& resp) {
@@ -221,7 +225,13 @@ LinkEffect LinkClient::on_unlink(const LinkResponse& resp) {
     if (resp.status == 204 || resp.status == 401) {
         unlink_result_ = UnlinkResult::Done;
         if (phase_ == LinkPhase::Linked) finish(LinkPhase::Idle);
-        return LinkEffect{std::nullopt, std::nullopt, true, std::nullopt};
+        return LinkEffect{std::nullopt, std::nullopt, true, std::nullopt, std::nullopt};
+    }
+    if (resp.status == kHttpUpgradeRequired) {
+        // Not Failed: the app would offer to forget the key locally, while the account is fine and only
+        // this version is refused. The link state turns Outdated instead.
+        unlink_result_ = UnlinkResult::None;
+        return outdated_effect(resp);
     }
     unlink_result_ = UnlinkResult::Failed;
     return {};
@@ -229,6 +239,7 @@ LinkEffect LinkClient::on_unlink(const LinkResponse& resp) {
 
 LinkEffect LinkClient::on_fetch_me(const LinkResponse& resp) {
     fetch_in_flight_ = false;
+    if (resp.status == kHttpUpgradeRequired) return outdated_effect(resp);
     if (resp.status != 200) return {};
     json::Extractor e({"username", "discord_id", "avatar"});
     e.feed(resp.body);
