@@ -157,7 +157,8 @@ Privacy: with it off, your friends see nothing.
 At start, the app asks GitHub for the latest release, and the Status tab shows a banner with an
 Update button when a newer version exists. Turn this off with Check for updates in Settings, which
 writes `check_updates=false` to `sdmc:/config/nx-discord-rpc/app.ini`. Check for updates now, in the
-same section, checks on demand. When the app cannot reach the sysmodule (it is not running, or its
+same section, checks on demand. When the relay no longer serves this version ("Update required"),
+the app checks once even with Check for updates off. When the app cannot reach the sysmodule (it is not running, or its
 protocol does not match the app), the blocking screen offers Check for updates and Update too, since an
 update is often the fix; the update then starts the sysmodule. If the sysmodule does not start again
 after an update, the app says so: press Start now, or restart the console.
@@ -201,7 +202,7 @@ app says so, and you can try again or update manually. A release without the ind
 - **Update check:** when the app checks for updates or downloads one, it contacts `api.github.com`
   and `github.com` (which redirects to GitHub's file servers). GitHub sees your console's IP address
   and the app's User-Agent (`nx-discord-rpc/<version>`). No token is sent. You can turn the check
-  off in Settings.
+  off in Settings; the app still checks once when the relay says this version needs an update.
 - **Unlinking:** choose Unlink in the Account tab. Revoking NX RPC in Discord stops the presence;
   Unlink in the app also deletes your data on the relay. You can revoke it in Discord, under
   User Settings > Authorized Apps.
