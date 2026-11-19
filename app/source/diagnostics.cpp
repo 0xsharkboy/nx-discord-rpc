@@ -50,6 +50,7 @@ Step key(const Facts& f, const Step& rel) {
     switch (f.status.link) {
         case LinkState::NoKey:
             return make(StepId::Key, Result::Failed, Reason::NoKey);
+        case LinkState::Outdated:  // until its own reason: the relay refuses the requests made with the key
         case LinkState::Unauthorized:
             return make(StepId::Key, Result::Failed, Reason::KeyRejected);
         case LinkState::Linked:

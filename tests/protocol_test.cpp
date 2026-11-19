@@ -10,9 +10,9 @@ TEST_CASE("ipc settings is 8 bytes") {
     CHECK(sizeof(drpc::ipc::Settings) == 8);
 }
 
-TEST_CASE("ipc settings layout and protocol 4") {
+TEST_CASE("ipc settings layout and protocol 5") {
     using drpc::ipc::Settings;
-    CHECK(drpc::ipc::kProtocolVersion == 4);
+    CHECK(drpc::ipc::kProtocolVersion == 5);
     CHECK(offsetof(Settings, show_paused) == 2);
     CHECK(offsetof(Settings, show_docked) == 6);
     CHECK(offsetof(Settings, show_playtime) == 7);
@@ -84,6 +84,7 @@ TEST_CASE("terminate_strings ends every string field with a NUL") {
     CHECK(std::strlen(st.name) == sizeof st.name - 1);
     CHECK(std::strlen(st.relay_host) == sizeof st.relay_host - 1);
     CHECK(std::strlen(st.title_id) == sizeof st.title_id - 1);
+    CHECK(std::strlen(st.min_version) == sizeof st.min_version - 1);
 
     drpc::ipc::Link l;
     std::memset(&l, 'x', sizeof l);
@@ -98,7 +99,19 @@ TEST_CASE("ipc status protocol 4: last relay status and running title id at the 
     CHECK(offsetof(Status, unlink) == 488);
     CHECK(offsetof(Status, last_relay_status) == 492);
     CHECK(offsetof(Status, running_title_id) == 496);
-    CHECK(sizeof(Status) == 504);
+}
+
+TEST_CASE("ipc status protocol 5: min_version at the end, Outdated values") {
+    using namespace drpc::ipc;
+    CHECK(offsetof(Status, min_version) == 504);
+    CHECK(sizeof(Status::min_version) == 16);
+    CHECK(sizeof(Status) == 520);
+    CHECK(sizeof(Link) == 196);
+    CHECK(static_cast<uint8_t>(LinkState::NoKey) == 0);
+    CHECK(static_cast<uint8_t>(LinkState::LinkBroken) == 3);
+    CHECK(static_cast<uint8_t>(LinkState::Outdated) == 4);
+    CHECK(static_cast<uint8_t>(LinkFailure::Other) == 4);
+    CHECK(static_cast<uint8_t>(LinkFailure::Outdated) == 5);
 }
 
 TEST_CASE("ipc hidden list layout and command numbers") {

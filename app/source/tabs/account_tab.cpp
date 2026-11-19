@@ -185,6 +185,7 @@ void AccountTab::refresh() {
             state = "app/account/broken"_i18n;
             avatar = palette::red();
             break;
+        case LinkState::Outdated:  // until its own line: shown like a refused key
         case LinkState::Unauthorized:
             state = "app/account/unauthorized"_i18n;
             avatar = palette::red();

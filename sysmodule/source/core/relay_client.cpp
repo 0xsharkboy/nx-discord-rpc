@@ -21,9 +21,30 @@ constexpr int64_t kIconReuploadMs = 600000;
 // Upload retries after a network error or a 5xx; the last one repeats.
 constexpr int64_t kIconRetryMs[] = {60000, 300000, 900000};
 constexpr int kIconRetrySteps = int(std::size(kIconRetryMs));
+// While the relay refuses this client version: one presence request this often, in case the minimum was lowered.
+constexpr int64_t kOutdatedRetryMs = 6 * 60 * 60 * 1000;
+// Longest min_version accepted: it must fit ipc::Status::min_version with its NUL.
+constexpr size_t kMinVersionMaxLen = 15;
 
 bool is_retryable(int status) { return status == 0 || is_transient_http_status(status); }
 bool is_success(int status) { return status >= 200 && status < 300; }
+
+// X.Y.Z: three non-empty runs of digits.
+bool valid_version(std::string_view v) {
+    if (v.empty() || v.size() > kMinVersionMaxLen) return false;
+    int dots = 0;
+    char prev = '.';
+    for (char c : v) {
+        if (c == '.') {
+            if (prev == '.') return false;
+            ++dots;
+        } else if (c < '0' || c > '9') {
+            return false;
+        }
+        prev = c;
+    }
+    return dots == 2 && prev != '.';
+}
 
 }  // namespace
 
@@ -38,6 +59,16 @@ std::optional<bool> parse_need_icon(std::string_view body) {
     return std::nullopt;
 }
 
+std::string parse_min_version(std::string_view body) {
+    // Longer than kMinVersionMaxLen on purpose: a cut value must still be rejected as too long.
+    json::Extractor e({"min_version"}, 32);
+    e.feed(body);
+    if (!e.finish()) return {};
+    const json::Capture* c = e.find("min_version");
+    if (!c || !c->is_string || !valid_version(c->value)) return {};
+    return c->value;
+}
+
 void RelayClient::Backoff::fail(const Outcome& out, int64_t now_ms) {
     int64_t window_ms = delay_ms;
     if (out.retry_after_s) {
@@ -49,6 +80,8 @@ void RelayClient::Backoff::fail(const Outcome& out, int64_t now_ms) {
 
 void RelayClient::set_key(bool has_api_key) {
     last_presence_status_ = 0;
+    min_version_.clear();
+    outdated_retry_ms_ = 0;
     if (!has_api_key) {
         link_ = LinkState::NoKey;
         return;
@@ -75,6 +108,12 @@ std::optional<int64_t> RelayClient::backoff_left_ms(int64_t now_ms) const {
 }
 
 std::optional<Request> RelayClient::next(int64_t now_ms) {
+    if (link_ == LinkState::Outdated) {
+        // Only the periodic presence request, whether or not the report changed; no DELETE and no icon.
+        if (now_ms < outdated_retry_ms_ || backoff_.open(now_ms) || !desired_) return std::nullopt;
+        sent_ = desired_;
+        return Request{Request::Kind::PutPresence, report_json(*desired_, elapsed_s_), {}};
+    }
     if (link_ != LinkState::Ok || backoff_.open(now_ms)) return std::nullopt;
 
     if (desired_) {
@@ -117,11 +156,16 @@ void RelayClient::on_outcome(const Request& req, const Outcome& out, int64_t now
 
 void RelayClient::on_presence_outcome(const Outcome& out, int64_t now_ms) {
     last_presence_status_ = out.status == 0 ? -1 : out.status;
+    if (out.status == 426) {
+        on_outdated(out, now_ms);
+        return;
+    }
     if (is_retryable(out.status)) {
         backoff_.fail(out, now_ms);
         return;
     }
     backoff_.reset();
+    leave_outdated();
     if (out.status == 401) {
         link_ = LinkState::Unauthorized;
         return;
@@ -167,11 +211,16 @@ void RelayClient::unqueue_icon(const std::string& title_id) {
 
 void RelayClient::on_delete_outcome(const Outcome& out, int64_t now_ms) {
     last_presence_status_ = out.status == 0 ? -1 : out.status;
+    if (out.status == 426) {
+        on_outdated(out, now_ms);
+        return;
+    }
     if (is_retryable(out.status)) {
         backoff_.fail(out, now_ms);
         return;
     }
     backoff_.reset();
+    leave_outdated();
     if (out.status == 401) {
         link_ = LinkState::Unauthorized;
     } else if (out.status == 409) {
@@ -183,6 +232,11 @@ void RelayClient::on_delete_outcome(const Outcome& out, int64_t now_ms) {
 
 void RelayClient::on_icon_outcome(const Request& req, const Outcome& out, int64_t now_ms) {
     // No queue check: an outcome that lands after the title left the screen still counts for it.
+    // A 426 is not a final rejection of the icon: it stays queued for when the relay accepts this version.
+    if (out.status == 426) {
+        on_outdated(out, now_ms);
+        return;
+    }
     if (out.status == 401) {
         link_ = LinkState::Unauthorized;
         return;
@@ -215,6 +269,21 @@ void RelayClient::on_icon_outcome(const Request& req, const Outcome& out, int64_
         icon.stopped = true;
     }
     unqueue_icon(req.title_id);
+}
+
+void RelayClient::on_outdated(const Outcome& out, int64_t now_ms) {
+    link_ = LinkState::Outdated;
+    min_version_ = out.min_version;
+    outdated_retry_ms_ = now_ms + kOutdatedRetryMs;
+    // The relay answered: no backoff window, the UIs show Outdated rather than a retry countdown.
+    backoff_.reset();
+}
+
+void RelayClient::leave_outdated() {
+    if (link_ != LinkState::Outdated) return;
+    link_ = LinkState::Ok;
+    min_version_.clear();
+    outdated_retry_ms_ = 0;
 }
 
 void RelayClient::forget_shown() {

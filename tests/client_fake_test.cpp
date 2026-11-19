@@ -361,3 +361,45 @@ TEST_CASE("fake preview scenarios: paused, private and idle") {
     CHECK(s.link == ipc::LinkState::Linked);
     CHECK(s.running_title_id == 0);
 }
+
+TEST_CASE("outdated scenario: the relay refuses this version and names the minimum") {
+    auto c = make_fake_client("outdated");
+    REQUIRE(c);
+    REQUIRE(c->connect() == ConnectError::None);
+    ipc::Status st;
+    REQUIRE(c->status(st));
+    CHECK(st.link == ipc::LinkState::Outdated);
+    CHECK(st.health == ipc::RelayHealth::Ok);
+    CHECK(st.last_relay_status == 426);
+    CHECK(std::strcmp(st.min_version, "0.7.0") == 0);
+    CHECK(std::strcmp(st.username, "test_rpc") == 0);
+}
+
+TEST_CASE("link-outdated fails at start as Outdated and names the minimum") {
+    set_fake_clock(fake_now);
+    g_now = 0;
+    auto c = make_fake_client("link-outdated");
+    REQUIRE(c->connect() == ConnectError::None);
+    ipc::Status st;
+    REQUIRE(c->status(st));
+    CHECK(st.link == ipc::LinkState::NoKey);
+    CHECK(st.min_version[0] == '\0');
+    REQUIRE(c->start_link());
+    g_now += 2000;
+    ipc::Link l;
+    REQUIRE(c->link(l));
+    CHECK(l.phase == ipc::LinkPhase::Failed);
+    CHECK(l.failure == ipc::LinkFailure::Outdated);
+    REQUIRE(c->status(st));
+    CHECK(st.link == ipc::LinkState::NoKey);
+    CHECK(std::strcmp(st.min_version, "0.7.0") == 0);
+    set_fake_clock(nullptr);
+}
+
+TEST_CASE("other scenarios report no minimum version") {
+    auto c = make_fake_client("linked-game");
+    REQUIRE(c->connect() == ConnectError::None);
+    ipc::Status st;
+    REQUIRE(c->status(st));
+    CHECK(st.min_version[0] == '\0');
+}

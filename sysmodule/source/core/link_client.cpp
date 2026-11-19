@@ -6,6 +6,7 @@
 
 #include "core/http.hpp"
 #include "core/json_extract.hpp"
+#include "core/relay_client.hpp"
 #include "core/settings.hpp"
 #include "drpc/discord_ids.hpp"
 
@@ -21,6 +22,8 @@ constexpr int64_t kDefaultExpiresS = 300;
 constexpr int64_t kDefaultIntervalS = 5;
 constexpr int64_t kMinIntervalS = 2;
 constexpr int64_t kMaxRetryAfterS = 3600;
+// The relay refuses this client version, before reading anything else of the request.
+constexpr int kUpgradeRequired = 426;
 
 bool is_retryable(int status) { return status == 0 || is_transient_http_status(status); }
 
@@ -137,6 +140,10 @@ void LinkClient::on_start(const LinkResponse& resp, int64_t now_ms) {
         fail(LinkFailure::Unreachable);
         return;
     }
+    if (resp.status == kUpgradeRequired) {
+        fail_outdated(resp);
+        return;
+    }
     json::Extractor e({"link_id", "user_code", "verification_uri_complete", "expires_in", "interval"});
     e.feed(resp.body);
     bool parsed = e.finish();
@@ -168,6 +175,10 @@ LinkEffect LinkClient::on_poll(const LinkResponse& resp, int64_t now_ms) {
             wait_ms = std::max(wait_ms, std::clamp<int64_t>(*resp.retry_after_s, 0, kMaxRetryAfterS) * 1000);
         }
         next_poll_ms_ = now_ms + wait_ms;
+        return {};
+    }
+    if (resp.status == kUpgradeRequired) {
+        fail_outdated(resp);
         return {};
     }
     json::Extractor e({"state", "api_key", "username", "discord_id", "avatar"});
@@ -239,6 +250,11 @@ void LinkClient::fail(LinkFailure failure, int retry_after_s) {
     retry_after_s_ = retry_after_s;
 }
 
+void LinkClient::fail_outdated(const LinkResponse& resp) {
+    fail(LinkFailure::Outdated);
+    min_version_ = parse_min_version(resp.body);
+}
+
 void LinkClient::finish(LinkPhase phase) {
     phase_ = phase;
     failure_ = LinkFailure::None;
@@ -247,6 +263,7 @@ void LinkClient::finish(LinkPhase phase) {
     link_id_.clear();
     user_code_.clear();
     verification_uri_.clear();
+    min_version_.clear();
     if (phase != LinkPhase::Linked) username_.clear();
     interval_ms_ = deadline_ms_ = next_poll_ms_ = 0;
 }
@@ -255,10 +272,11 @@ bool LinkClient::expired(int64_t now_ms) const { return now_ms >= deadline_ms_; 
 
 LinkView LinkClient::view(int64_t now_ms) const {
     if (phase_ == LinkPhase::Pending && expired(now_ms)) {
-        return LinkView{LinkPhase::Expired, LinkFailure::None, 0, 0, {}, {}, {}};
+        return LinkView{LinkPhase::Expired, LinkFailure::None, 0, 0, {}, {}, {}, {}};
     }
     int64_t seconds_left = phase_ == LinkPhase::Pending ? (deadline_ms_ - now_ms + 999) / 1000 : 0;
-    return LinkView{phase_, failure_, seconds_left, retry_after_s_, user_code_, verification_uri_, username_};
+    return LinkView{phase_,     failure_,          seconds_left, retry_after_s_,
+                    user_code_, verification_uri_, username_,    min_version_};
 }
 
 }  // namespace drpc

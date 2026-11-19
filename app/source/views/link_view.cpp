@@ -331,6 +331,7 @@ void LinkView::show_result(const drpc::ipc::Link& link) {
                     title = "app/link/interrupted_title"_i18n;
                     body = "app/link/interrupted_body"_i18n;
                     break;
+                case LinkFailure::Outdated:  // until its own message
                 case LinkFailure::None:
                 case LinkFailure::Other:
                     body = "app/link/other_body"_i18n;

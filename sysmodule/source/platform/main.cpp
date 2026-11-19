@@ -106,16 +106,26 @@ void log_title_change(const std::optional<RunningTitle>& title, const Settings& 
     }
 }
 
-void log_link_state(LinkState state) {
-    switch (state) {
+void log_link_state(LinkState previous, const RelayClient& client) {
+    switch (client.link_state()) {
         case LinkState::Unauthorized:
             log::warn("Relay rejected the API key; link again (import api_key.txt)");
             break;
         case LinkState::LinkBroken:
             log::warn("Discord link is broken; link again (import api_key.txt)");
             break;
+        case LinkState::Outdated: {
+            const std::string& min = client.min_version();
+            log::warn(std::string{"Relay refuses this version ("} + std::string{kVersion} + "); update NX Discord RPC" +
+                      (min.empty() ? std::string{} : " to " + min + " or newer") + "; retrying every 6 h");
+            break;
+        }
         case LinkState::NoKey:
+            break;
         case LinkState::Ok:
+            // A probe answered (not a key change, which resets the last status): the minimum was lowered.
+            if (previous == LinkState::Outdated && client.last_presence_status() != 0)
+                log::info("Relay accepts this version again");
             break;
     }
 }
@@ -161,11 +171,11 @@ std::optional<RelayUrl> relay_url(const Settings& settings) {
     return url;
 }
 
-// One WARN per distinct unexpected status; icon rejections (400, 413) are handled by design.
+// One WARN per distinct unexpected status; icon rejections (400, 413) and 426 (Outdated) are handled by design.
 class UnexpectedStatus {
 public:
     void observe(const Request& req, int status) {
-        if (status <= 0 || (status >= 200 && status < 300) || status == 401 || status == 409 ||
+        if (status <= 0 || (status >= 200 && status < 300) || status == 401 || status == 409 || status == 426 ||
             is_transient_http_status(status))
             return;
         if (req.kind == Request::Kind::PutIcon && (status == 400 || status == 413)) return;
@@ -243,6 +253,8 @@ const char* failure_text(ipc::LinkFailure failure) {
             return "relay unreachable";
         case ipc::LinkFailure::Interrupted:
             return "interrupted by sleep";
+        case ipc::LinkFailure::Outdated:
+            return "the relay needs a newer NX Discord RPC";
         case ipc::LinkFailure::Other:
         case ipc::LinkFailure::None:
             break;
@@ -307,6 +319,8 @@ ipc::LinkState ipc_link_state(LinkState state) {
             return ipc::LinkState::Unauthorized;
         case LinkState::LinkBroken:
             return ipc::LinkState::LinkBroken;
+        case LinkState::Outdated:
+            return ipc::LinkState::Outdated;
         case LinkState::NoKey:
             break;
     }
@@ -371,6 +385,9 @@ void publish(SharedState& shared, const Snapshot& s) {
     copy_str(lk.user_code, sizeof lk.user_code, view.user_code);
     copy_str(lk.verification_uri, sizeof lk.verification_uri, view.verification_uri);
     copy_str(lk.username, sizeof lk.username, view.username);
+    // The relay client's version first; a console linking for the first time only has the link's.
+    copy_str(st.min_version, sizeof st.min_version,
+             s.client.link_state() == LinkState::Outdated ? s.client.min_version() : view.min_version);
     shared.publish(st, lk);
 }
 
@@ -610,8 +627,8 @@ void publish(SharedState& shared, const Snapshot& s) {
         if (power.asleep()) continue;
 
         if (client.link_state() != shown_link) {
+            log_link_state(shown_link, client);
             shown_link = client.link_state();
-            log_link_state(shown_link);
         }
         link_log.observe(link.view(after), link.unlink_result(), settings.username);
 

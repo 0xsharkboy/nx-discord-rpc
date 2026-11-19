@@ -37,6 +37,8 @@ std::string link_line(const ipc::Status& s) {
             return "Relay rejected the key";
         case ipc::LinkState::LinkBroken:
             return "Discord link broken";
+        case ipc::LinkState::Outdated:
+            return "Update required";
     }
     return {};
 }

@@ -23,17 +23,23 @@ struct Outcome {
     int status = 0;
     std::optional<int> retry_after_s;
     std::optional<bool> need_icon;  // PutPresence answered 200 with a boolean need_icon
+    std::string min_version;        // a 426 answer: the minimum version it names, "" when unknown
 };
 
 // The boolean need_icon of a 200 PUT /v1/presence answer; nullopt when absent, not a boolean or not JSON.
 std::optional<bool> parse_need_icon(std::string_view body);
 
-enum class LinkState { NoKey, Ok, Unauthorized, LinkBroken };
+// The min_version of a 426 answer when it is a string of the form X.Y.Z (digits only, at most 15
+// characters); "" otherwise.
+std::string parse_min_version(std::string_view body);
+
+// Outdated: the relay refuses this client version (HTTP 426). Kept in memory only, never in config.ini.
+enum class LinkState { NoKey, Ok, Unauthorized, LinkBroken, Outdated };
 
 // Decides what to send to the relay and when. No I/O; time is a monotonic now_ms.
 class RelayClient {
 public:
-    // A key change: call on boot and on key import only. Resets Unauthorized/LinkBroken.
+    // A key change: call on boot and on key import only. Resets Unauthorized/LinkBroken/Outdated.
     void set_key(bool has_api_key);
     // Desired state; elapsed is computed by the caller and sent with each PUT.
     void set_report(std::optional<Report> report, std::optional<int64_t> elapsed_s);
@@ -43,6 +49,8 @@ public:
     // Re-send at once after sleep, ignoring any open backoff window.
     void on_wake();
     LinkState link_state() const { return link_; }
+    // The minimum version named by the 426 that made the state Outdated; "" in any other state.
+    const std::string& min_version() const { return min_version_; }
     // Time left in the presence backoff window, nullopt when it is closed.
     std::optional<int64_t> backoff_left_ms(int64_t now_ms) const;
     // The HTTP status of the last presence PUT or DELETE answered: 0 before any (and after set_key), -1 for a
@@ -73,9 +81,15 @@ private:
     void queue_icon(const std::string& title_id);
     void unqueue_icon(const std::string& title_id);
     void forget_shown();
+    // A 426 on any request: Outdated, one presence request again after kOutdatedRetryMs.
+    void on_outdated(const Outcome& out, int64_t now_ms);
+    // Any answer other than a 426 or a retryable one: the relay accepts this version again.
+    void leave_outdated();
 
     LinkState link_ = LinkState::NoKey;
     int last_presence_status_ = 0;
+    std::string min_version_;
+    int64_t outdated_retry_ms_ = 0;  // while Outdated: no request before this instant
 
     std::optional<Report> desired_;
     std::optional<int64_t> elapsed_s_;

@@ -38,6 +38,7 @@ struct LinkView {
     int64_t seconds_left;
     int retry_after_s;
     std::string user_code, verification_uri, username;
+    std::string min_version;  // Failed with Outdated: the minimum the relay named, "" when unknown
 };
 
 // Drives the relay's device flow and account calls. No I/O; time is a monotonic now_ms.
@@ -69,6 +70,8 @@ private:
     LinkEffect on_unlink(const LinkResponse& resp);
     LinkEffect on_fetch_me(const LinkResponse& resp);
     void fail(ipc::LinkFailure failure, int retry_after_s = 0);
+    // A 426: Failed with Outdated and the minimum version the body names.
+    void fail_outdated(const LinkResponse& resp);
     void finish(ipc::LinkPhase phase);
     bool expired(int64_t now_ms) const;
 
@@ -78,6 +81,7 @@ private:
     bool start_sent_ = false;
 
     std::string link_id_, user_code_, verification_uri_, username_;
+    std::string min_version_;
     int64_t interval_ms_ = 0;
     int64_t deadline_ms_ = 0;
     int64_t next_poll_ms_ = 0;

@@ -617,3 +617,42 @@ TEST_CASE("profile: /v1/me with a valid profile but an empty username still retu
     REQUIRE(fx.profile);
     CHECK(fx.profile->avatar == kHash);
 }
+
+namespace {
+constexpr const char* kOutdatedBody =
+    R"({"error":"client_outdated","message":"This relay needs a newer NX Discord RPC.","min_version":"0.7.0"})";
+}  // namespace
+
+TEST_CASE("link_426_is_outdated") {
+    LinkClient c;
+    c.start(0);
+    answer(c, 0, resp(426, kOutdatedBody), Kind::Start);
+    auto v = c.view(0);
+    CHECK(v.phase == LinkPhase::Failed);
+    CHECK(v.failure == LinkFailure::Outdated);
+    CHECK(v.min_version == "0.7.0");
+    CHECK_FALSE(first_due(c, 0, 1000000));
+
+    // A new attempt starts clean.
+    c.start(1000);
+    CHECK(c.view(1000).failure == LinkFailure::None);
+    CHECK(c.view(1000).min_version.empty());
+}
+
+TEST_CASE("link: a Poll 426 is Outdated") {
+    auto c = pending_at_zero();
+    answer(c, 5000, resp(426, kOutdatedBody), Kind::Poll);
+    auto v = c.view(5000);
+    CHECK(v.phase == LinkPhase::Failed);
+    CHECK(v.failure == LinkFailure::Outdated);
+    CHECK(v.min_version == "0.7.0");
+    CHECK_FALSE(first_due(c, 5000, 400000));
+}
+
+TEST_CASE("link: a 426 without a readable version is still Outdated") {
+    LinkClient c;
+    c.start(0);
+    answer(c, 0, resp(426, "Upgrade Required"), Kind::Start);
+    CHECK(c.view(0).failure == LinkFailure::Outdated);
+    CHECK(c.view(0).min_version.empty());
+}

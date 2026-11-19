@@ -840,3 +840,198 @@ TEST_CASE("last_presence_status: 401 and 409 are kept, a new key resets it") {
     c.on_outcome(*req, status(409), 1);
     CHECK(c.last_presence_status() == 409);
 }
+
+namespace {
+
+constexpr int64_t kOutdatedRetryMs = 21600000;
+
+// The relay refuses this client version.
+Outcome outdated(std::string min_version = "0.7.0") {
+    Outcome out;
+    out.status = 426;
+    out.min_version = std::move(min_version);
+    return out;
+}
+
+}  // namespace
+
+TEST_CASE("presence_426_sets_outdated_and_stops") {
+    auto c = keyed();
+    c.set_report(game(), std::nullopt);
+    CHECK(answer(c, 0, outdated()).kind == Kind::PutPresence);
+    CHECK(c.link_state() == LinkState::Outdated);
+    CHECK(c.min_version() == "0.7.0");
+    CHECK(c.last_presence_status() == 426);
+    // No backoff window: the relay answered, it just refuses this version.
+    CHECK_FALSE(c.backoff_left_ms(0).has_value());
+    // A new report, a wake or a missing heartbeat changes nothing.
+    c.set_report(home(), std::nullopt);
+    c.on_wake();
+    CHECK_FALSE(first_due(c, 0, kOutdatedRetryMs - 1000));
+    CHECK_FALSE(c.next(kOutdatedRetryMs - 1));
+}
+
+TEST_CASE("outdated: a 426 on DELETE is Outdated too") {
+    auto c = keyed();
+    c.set_report(home(), std::nullopt);
+    answer(c, 0, status(204));
+    c.set_report(std::nullopt, std::nullopt);
+    CHECK(answer(c, 1000, outdated("1.0.0")).kind == Kind::DeletePresence);
+    CHECK(c.link_state() == LinkState::Outdated);
+    CHECK(c.min_version() == "1.0.0");
+    CHECK_FALSE(first_due(c, 1000, 1000 + kOutdatedRetryMs - 1000));
+}
+
+TEST_CASE("icon_426_sets_outdated") {
+    auto c = keyed();
+    c.set_report(game(), std::nullopt);
+    answer(c, 0, need(true));
+    CHECK(answer(c, 1, outdated()).kind == Kind::PutIcon);
+    CHECK(c.link_state() == LinkState::Outdated);
+    CHECK(c.min_version() == "0.7.0");
+    CHECK_FALSE(first_due(c, 2, kOutdatedRetryMs - 1000));
+
+    // Once the relay accepts the client again, the icon is still due: a 426 is not a final rejection.
+    auto put = c.next(kOutdatedRetryMs + 1);
+    REQUIRE(put);
+    CHECK(put->kind == Kind::PutPresence);
+    c.on_outcome(*put, need(true), kOutdatedRetryMs + 1);
+    CHECK(c.link_state() == LinkState::Ok);
+    auto icon = c.next(kOutdatedRetryMs + 2);
+    REQUIRE(icon);
+    CHECK(icon->kind == Kind::PutIcon);
+}
+
+TEST_CASE("outdated_retries_after_6h") {
+    auto c = keyed();
+    c.set_report(home(), std::nullopt);
+    answer(c, 0, outdated());
+    CHECK_FALSE(c.next(kOutdatedRetryMs - 1));
+    // One presence request, even for the report already sent.
+    auto probe = c.next(kOutdatedRetryMs);
+    REQUIRE(probe);
+    CHECK(probe->kind == Kind::PutPresence);
+    CHECK(probe->body == report_json(home(), std::nullopt));
+
+    // Still refused: another 6 h.
+    c.on_outcome(*probe, outdated("0.8.0"), kOutdatedRetryMs);
+    CHECK(c.link_state() == LinkState::Outdated);
+    CHECK(c.min_version() == "0.8.0");
+    CHECK_FALSE(first_due(c, kOutdatedRetryMs, 2 * kOutdatedRetryMs - 1000));
+    CHECK_FALSE(c.next(2 * kOutdatedRetryMs - 1));
+
+    // The operator lowered the minimum: back to Ok, no reboot needed.
+    CHECK(answer(c, 2 * kOutdatedRetryMs, status(204)).kind == Kind::PutPresence);
+    CHECK(c.link_state() == LinkState::Ok);
+    CHECK(c.min_version().empty());
+    CHECK(c.last_presence_status() == 204);
+    CHECK_FALSE(c.next(2 * kOutdatedRetryMs + 59999));
+    CHECK(c.next(2 * kOutdatedRetryMs + 60000));
+}
+
+TEST_CASE("outdated: a probe that gets no answer stays Outdated and is retried after the backoff") {
+    for (int s : {0, 503}) {
+        CAPTURE(s);
+        auto c = keyed();
+        c.set_report(home(), std::nullopt);
+        answer(c, 0, outdated());
+        answer(c, kOutdatedRetryMs, status(s));
+        CHECK(c.link_state() == LinkState::Outdated);
+        CHECK(c.min_version() == "0.7.0");
+        CHECK_FALSE(c.next(kOutdatedRetryMs + 4999));
+        auto again = c.next(kOutdatedRetryMs + 5000);
+        REQUIRE(again);
+        CHECK(again->kind == Kind::PutPresence);
+    }
+}
+
+TEST_CASE("outdated: a probe answered 401 or 409 means the version is accepted") {
+    auto c = keyed();
+    c.set_report(home(), std::nullopt);
+    answer(c, 0, outdated());
+    answer(c, kOutdatedRetryMs, status(401));
+    CHECK(c.link_state() == LinkState::Unauthorized);
+    CHECK(c.min_version().empty());
+
+    auto d = keyed();
+    d.set_report(home(), std::nullopt);
+    answer(d, 0, outdated());
+    answer(d, kOutdatedRetryMs, status(409));
+    CHECK(d.link_state() == LinkState::LinkBroken);
+}
+
+TEST_CASE("outdated: a probe answered 400 means the version is accepted") {
+    auto c = keyed();
+    c.set_report(home(), std::nullopt);
+    answer(c, 0, outdated());
+    answer(c, kOutdatedRetryMs, status(400));
+    CHECK(c.link_state() == LinkState::Ok);
+    CHECK(c.min_version().empty());
+}
+
+TEST_CASE("outdated: no report at the retry time waits for one") {
+    auto c = keyed();
+    c.set_report(home(), std::nullopt);
+    answer(c, 0, outdated());
+    c.set_report(std::nullopt, std::nullopt);
+    CHECK_FALSE(first_due(c, kOutdatedRetryMs, kOutdatedRetryMs + 400000));
+    c.set_report(game(), std::nullopt);
+    auto put = c.next(kOutdatedRetryMs + 400001);
+    REQUIRE(put);
+    CHECK(put->kind == Kind::PutPresence);
+}
+
+TEST_CASE("outdated: a key change clears it at once") {
+    auto c = keyed();
+    c.set_report(home(), std::nullopt);
+    answer(c, 0, outdated());
+    c.set_key(true);
+    CHECK(c.link_state() == LinkState::Ok);
+    CHECK(c.min_version().empty());
+    auto put = c.next(1);
+    REQUIRE(put);
+    CHECK(put->kind == Kind::PutPresence);
+
+    answer(c, 1, outdated());
+    c.set_key(false);
+    CHECK(c.link_state() == LinkState::NoKey);
+    CHECK(c.min_version().empty());
+}
+
+TEST_CASE("outdated: an answer without a version leaves min_version empty") {
+    auto c = keyed();
+    c.set_report(home(), std::nullopt);
+    answer(c, 0, outdated(""));
+    CHECK(c.link_state() == LinkState::Outdated);
+    CHECK(c.min_version().empty());
+}
+
+TEST_CASE("outdated_not_persisted: a new client never starts Outdated") {
+    // The state lives in RelayClient only; boot calls set_key, which starts from Ok or NoKey.
+    RelayClient c;
+    c.set_key(true);
+    CHECK(c.link_state() == LinkState::Ok);
+    CHECK(c.min_version().empty());
+}
+
+TEST_CASE("min_version_parsed_from_body") {
+    CHECK(parse_min_version(R"({"error":"client_outdated","message":"Update","min_version":"0.7.0"})") == "0.7.0");
+    CHECK(parse_min_version(R"({"min_version": "10.10.10"})") == "10.10.10");
+    CHECK(parse_min_version(R"({"min_version":"123.456.78901"})") == "123.456.78901");
+    // At most 15 characters: it must fit Status.min_version with its NUL.
+    CHECK(parse_min_version(R"({"min_version":"1234.5678.901234"})").empty());
+    CHECK(parse_min_version(R"({"min_version":"1.2"})").empty());
+    CHECK(parse_min_version(R"({"min_version":"1.2.3.4"})").empty());
+    CHECK(parse_min_version(R"({"min_version":"1.2.3-beta"})").empty());
+    CHECK(parse_min_version(R"({"min_version":"1..3"})").empty());
+    CHECK(parse_min_version(R"({"min_version":".1.2"})").empty());
+    CHECK(parse_min_version(R"({"min_version":"1.2."})").empty());
+    CHECK(parse_min_version(R"({"min_version":"a.b.c"})").empty());
+    CHECK(parse_min_version(R"({"min_version":""})").empty());
+    CHECK(parse_min_version(R"({"min_version":1})").empty());
+    CHECK(parse_min_version(R"({"error":"client_outdated"})").empty());
+    CHECK(parse_min_version(R"({"a":{"min_version":"0.7.0"}})").empty());
+    CHECK(parse_min_version(R"({"min_version":"0.7.0")").empty());
+    CHECK(parse_min_version("").empty());
+    CHECK(parse_min_version("Upgrade Required").empty());
+}

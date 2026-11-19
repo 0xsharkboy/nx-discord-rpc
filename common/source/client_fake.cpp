@@ -55,6 +55,7 @@ struct Scenario {
     bool hidden_full = false;  // the hidden list holds kMaxHiddenTitles entries
     bool paused = false;       // the game is paused: "Paused · HOME Menu", no elapsed time
     ipc::TitleVisibility running = ipc::TitleVisibility::Shown;  // the running title's place in the hidden list
+    const char* min_version = "";  // named by the relay when the link state or a link failure is Outdated
 };
 
 Scenario no_key(std::string_view name) {
@@ -119,6 +120,10 @@ const Scenario* find_scenario(std::string_view name) {
             link_outcome("link-unreachable", ipc::LinkPhase::Failed, ipc::LinkFailure::Unreachable);
         unreachable.starting_ms = 1500;
         unreachable.fail_at_start = true;
+        Scenario link_outdated = link_outcome("link-outdated", ipc::LinkPhase::Failed, ipc::LinkFailure::Outdated);
+        link_outdated.starting_ms = 1500;
+        link_outdated.fail_at_start = true;
+        link_outdated.min_version = "0.7.0";
         Scenario starting = no_key("link-starting");
         starting.starting_ms = 6000;
 
@@ -128,6 +133,10 @@ const Scenario* find_scenario(std::string_view name) {
         Scenario broken{"broken"};
         broken.link = ipc::LinkState::LinkBroken;
         broken.relay_status = 409;
+        Scenario outdated{"outdated"};
+        outdated.link = ipc::LinkState::Outdated;
+        outdated.relay_status = 426;
+        outdated.min_version = "0.7.0";
         Scenario offline{"offline"};
         offline.health = ipc::RelayHealth::Offline;
         offline.relay_status = -1;
@@ -163,11 +172,13 @@ const Scenario* find_scenario(std::string_view name) {
             expired,
             rate_limited,
             unreachable,
+            link_outdated,
             link_outcome("link-interrupted", ipc::LinkPhase::Failed, ipc::LinkFailure::Interrupted),
             link_outcome("link-cancelled", ipc::LinkPhase::Idle),
             starting,
             unauthorized,
             broken,
+            outdated,
             offline,
             nourl,
             unlink_failed,
@@ -257,6 +268,8 @@ public:
         }
         out.unlink = unlink_result_;
         out.last_relay_status = sc_.relay_status;
+        if (out.link == ipc::LinkState::Outdated || link_.failure == ipc::LinkFailure::Outdated)
+            put(out.min_version, sc_.min_version);
         return true;
     }
 

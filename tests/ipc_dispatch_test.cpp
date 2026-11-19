@@ -47,12 +47,12 @@ void check_protocol_version(SharedState& state) {
     REQUIRE(r.raw_out.size() == sizeof(uint32_t));
     uint32_t version = 0;
     std::memcpy(&version, r.raw_out.data(), sizeof(version));
-    CHECK(version == 4);
+    CHECK(version == 5);
 }
 
 }  // namespace
 
-TEST_CASE("GetProtocolVersion returns 4") {
+TEST_CASE("GetProtocolVersion returns 5") {
     SharedState state;
     check_protocol_version(state);
 }
@@ -420,4 +420,15 @@ TEST_CASE("seed_hidden is served without being taken and never replaces a pendin
     CHECK(got.count == 0);
     REQUIRE(state.take_hidden(got));
     CHECK(got.count == 0);
+}
+
+TEST_CASE("request(ForgetKey) clears an Outdated state and its minimum version at once") {
+    SharedState state;
+    drpc::ipc::Status status{};
+    status.link = drpc::ipc::LinkState::Outdated;
+    std::strcpy(status.min_version, "0.7.0");
+    state.publish(status, published_link(drpc::ipc::LinkPhase::Idle));
+    state.request(Cmd::ForgetKey);
+    CHECK(state.status().link == drpc::ipc::LinkState::NoKey);
+    CHECK(state.status().min_version[0] == '\0');
 }

@@ -72,9 +72,9 @@ Outcome execute(const RelayUrl& url, const Request& req, std::string_view api_ke
             break;
         case Request::Kind::PutIcon: {
             uint64_t tid = 0;
-            if (!parse_title_id(req.title_id, tid)) return Outcome{-1, std::nullopt, std::nullopt};
+            if (!parse_title_id(req.title_id, tid)) return Outcome{-1, std::nullopt, std::nullopt, {}};
             icon = load_icon(tid);
-            if (!icon) return Outcome{-1, std::nullopt, std::nullopt};
+            if (!icon) return Outcome{-1, std::nullopt, std::nullopt, {}};
             method = "PUT";
             path = "/v1/icons/" + req.title_id;
             content_type = "image/jpeg";
@@ -87,8 +87,9 @@ Outcome execute(const RelayUrl& url, const Request& req, std::string_view api_ke
              : std::span<const uint8_t>{reinterpret_cast<const uint8_t*>(body_text.data()), body_text.size()};
     const std::string head = build_request(method, url, path, api_key, content_type, body.size());
     const HttpResponse response = relay_round_trip(url, head, body);
-    Outcome out{response.status, response.retry_after_s, std::nullopt};
+    Outcome out{response.status, response.retry_after_s, std::nullopt, {}};
     if (req.kind == Request::Kind::PutPresence && response.status == 200) out.need_icon = parse_need_icon(response.body);
+    if (response.status == 426) out.min_version = parse_min_version(response.body);
     return out;
 }
 

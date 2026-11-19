@@ -14,6 +14,7 @@ FooterLine footer_line(const drpc::ipc::Status& status) {
             return {Footer::NoKey, Tone::Neutral};
         case LinkState::LinkBroken:
             return {Footer::Broken, Tone::Bad};
+        case LinkState::Outdated:  // until the Update required line: shown like a refused key
         case LinkState::Unauthorized:
             return {Footer::Unauthorized, Tone::Bad};
         case LinkState::Linked:

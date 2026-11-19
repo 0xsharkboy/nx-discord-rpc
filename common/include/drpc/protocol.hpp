@@ -7,7 +7,7 @@
 namespace drpc::ipc {
 
 inline constexpr char kServiceName[] = "drpc";
-inline constexpr uint32_t kProtocolVersion = 4;
+inline constexpr uint32_t kProtocolVersion = 5;
 
 enum class Cmd : uint32_t {
     GetProtocolVersion = 0,
@@ -23,10 +23,11 @@ enum class Cmd : uint32_t {
     SetHidden = 10,  // in buffer: HiddenList
 };
 
-enum class LinkState : uint8_t { NoKey, Linked, Unauthorized, LinkBroken };
+// Outdated: the relay refuses this client version (HTTP 426); Status.min_version names the minimum when known.
+enum class LinkState : uint8_t { NoKey, Linked, Unauthorized, LinkBroken, Outdated };
 enum class RelayHealth : uint8_t { Ok, Backoff, Offline, NoUrl };
 enum class LinkPhase : uint8_t { Idle, Starting, Pending, Linked, Denied, Expired, Failed };
-enum class LinkFailure : uint8_t { None, RateLimited, Unreachable, Interrupted, Other };
+enum class LinkFailure : uint8_t { None, RateLimited, Unreachable, Interrupted, Other, Outdated };
 enum class UnlinkResult : uint8_t { None, InProgress, Done, Failed };
 enum class TitleVisibility : uint8_t { Shown = 0, Private = 1, Hidden = 2 };
 
@@ -58,6 +59,9 @@ struct Status {
     uint8_t reserved[3];
     int32_t last_relay_status;  // last HTTP status of a presence PUT or DELETE; 0 none yet, -1 network error
     uint64_t running_title_id;  // the running application whatever its visibility, 0 on the HOME Menu
+    // Protocol 5: the minimum client version the relay asked for in its last 426 answer (presence or
+    // linking), "" when unknown or not Outdated.
+    char min_version[16];
 };
 
 // Shown titles are not listed. Items past count are zero.
@@ -115,6 +119,7 @@ inline void terminate_strings(Status& s) {
     terminate(s.name);
     terminate(s.details);
     terminate(s.title_id);
+    terminate(s.min_version);
 }
 
 inline void terminate_strings(Link& l) {
@@ -124,12 +129,13 @@ inline void terminate_strings(Link& l) {
 }
 
 static_assert(sizeof(Settings) == 8);
-static_assert(sizeof(Status) == 504);
+static_assert(sizeof(Status) == 520);
 static_assert(offsetof(Status, discord_id) == 56);
 static_assert(offsetof(Status, avatar) == 80);
 static_assert(offsetof(Status, elapsed_s) == 472);
 static_assert(offsetof(Status, last_relay_status) == 492);
 static_assert(offsetof(Status, running_title_id) == 496);
+static_assert(offsetof(Status, min_version) == 504);
 static_assert(sizeof(HiddenTitle) == 16);
 static_assert(sizeof(HiddenList) == 8 + 16 * kMaxHiddenTitles);
 static_assert(sizeof(Link) == 196);
