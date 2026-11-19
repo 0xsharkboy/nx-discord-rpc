@@ -231,6 +231,11 @@ app says so, and you can try again or update manually. A release without the ind
   activity.
 - If the Status tab says "Relay rejected the key. Link again" or "Discord link broken. Link again",
   go to the Account tab and choose Link with Discord again.
+- If the Status tab says "Update required: this relay needs version X.Y.Z or newer" (or only "Update
+  required"), the relay no longer serves this version, and your presence stops updating on Discord.
+  The app checks for updates at once, even with Check for updates off: press Update in the banner,
+  or use Settings > Check for updates now. Linking says the same. After the update, close the app,
+  wait about 10 seconds and reopen it. The overlay shows "Update required" too.
 - If Unlink cannot reach the relay, the app offers Forget locally. It only clears the key on the
   console, and Discord keeps the authorization until you remove it in Discord's settings.
 

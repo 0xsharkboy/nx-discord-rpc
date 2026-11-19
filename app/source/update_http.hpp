@@ -51,7 +51,7 @@ struct Result {
 using Sink = std::function<bool(std::span<const uint8_t>)>;
 
 struct Options {
-    std::string user_agent;  // e.g. "nx-discord-rpc/0.5.0"
+    std::string user_agent;  // e.g. "nx-discord-rpc/0.6.0"
     std::string accept = "*/*";
     size_t max_body = 0;
     int read_timeout_ms = 15'000;
