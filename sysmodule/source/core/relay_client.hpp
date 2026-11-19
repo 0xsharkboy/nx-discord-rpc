@@ -45,7 +45,8 @@ public:
     // Re-send at once after sleep, ignoring any open backoff window.
     void on_wake();
     // A 426 on a request this client does not send (GET or DELETE /v1/me): Outdated as if a presence
-    // request had been refused. Ignored without a key.
+    // request had been refused. Ignored without a key. Already Outdated: only the minimum is updated,
+    // the next probe keeps its time.
     void set_outdated(std::string min_version, int64_t now_ms);
     LinkState link_state() const { return link_; }
     // The minimum version named by the 426 that made the state Outdated; "" in any other state.

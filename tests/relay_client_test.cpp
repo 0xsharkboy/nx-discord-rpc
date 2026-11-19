@@ -1051,6 +1051,20 @@ TEST_CASE("outdated_from_account_request: a 426 on /v1/me makes the client Outda
     CHECK(probe->kind == Kind::PutPresence);
 }
 
+TEST_CASE("outdated_from_account_request: a repeated 426 keeps the probe time") {
+    auto c = keyed();
+    c.set_report(home(), std::nullopt);
+    c.set_outdated("0.7.0", 1000);
+    // An hour later another account request is refused with a new minimum: the probe stays put.
+    c.set_outdated("0.8.0", 1000 + 3600000);
+    CHECK(c.link_state() == LinkState::Outdated);
+    CHECK(c.min_version() == "0.8.0");
+    CHECK_FALSE(c.next(1000 + kOutdatedRetryMs - 1));
+    auto probe = c.next(1000 + kOutdatedRetryMs);
+    REQUIRE(probe);
+    CHECK(probe->kind == Kind::PutPresence);
+}
+
 TEST_CASE("outdated_from_account_request: ignored without a key") {
     RelayClient c;
     c.set_outdated("0.7.0", 0);

@@ -71,6 +71,11 @@ void RelayClient::set_report(std::optional<Report> report, std::optional<int64_t
 
 void RelayClient::set_outdated(std::string min_version, int64_t now_ms) {
     if (link_ == LinkState::NoKey) return;
+    if (link_ == LinkState::Outdated) {
+        // Keep the probe time: an account request the user repeats must not push the probe back.
+        min_version_ = std::move(min_version);
+        return;
+    }
     on_outdated(std::move(min_version), now_ms);
 }
 
