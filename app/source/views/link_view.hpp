@@ -5,6 +5,7 @@
 #include <functional>
 
 #include "drpc/client.hpp"
+#include "update_manager.hpp"
 
 namespace app {
 
@@ -13,9 +14,9 @@ class ResultBadge;
 
 class LinkView : public brls::Box {
 public:
-    LinkView(drpc::Client& client, std::function<void()> on_close);
+    LinkView(drpc::Client& client, UpdateManager& updater, std::function<void()> on_close);
 
-    static void open(drpc::Client& client, std::function<void()> on_close);
+    static void open(drpc::Client& client, UpdateManager& updater, std::function<void()> on_close);
 
     void willAppear(bool resetState = false) override;
 
@@ -32,6 +33,7 @@ private:
     void close();
 
     drpc::Client& client_;
+    UpdateManager& updater_;
     std::function<void()> on_close_;
     Screen screen_ = Screen::None;
     bool started_ = false;

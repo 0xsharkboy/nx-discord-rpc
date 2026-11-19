@@ -50,9 +50,11 @@ Step key(const Facts& f, const Step& rel) {
     switch (f.status.link) {
         case LinkState::NoKey:
             return make(StepId::Key, Result::Failed, Reason::NoKey);
-        case LinkState::Outdated:  // until its own reason: the relay refuses the requests made with the key
         case LinkState::Unauthorized:
             return make(StepId::Key, Result::Failed, Reason::KeyRejected);
+        case LinkState::Outdated:  // the relay refuses every request made with the key
+            return make(StepId::Key, Result::Failed,
+                        f.status.min_version[0] != '\0' ? Reason::Outdated : Reason::OutdatedUnnamed);
         case LinkState::Linked:
         case LinkState::LinkBroken:
             break;
@@ -146,6 +148,8 @@ const char* reason_key(Reason reason) {
         case Reason::RelayError: return "app/diag/reason/relay_error";
         case Reason::Refused: return "app/diag/reason/refused";
         case Reason::NoSysmodule: return "app/diag/reason/no_sysmodule";
+        case Reason::Outdated: return "app/diag/reason/outdated";
+        case Reason::OutdatedUnnamed: return "app/diag/reason/outdated_unnamed";
     }
     return "app/diag/reason/checking";
 }
@@ -154,6 +158,8 @@ bool reason_has_code(Reason reason) {
     return reason == Reason::RelayHttp || reason == Reason::Retrying || reason == Reason::RelayError ||
            reason == Reason::Refused;
 }
+
+bool reason_has_version(Reason reason) { return reason == Reason::Outdated; }
 
 drpc::RelayUrl probe_target(std::string_view ini, std::string_view status_host) {
     // Like the sysmodule's parse_settings: a UTF-8 BOM (Windows Notepad) is not part of the first key.

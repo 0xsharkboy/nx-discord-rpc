@@ -100,8 +100,8 @@ brls::Box* make_screen() {
 
 }  // namespace
 
-LinkView::LinkView(drpc::Client& client, std::function<void()> on_close)
-    : brls::Box(brls::Axis::COLUMN), client_(client), on_close_(std::move(on_close)) {
+LinkView::LinkView(drpc::Client& client, UpdateManager& updater, std::function<void()> on_close)
+    : brls::Box(brls::Axis::COLUMN), client_(client), updater_(updater), on_close_(std::move(on_close)) {
     setGrow(1);
     setPadding(24, 64, 24, 64);
 
@@ -215,8 +215,8 @@ void LinkView::willAppear(bool resetState) {
     timer_.start(kPollMs);
 }
 
-void LinkView::open(drpc::Client& client, std::function<void()> on_close) {
-    auto* view = new LinkView(client, std::move(on_close));
+void LinkView::open(drpc::Client& client, UpdateManager& updater, std::function<void()> on_close) {
+    auto* view = new LinkView(client, updater, std::move(on_close));
     view->getAppletFrameItem()->title = "app/link/title"_i18n;
     brls::Application::pushActivity(new brls::Activity(new brls::AppletFrame(view)));
 }
@@ -331,7 +331,17 @@ void LinkView::show_result(const drpc::ipc::Link& link) {
                     title = "app/link/interrupted_title"_i18n;
                     body = "app/link/interrupted_body"_i18n;
                     break;
-                case LinkFailure::Outdated:  // until its own message
+                case LinkFailure::Outdated: {
+                    // The minimum the relay named travels in Status, not Link; "" when it named none.
+                    drpc::ipc::Status status{};
+                    const bool known = client_.status(status) && status.min_version[0] != '\0';
+                    title = "app/link/outdated_title"_i18n;
+                    body = known ? brls::getStr("app/link/outdated_body", std::string(status.min_version))
+                                 : "app/link/outdated_unnamed_body"_i18n;
+                    // The Status tab only sees a refused link state: offer the update from here too.
+                    updater_.check_required();
+                    break;
+                }
                 case LinkFailure::None:
                 case LinkFailure::Other:
                     body = "app/link/other_body"_i18n;

@@ -74,11 +74,11 @@ public:
             r.outcome = update::CheckOutcome::UpToDate;
         } else if (scenario_ == "manual") {
             r.outcome = update::CheckOutcome::ManualOnly;
-            r.release.tag = "v0.6.0";
+            r.release.tag = "v0.7.0";
         } else if (scenario_ == "available" || scenario_ == "installfail" || scenario_ == "partial" ||
                    scenario_ == "slow" || scenario_ == "startfail") {
             r.outcome = update::CheckOutcome::Available;
-            r.release.tag = "v0.6.0";
+            r.release.tag = "v0.7.0";
             r.release.assets["nx-discord-rpc.nro"].size = 2'713'430;
             r.release.assets["exefs.nsp"].size = 251'797;
             r.release.assets["nx-discord-rpc.ovl"].size = 294'968;

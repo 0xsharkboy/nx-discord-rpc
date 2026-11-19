@@ -47,8 +47,10 @@ NVGcolor result_color(diag::Result result) {
     return palette::text_faint();
 }
 
-std::string reason_text(const diag::Step& step) {
+std::string reason_text(const diag::Step& step, const drpc::ipc::Status& status) {
     if (diag::reason_has_code(step.reason)) return brls::getStr(diag::reason_key(step.reason), step.code);
+    if (diag::reason_has_version(step.reason))
+        return brls::getStr(diag::reason_key(step.reason), std::string(status.min_version));
     return brls::getStr(diag::reason_key(step.reason));
 }
 
@@ -233,7 +235,7 @@ void ConnectionTestView::render() {
     const diag::Steps steps = diag::diagnose(facts_);
     for (size_t i = 0; i < steps.size(); ++i) {
         rows_[i].dot->setBackgroundColor(result_color(steps[i].result));
-        rows_[i].reason->setText(reason_text(steps[i]));
+        rows_[i].reason->setText(reason_text(steps[i], facts_.status));
         rows_[i].reason->setTextColor(steps[i].result == diag::Result::Failed ? palette::text() : palette::text_muted());
     }
     const bool done = diag::finished(steps);

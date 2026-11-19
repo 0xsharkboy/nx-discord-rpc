@@ -8,12 +8,13 @@
 #include <string>
 
 #include "drpc/client.hpp"
+#include "update_manager.hpp"
 
 namespace app {
 
 class AccountTab : public brls::Box {
 public:
-    explicit AccountTab(drpc::Client& client);
+    AccountTab(drpc::Client& client, UpdateManager& updater);
 
 private:
     void refresh();
@@ -26,6 +27,7 @@ private:
     void keep_focus();
 
     drpc::Client& client_;
+    UpdateManager& updater_;
     brls::Box* avatar_;
     brls::Label* initial_;
     brls::Image* photo_;

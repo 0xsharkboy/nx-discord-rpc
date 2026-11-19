@@ -112,6 +112,11 @@ run() {
     update=manual no_auto=1 shoot update-settings-manual linked-game "${to_check[@]}" Return
     update=installfail shoot update-settings-failed linked-game "${to_check[@]}" Return wait
     update=available shoot update-settings-done linked-game "${to_check[@]}" Return wait
+    # v0.6.0: the relay refuses this version. Check for updates is off, yet the Update banner appears.
+    update=available no_auto=1 shoot status-outdated outdated wait
+    update=available no_auto=1 shoot diag-outdated outdated Right Return wait
+    update=available no_auto=1 shoot account-outdated outdated Down Down
+    update=available no_auto=1 shoot link-outdated link-outdated Down Down Right Return wait
 }
 
 if [ -z "${DRPC_SHOTS_INNER:-}" ]; then

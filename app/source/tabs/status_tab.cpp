@@ -28,6 +28,10 @@ std::string footer_text(Footer kind, const drpc::ipc::Status& status) {
             return "app/status/footer/broken"_i18n;
         case Footer::Unauthorized:
             return "app/status/footer/unauthorized"_i18n;
+        case Footer::Outdated:
+            return brls::getStr("app/status/footer/outdated", std::string(status.min_version));
+        case Footer::OutdatedUnnamed:
+            return "app/status/footer/outdated_unnamed"_i18n;
         case Footer::Backoff:
             return brls::getStr("app/status/footer/backoff", status.backoff_s);
         case Footer::OkUnnamed:
@@ -54,7 +58,8 @@ NVGcolor tone_color(Tone tone) {
 
 }  // namespace
 
-StatusTab::StatusTab(drpc::Client& client, UpdateManager& updater) : brls::Box(brls::Axis::COLUMN), client_(client) {
+StatusTab::StatusTab(drpc::Client& client, UpdateManager& updater)
+    : brls::Box(brls::Axis::COLUMN), client_(client), updater_(updater) {
     setPadding(48, 56, 40, 56);
 
     card_ = new PreviewCard();
@@ -111,6 +116,10 @@ void StatusTab::refresh() {
     const FooterLine line = footer_line(status);
     footer_->setText(footer_text(line.kind, status));
     dot_->setBackgroundColor(tone_color(line.tone));
+    // Update required is the one line in red: the Update banner below offers the fix.
+    const bool outdated = line.kind == Footer::Outdated || line.kind == Footer::OutdatedUnnamed;
+    footer_->setTextColor(outdated ? palette::red() : palette::text_muted());
+    if (update_required(status)) updater_.check_required();
 }
 
 }  // namespace app

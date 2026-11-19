@@ -146,7 +146,7 @@ brls::AppletFrame* AppWindow::make_tabs() {
     UpdateManager& updater = *updater_;
     tabs->addTab("app/tabs/status"_i18n, [&client, &updater] { return new StatusTab(client, updater); });
     tabs->addTab("app/tabs/settings"_i18n, [&client, &updater] { return new SettingsTab(client, updater); });
-    tabs->addTab("app/tabs/account"_i18n, [&client] { return new AccountTab(client); });
+    tabs->addTab("app/tabs/account"_i18n, [&client, &updater] { return new AccountTab(client, updater); });
     tabs->addSeparator();
     tabs->addTab("app/tabs/about"_i18n, [&client] { return new AboutTab(client); });
     tabs->getAppletFrameItem()->title = "app/title"_i18n;

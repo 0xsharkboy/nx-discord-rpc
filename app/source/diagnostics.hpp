@@ -51,7 +51,9 @@ enum class Reason : uint8_t {
     RelayError,   // code: the HTTP status
     Refused,      // code: the HTTP status
     NoSysmodule,  // the sysmodule never answered, so its Status (relay host, link) is unknown
-    Last = NoSysmodule,
+    Outdated,         // version: the relay refuses this app's version and names its minimum (Status.min_version)
+    OutdatedUnnamed,  // the relay refuses this app's version without naming a minimum
+    Last = OutdatedUnnamed,
 };
 
 struct Step {
@@ -87,6 +89,8 @@ bool needs_help(const Steps& steps);
 const char* step_key(StepId id);
 const char* reason_key(Reason reason);
 bool reason_has_code(Reason reason);
+// The string takes Status.min_version as its {} instead of a code.
+bool reason_has_version(Reason reason);
 
 // Where to send GET /healthz: config.ini's relay_url when it names the host the sysmodule uses (its port and
 // base path then count), else that host on 443. Status only carries the host.

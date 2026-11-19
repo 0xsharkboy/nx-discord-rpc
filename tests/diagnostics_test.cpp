@@ -161,6 +161,36 @@ TEST_CASE("diagnostics_steps_key_rejected") {
     CHECK(step(steps, StepId::Link).result == Result::Skipped);
 }
 
+TEST_CASE("diagnostics_steps_outdated") {
+    ipc::Status st = linked_status(426);
+    st.link = ipc::LinkState::Outdated;
+    std::strncpy(st.min_version, "0.7.0", sizeof st.min_version - 1);
+    Steps steps = app::diag::diagnose(all_ok(st));
+    CHECK(step(steps, StepId::Key).result == Result::Failed);
+    CHECK(step(steps, StepId::Key).reason == Reason::Outdated);
+    CHECK(step(steps, StepId::Link).result == Result::Skipped);
+    CHECK(step(steps, StepId::Presence).result == Result::Skipped);
+    CHECK(app::diag::needs_help(steps));
+    CHECK(app::diag::reason_has_version(Reason::Outdated));
+    CHECK_FALSE(app::diag::reason_has_code(Reason::Outdated));
+
+    // No version named: the same failure, worded without one.
+    st.min_version[0] = '\0';
+    steps = app::diag::diagnose(all_ok(st));
+    CHECK(step(steps, StepId::Key).result == Result::Failed);
+    CHECK(step(steps, StepId::Key).reason == Reason::OutdatedUnnamed);
+    CHECK_FALSE(app::diag::reason_has_version(Reason::OutdatedUnnamed));
+}
+
+TEST_CASE("diagnostics_steps_min_version_alone_is_not_outdated") {
+    // Left from a link attempt refused for the version, while a key imported since is accepted.
+    ipc::Status st = linked_status();
+    std::strncpy(st.min_version, "0.7.0", sizeof st.min_version - 1);
+    const Steps steps = app::diag::diagnose(all_ok(st));
+    CHECK(step(steps, StepId::Key).reason == Reason::KeyOk);
+    CHECK(step(steps, StepId::Presence).result == Result::Ok);
+}
+
 TEST_CASE("diagnostics_steps_link_broken") {
     ipc::Status st = linked_status(409);
     st.link = ipc::LinkState::LinkBroken;
@@ -236,11 +266,13 @@ TEST_CASE("diagnostics_steps_every_reason_and_step_has_a_string") {
         const Reason reason = static_cast<Reason>(r);
         const std::string key = app::diag::reason_key(reason);
         REQUIRE_MESSAGE(has(key.c_str()), key);
-        // The value takes the step's code as its {} exactly when the reason has one.
+        // The value takes the step's code, or the minimum version, as its {} exactly when the reason has one.
         const size_t at = en.find("\"" + key.substr(key.rfind('/') + 1) + "\":", reasons);
         const size_t open = en.find('"', en.find(':', at) + 1);
         const std::string value = en.substr(open + 1, en.find('"', open + 1) - open - 1);
-        CHECK_MESSAGE((value.find("{}") != std::string::npos) == app::diag::reason_has_code(reason), key);
+        CHECK_MESSAGE((value.find("{}") != std::string::npos) ==
+                          (app::diag::reason_has_code(reason) || app::diag::reason_has_version(reason)),
+                      key);
     }
 }
 

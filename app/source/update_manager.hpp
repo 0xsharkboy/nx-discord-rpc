@@ -56,6 +56,10 @@ public:
 
     // Once, at start: Ready when an update is staged already, else the quiet check when Check for updates is on.
     void start(bool check_updates);
+    // The relay refuses this version: a quiet check, whatever Check for updates says, so the Update banner
+    // appears. Once per app run; nothing when a check already ran or runs, or an update is found or staged.
+    // Asked before start, it waits for start, which may find a staged update instead.
+    void check_required();
     // A quiet check (at start) shows nothing on failure; a manual one reports it.
     void check(bool manual);
     void install();
@@ -68,10 +72,13 @@ private:
     void run(std::function<void()> work);
     void set(UpdateState state);
     void reconnect(std::weak_ptr<bool> alive, int attempt);
+    void run_required_check();
 
     drpc::Client& client_;
     std::shared_ptr<UpdateBackend> backend_;
     UpdateState state_;
+    bool started_ = false;
+    bool required_asked_ = false;
     update::Release release_;
     brls::Event<> changed_;
     std::thread worker_;

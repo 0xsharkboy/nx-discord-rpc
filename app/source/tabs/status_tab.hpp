@@ -17,6 +17,7 @@ private:
     void refresh();
 
     drpc::Client& client_;
+    UpdateManager& updater_;
     PreviewCard* card_;
     brls::Box* dot_;
     brls::Label* footer_;

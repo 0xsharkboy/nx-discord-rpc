@@ -68,7 +68,8 @@ brls::Button* make_button(const std::string& text, const brls::ButtonStyle* styl
 
 }  // namespace
 
-AccountTab::AccountTab(drpc::Client& client) : brls::Box(brls::Axis::COLUMN), client_(client) {
+AccountTab::AccountTab(drpc::Client& client, UpdateManager& updater)
+    : brls::Box(brls::Axis::COLUMN), client_(client), updater_(updater) {
     setPadding(32, 56, 40, 56);
 
     auto* header = new brls::Header();
@@ -132,7 +133,7 @@ AccountTab::AccountTab(drpc::Client& client) : brls::Box(brls::Axis::COLUMN), cl
     link_->setMarginRight(20);
     link_->registerClickAction([this](brls::View*) {
         if (awaiting_unlink_) return true;
-        LinkView::open(client_, [this] { refresh(); });
+        LinkView::open(client_, updater_, [this] { refresh(); });
         return true;
     });
     buttons->addView(link_);
@@ -188,9 +189,14 @@ void AccountTab::refresh() {
             state = "app/account/broken"_i18n;
             avatar = palette::red();
             break;
-        case LinkState::Outdated:  // until its own line: shown like a refused key
         case LinkState::Unauthorized:
             state = "app/account/unauthorized"_i18n;
+            avatar = palette::red();
+            break;
+        case LinkState::Outdated:
+            state = status.min_version[0] != '\0'
+                        ? brls::getStr("app/account/outdated", std::string(status.min_version))
+                        : "app/account/outdated_unnamed"_i18n;
             avatar = palette::red();
             break;
     }

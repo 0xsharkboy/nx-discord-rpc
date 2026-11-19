@@ -27,6 +27,8 @@
       "nokey": "Not linked. Open Account",
       "broken": "Discord link broken. Link again",
       "unauthorized": "Relay rejected the key. Link again",
+      "outdated": "Update required: this relay needs version {} or newer",
+      "outdated_unnamed": "Update required",
       "offline": "Console is offline",
       "nourl": "relay_url in config.ini is invalid"
     },
@@ -69,7 +71,9 @@
       "rate_limited": "Too many updates. Retrying shortly",
       "relay_error": "The relay failed the last update (error {}). Retrying",
       "refused": "The relay refused the last update (error {})",
-      "no_sysmodule": "The sysmodule is not reachable. Reopen the app to see why"
+      "no_sysmodule": "The sysmodule is not reachable. Reopen the app to see why",
+      "outdated": "Update required: this relay needs version {} or newer",
+      "outdated_unnamed": "Update required"
     }
   },
   "settings": {
@@ -120,6 +124,8 @@
     "nokey": "Link your Discord account to show what you play.",
     "broken": "Discord link broken. Link again",
     "unauthorized": "Relay rejected the key. Link again",
+    "outdated": "Update required: this relay needs version {} or newer",
+    "outdated_unnamed": "Update required",
     "unlinking": "Unlinking…",
     "link": "Link with Discord",
     "unlink": "Unlink",
@@ -149,7 +155,10 @@
     "unreachable_body": "Could not reach the relay. Check the console's connection.",
     "interrupted_title": "Link interrupted",
     "interrupted_body": "Linking stopped, for example because the console went to sleep.",
-    "other_body": "Something went wrong. Try again."
+    "other_body": "Something went wrong. Try again.",
+    "outdated_title": "Update required",
+    "outdated_body": "This relay needs version {} or newer. Update the app in Settings, then link again.",
+    "outdated_unnamed_body": "This relay needs a newer version of NX Discord RPC. Update the app in Settings, then link again."
   },
   "about": {
     "tagline": "Discord Rich Presence for Nintendo Switch",

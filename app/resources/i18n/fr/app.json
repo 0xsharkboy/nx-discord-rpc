@@ -27,6 +27,8 @@
       "nokey": "Non lié. Ouvrir Compte",
       "broken": "Lien Discord rompu. Lier à nouveau",
       "unauthorized": "Clé refusée par le relais. Lier à nouveau",
+      "outdated": "Mise à jour requise : ce relais exige la version {} ou supérieure",
+      "outdated_unnamed": "Mise à jour requise",
       "offline": "Console hors ligne",
       "nourl": "relay_url est invalide dans config.ini"
     },
@@ -69,7 +71,9 @@
       "rate_limited": "Trop de mises à jour. Nouvel essai sous peu",
       "relay_error": "Le relais n'a pas pu traiter la dernière mise à jour (erreur {}). Nouvel essai en cours",
       "refused": "Le relais a refusé la dernière mise à jour (erreur {})",
-      "no_sysmodule": "Le sysmodule est injoignable. Rouvrir l'application pour en savoir plus"
+      "no_sysmodule": "Le sysmodule est injoignable. Rouvrir l'application pour en savoir plus",
+      "outdated": "Mise à jour requise : ce relais exige la version {} ou supérieure",
+      "outdated_unnamed": "Mise à jour requise"
     }
   },
   "settings": {
@@ -120,6 +124,8 @@
     "nokey": "Lier le compte Discord pour afficher les jeux en cours.",
     "broken": "Lien Discord rompu. Lier à nouveau",
     "unauthorized": "Clé refusée par le relais. Lier à nouveau",
+    "outdated": "Mise à jour requise : ce relais exige la version {} ou supérieure",
+    "outdated_unnamed": "Mise à jour requise",
     "unlinking": "Dissociation…",
     "link": "Lier avec Discord",
     "unlink": "Délier",
@@ -149,7 +155,10 @@
     "unreachable_body": "Relais injoignable. Vérifier la connexion de la console.",
     "interrupted_title": "Liaison interrompue",
     "interrupted_body": "La liaison s'est arrêtée, par exemple parce que la console est passée en veille.",
-    "other_body": "Une erreur est survenue. Réessayer."
+    "other_body": "Une erreur est survenue. Réessayer.",
+    "outdated_title": "Mise à jour requise",
+    "outdated_body": "Ce relais exige la version {} ou supérieure. Mettre à jour l'application dans Réglages, puis lier à nouveau.",
+    "outdated_unnamed_body": "Ce relais exige une version plus récente de NX Discord RPC. Mettre à jour l'application dans Réglages, puis lier à nouveau."
   },
   "about": {
     "tagline": "Discord Rich Presence pour Nintendo Switch",

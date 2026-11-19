@@ -40,10 +40,25 @@ void UpdateManager::set(UpdateState state) {
     changed_.fire();
 }
 
+void UpdateManager::check_required() {
+    if (required_asked_) return;
+    required_asked_ = true;
+    if (started_) run_required_check();
+}
+
+void UpdateManager::run_required_check() {
+    // Only from a blank state: a check that ran or runs has its answer, and checking again from Available,
+    // Failed or Partial would drop the release found.
+    if (state_.phase == UpdatePhase::Idle && !state_.checked) check(false);
+}
+
 void UpdateManager::start(bool check_updates) {
+    if (started_) return;
+    started_ = true;
     if (state_.phase != UpdatePhase::Idle) return;
     switch (update::start_action(backend_->staged_ready(), check_updates)) {
         case update::StartAction::None:
+            if (required_asked_) run_required_check();
             return;
         case update::StartAction::Check:
             check(false);

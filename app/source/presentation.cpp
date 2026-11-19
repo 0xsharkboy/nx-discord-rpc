@@ -14,9 +14,10 @@ FooterLine footer_line(const drpc::ipc::Status& status) {
             return {Footer::NoKey, Tone::Neutral};
         case LinkState::LinkBroken:
             return {Footer::Broken, Tone::Bad};
-        case LinkState::Outdated:  // until the Update required line: shown like a refused key
         case LinkState::Unauthorized:
             return {Footer::Unauthorized, Tone::Bad};
+        case LinkState::Outdated:
+            return {status.min_version[0] != '\0' ? Footer::Outdated : Footer::OutdatedUnnamed, Tone::Bad};
         case LinkState::Linked:
             break;
     }
@@ -24,6 +25,8 @@ FooterLine footer_line(const drpc::ipc::Status& status) {
     if (status.username[0] == '\0') return {Footer::OkUnnamed, Tone::Good};
     return {Footer::Ok, Tone::Good};
 }
+
+bool update_required(const drpc::ipc::Status& status) { return status.link == drpc::ipc::LinkState::Outdated; }
 
 Preview preview_of(const drpc::ipc::Status& status) {
     Preview p;

@@ -9,7 +9,8 @@ namespace app {
 
 enum class Tone { Good, Warning, Bad, Neutral };
 
-enum class Footer { NoUrl, Offline, NoKey, Broken, Unauthorized, Backoff, Ok, OkUnnamed };
+// Outdated names the relay's minimum version; OutdatedUnnamed when the relay named none.
+enum class Footer { NoUrl, Offline, NoKey, Broken, Unauthorized, Outdated, OutdatedUnnamed, Backoff, Ok, OkUnnamed };
 
 struct FooterLine {
     Footer kind;
@@ -18,6 +19,10 @@ struct FooterLine {
 
 // Precedence: an unusable relay URL, then no network, then the link state, then the relay backoff.
 FooterLine footer_line(const drpc::ipc::Status& status);
+
+// The relay refuses this app's version (link == Outdated). Never read from min_version alone, which a link
+// attempt refused for the version leaves set in other states.
+bool update_required(const drpc::ipc::Status& status);
 
 // What Discord shows, as far as the console knows it.
 struct Preview {

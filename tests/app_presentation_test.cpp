@@ -38,6 +38,37 @@ TEST_CASE("footer_line follows the precedence") {
     CHECK(app::footer_line(status(LS::Linked, RH::Backoff)).tone == app::Tone::Warning);
 }
 
+TEST_CASE("footer_line says Update required when the relay refuses this version") {
+    using app::Footer;
+    using LS = ipc::LinkState;
+    using RH = ipc::RelayHealth;
+    ipc::Status st = status(LS::Outdated, RH::Ok);
+    std::strncpy(st.min_version, "0.7.0", sizeof st.min_version - 1);
+    CHECK(app::footer_line(st).kind == Footer::Outdated);
+    CHECK(app::footer_line(st).tone == app::Tone::Bad);
+    CHECK(app::update_required(st));
+    // The relay named no version: the line says Update required without one.
+    st.min_version[0] = '\0';
+    CHECK(app::footer_line(st).kind == Footer::OutdatedUnnamed);
+    CHECK(app::footer_line(st).tone == app::Tone::Bad);
+    // A refused version is no backoff, but an invalid relay_url or no network still comes first.
+    CHECK(app::footer_line(status(LS::Outdated, RH::Backoff)).kind == Footer::OutdatedUnnamed);
+    CHECK(app::footer_line(status(LS::Outdated, RH::NoUrl)).kind == Footer::NoUrl);
+    CHECK(app::footer_line(status(LS::Outdated, RH::Offline)).kind == Footer::Offline);
+}
+
+TEST_CASE("update_required keys on the link state, never on min_version") {
+    // A link attempt refused for the version leaves min_version set while the state is NoKey or Linked.
+    for (auto link : {ipc::LinkState::NoKey, ipc::LinkState::Linked, ipc::LinkState::Unauthorized,
+                      ipc::LinkState::LinkBroken}) {
+        ipc::Status st = status(link, ipc::RelayHealth::Ok);
+        std::strncpy(st.min_version, "0.7.0", sizeof st.min_version - 1);
+        CHECK_FALSE(app::update_required(st));
+        CHECK(app::footer_line(st).kind != app::Footer::Outdated);
+    }
+    CHECK(app::update_required(status(ipc::LinkState::Outdated, ipc::RelayHealth::Ok)));
+}
+
 TEST_CASE("format_elapsed switches to hours at one hour") {
     CHECK(app::format_elapsed(0) == "00:00");
     CHECK(app::format_elapsed(754) == "12:34");
@@ -114,7 +145,8 @@ TEST_CASE("preview_of shows nothing when nothing reaches Discord") {
     nameless.name[0] = '\0';
     CHECK_FALSE(app::preview_of(nameless).shown);
 
-    for (auto link : {ipc::LinkState::NoKey, ipc::LinkState::Unauthorized, ipc::LinkState::LinkBroken}) {
+    for (auto link : {ipc::LinkState::NoKey, ipc::LinkState::Unauthorized, ipc::LinkState::LinkBroken,
+                      ipc::LinkState::Outdated}) {
         ipc::Status st = playing();
         st.link = link;
         const app::Preview p = app::preview_of(st);
