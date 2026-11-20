@@ -284,7 +284,8 @@ public:
         if (!connected_) return false;
         if (in.enabled > 1 || in.private_mode > 1 || in.show_firmware > 1 ||
             in.show_home_menu > 1 || in.debug_log > 1 ||
-            in.show_paused > 1 || in.show_docked > 1 || in.show_playtime > 1 || in.show_badge > 1) {
+            in.show_paused > 1 || in.show_docked > 1 || in.show_playtime > 1 || in.show_badge > 1 ||
+            in.english_game_names > 1) {
             return false;
         }
         settings_ = in;

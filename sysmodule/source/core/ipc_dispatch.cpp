@@ -30,7 +30,8 @@ DispatchResult set_settings(std::span<const uint8_t> in_raw, SharedState& state)
     std::memcpy(&s, in_raw.data(), sizeof(s));
     if (!is_bool(s.enabled) || !is_bool(s.private_mode) ||
         !is_bool(s.show_firmware) || !is_bool(s.show_home_menu) || !is_bool(s.debug_log) ||
-        !is_bool(s.show_paused) || !is_bool(s.show_docked) || !is_bool(s.show_playtime) || !is_bool(s.show_badge)) {
+        !is_bool(s.show_paused) || !is_bool(s.show_docked) || !is_bool(s.show_playtime) || !is_bool(s.show_badge) ||
+        !is_bool(s.english_game_names)) {
         return {kRcBadInput, {}};
     }
     state.set_settings(s);

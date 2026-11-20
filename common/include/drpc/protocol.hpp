@@ -7,7 +7,7 @@
 namespace drpc::ipc {
 
 inline constexpr char kServiceName[] = "drpc";
-inline constexpr uint32_t kProtocolVersion = 6;
+inline constexpr uint32_t kProtocolVersion = 7;
 
 enum class Cmd : uint32_t {
     GetProtocolVersion = 0,
@@ -39,7 +39,9 @@ struct Settings {
     uint8_t enabled, private_mode, show_paused, show_firmware, show_home_menu, debug_log, show_docked, show_playtime;
     // Protocol 6.
     uint8_t show_badge;
-    uint8_t reserved[7];
+    // Protocol 7: 1 sends the NACP English name instead of the console-language one.
+    uint8_t english_game_names;
+    uint8_t reserved[6];
 };
 
 struct Status {

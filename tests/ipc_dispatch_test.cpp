@@ -39,6 +39,7 @@ drpc::ipc::Settings valid_settings() {
     s.show_docked = 0;
     s.show_playtime = 1;
     s.show_badge = 1;
+    s.english_game_names = 1;
     return s;
 }
 
@@ -143,7 +144,8 @@ TEST_CASE("SetSettings with a boolean other than 0 or 1 is bad input") {
 
 TEST_CASE("SetSettings rejects a new field holding 2") {
     for (uint8_t drpc::ipc::Settings::*field : {&drpc::ipc::Settings::show_paused, &drpc::ipc::Settings::show_docked,
-                                                &drpc::ipc::Settings::show_playtime, &drpc::ipc::Settings::show_badge}) {
+                                                &drpc::ipc::Settings::show_playtime, &drpc::ipc::Settings::show_badge,
+                                                &drpc::ipc::Settings::english_game_names}) {
         SharedState state;
         drpc::ipc::Settings s = valid_settings();
         s.*field = 2;
