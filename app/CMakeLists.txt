@@ -37,6 +37,7 @@ if (PLATFORM_SWITCH)
     list(APPEND APP_SOURCES
         ${REPO_ROOT}/common/source/client_switch.cpp
         ${REPO_ROOT}/common/source/shared/tls_transport.cpp
+        ${REPO_ROOT}/sysmodule/source/core/nacp_titles.cpp
         ${BOREALIS_LIBRARY}/lib/platforms/switch/switch_wrapper.c)
 else ()
     list(APPEND APP_SOURCES ${REPO_ROOT}/common/source/client_fake.cpp)
@@ -58,6 +59,9 @@ if (PLATFORM_SWITCH)
     target_link_options(${PROJECT_NAME} PRIVATE -Wl,--gc-sections)
 endif ()
 target_link_libraries(${PROJECT_NAME} PRIVATE borealis ${APP_PLATFORM_LIB})
+if (PLATFORM_SWITCH)
+    target_link_libraries(${PROJECT_NAME} PRIVATE z)  # NACP title decompression
+endif ()
 # Silence Borealis header warnings in app sources. Its bundled tinyxml2 directory stays a plain -I
 # so it still shadows the devkitPro portlibs copy.
 get_target_property(BOREALIS_INCLUDES borealis INTERFACE_INCLUDE_DIRECTORIES)

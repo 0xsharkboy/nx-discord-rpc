@@ -17,7 +17,7 @@
       in
       {
         devShells.default = pkgs.mkShell.override { stdenv = pkgs.devkitNix.stdenvA64; } {
-          buildInputs = [ pkgs.cmake pkgs.gnumake pkgs.gcc pkgs.bear pkgs.clang-tools pkgs.pkg-config pkgs.zip ];
+          buildInputs = [ pkgs.cmake pkgs.gnumake pkgs.gcc pkgs.bear pkgs.clang-tools pkgs.pkg-config pkgs.zip pkgs.zlib ];
           shellHook = ''
             export PATH="$DEVKITPRO/devkitA64/bin:$PATH"
           '';

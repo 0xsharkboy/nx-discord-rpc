@@ -17,6 +17,7 @@
 #include <mutex>
 #include <string_view>
 
+#include "core/nacp_titles.hpp"
 #include "core/title_name.hpp"
 #endif
 
@@ -90,12 +91,14 @@ bool read_control(uint64_t title_id, Control& out) {
     {
         const std::lock_guard lock(g_mutex);
         if (!read_locked(title_id, *data, size)) return false;
+        // Decompresses [21.0.0+] compressed titles and leaves plain entries in data->nacp for ns.
+        const auto titles = drpc::unpack_nacp_titles({reinterpret_cast<uint8_t*>(&data->nacp), sizeof data->nacp});
         NacpLanguageEntry* preferred = nullptr;
         std::string_view preferred_name;
         if (R_SUCCEEDED(nsGetApplicationDesiredLanguage(&data->nacp, &preferred)) && preferred)
             preferred_name = entry_name(*preferred);
-        std::array<std::string_view, 16> entries;
-        for (size_t i = 0; i < entries.size(); ++i) entries[i] = entry_name(data->nacp.lang[i]);
+        std::array<std::string_view, drpc::kNacpTitleCount> entries;
+        for (size_t i = 0; i < entries.size(); ++i) entries[i] = drpc::nacp_title_name(titles, i);
         // choose_title_name falls back to "Unknown game"; the screen prefers the title id then.
         bool any = !preferred_name.empty();
         for (std::string_view e : entries) any = any || !e.empty();

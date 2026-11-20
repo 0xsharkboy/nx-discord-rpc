@@ -11,6 +11,7 @@ tag (clone with `git clone --recursive`).
 | libtesla | GPL-2.0-or-later | overlay | https://github.com/WerWolv/libtesla |
 | Nayuki QR Code generator | MIT | app | https://github.com/nayuki/QR-Code-generator |
 | libnx | ISC | sysmodule, app, overlay | https://github.com/switchbrew/libnx |
+| zlib (devkitPro portlibs) | Zlib | sysmodule, app | https://zlib.net |
 | deko3d and the nanovg deko3d backend | zlib | app | https://github.com/devkitPro/deko3d |
 | Yoga, tweeny, {fmt}, libromfs, libpulsar (bundled by Borealis) | MIT | app | see below |
 | nanovg (bundled by Borealis) | zlib | app | https://github.com/memononen/nanovg |
@@ -807,3 +808,23 @@ AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR 
 WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
 NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF
 THIS SOFTWARE.
+
+
+---
+
+## zlib: zlib License
+
+Copyright (C) 1995-2024 Jean-loup Gailly and Mark Adler
+
+This software is provided 'as-is', without any express or implied warranty. In no event will the
+authors be held liable for any damages arising from the use of this software.
+
+Permission is granted to anyone to use this software for any purpose, including commercial
+applications, and to alter it and redistribute it freely, subject to the following restrictions:
+
+1. The origin of this software must not be misrepresented; you must not claim that you wrote the
+   original software. If you use this software in a product, an acknowledgment in the product
+   documentation would be appreciated but is not required.
+2. Altered source versions must be plainly marked as such, and must not be misrepresented as being
+   the original software.
+3. This notice may not be removed or altered from any source distribution.

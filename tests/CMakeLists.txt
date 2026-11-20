@@ -24,6 +24,7 @@ add_executable(nxdrpc_tests
   settings_test.cpp
   protocol_test.cpp
   title_name_test.cpp
+  nacp_titles_test.cpp
   http_test.cpp
   relay_url_test.cpp
   power_state_test.cpp
@@ -54,6 +55,7 @@ add_executable(nxdrpc_tests
   ../sysmodule/source/core/json_writer.cpp
   ../sysmodule/source/core/settings.cpp
   ../sysmodule/source/core/title_name.cpp
+  ../sysmodule/source/core/nacp_titles.cpp
   ../sysmodule/source/core/http.cpp
   ../sysmodule/source/core/relay_url.cpp
   ../sysmodule/source/core/report.cpp
@@ -85,7 +87,8 @@ target_compile_definitions(nxdrpc_tests PRIVATE
   NXDRPC_I18N_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../app/resources/i18n"
   NXDRPC_VERSION="${NXDRPC_VERSION}"
   NXDRPC_TEST_VERSION="${NXDRPC_VERSION}")
-target_link_libraries(nxdrpc_tests PRIVATE doctest::doctest)
+find_package(ZLIB REQUIRED)
+target_link_libraries(nxdrpc_tests PRIVATE doctest::doctest ZLIB::ZLIB)
 
 enable_testing()
 add_test(NAME nxdrpc_tests COMMAND nxdrpc_tests)

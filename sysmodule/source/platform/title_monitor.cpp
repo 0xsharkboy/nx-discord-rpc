@@ -8,6 +8,7 @@
 #include <string_view>
 #include <unordered_map>
 
+#include "core/nacp_titles.hpp"
 #include "core/title_name.hpp"
 
 namespace drpc {
@@ -27,12 +28,14 @@ std::string lookup_name(uint64_t title_id) {
     std::string name{kUnknownGameName};
     if (R_SUCCEEDED(nsGetApplicationControlData(NsApplicationControlSource_Storage, title_id, data, sizeof *data, &size)) &&
         size >= sizeof data->nacp) {
+        // Decompresses [21.0.0+] compressed titles and leaves plain entries in data->nacp for ns.
+        const auto titles = unpack_nacp_titles({reinterpret_cast<uint8_t*>(&data->nacp), sizeof data->nacp});
         NacpLanguageEntry* preferred = nullptr;
         std::string_view preferred_name;
         if (R_SUCCEEDED(nsGetApplicationDesiredLanguage(&data->nacp, &preferred)) && preferred)
             preferred_name = entry_name(*preferred);
-        std::array<std::string_view, 16> entries;
-        for (size_t i = 0; i < entries.size(); ++i) entries[i] = entry_name(data->nacp.lang[i]);
+        std::array<std::string_view, kNacpTitleCount> entries;
+        for (size_t i = 0; i < entries.size(); ++i) entries[i] = nacp_title_name(titles, i);
         name = choose_title_name(preferred_name, entries);
     }
     std::free(data);
