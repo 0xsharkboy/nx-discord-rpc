@@ -54,6 +54,7 @@ SettingsTab::SettingsTab(drpc::Client& client, UpdateManager& updater) : client_
     add_toggle(list, "app/settings/show_docked"_i18n, &drpc::ipc::Settings::show_docked);
     add_toggle(list, "app/settings/show_playtime"_i18n, &drpc::ipc::Settings::show_playtime);
     add_toggle(list, "app/settings/show_badge"_i18n, &drpc::ipc::Settings::show_badge);
+    add_toggle(list, "app/settings/english_game_names"_i18n, &drpc::ipc::Settings::english_game_names);
     add_hidden_games(list);
 
     auto* advanced = make_header("app/settings/advanced"_i18n);

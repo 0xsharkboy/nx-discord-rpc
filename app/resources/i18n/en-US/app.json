@@ -86,6 +86,7 @@
     "show_docked": "Show docked or handheld",
     "show_playtime": "Show total playtime",
     "show_badge": "Show NX Discord RPC badge",
+    "english_game_names": "Show game names in English",
     "hidden_games": "Hidden games",
     "hidden_none": "None",
     "hidden_one": "1 game",

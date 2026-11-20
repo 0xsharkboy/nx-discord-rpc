@@ -170,6 +170,7 @@ public:
         add_toggle(list, "Show docked", cur.show_docked, &ipc::Settings::show_docked);
         add_toggle(list, "Show playtime", cur.show_playtime, &ipc::Settings::show_playtime);
         add_toggle(list, "Show badge", cur.show_badge, &ipc::Settings::show_badge);
+        add_toggle(list, "English game names", cur.english_game_names, &ipc::Settings::english_game_names);
 
         frame->setContent(list);
         refresh();

@@ -422,6 +422,10 @@ Protocol version 6 grows the Settings struct to 16 bytes: `uint8_t show_badge` a
 the sysmodule then sends `"badge": true` with each presence, see `badge` above) and 7 reserved
 bytes for later settings: senders write zero, the sysmodule ignores them.
 
+Protocol version 7 adds `uint8_t english_game_names` at offset 9 (0 or 1; 1 makes the sysmodule
+send the game's English NACP name instead of the console-language one) and leaves 6 reserved
+bytes. The struct stays 16 bytes.
+
 ## Examples
 
 Link:

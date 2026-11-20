@@ -86,6 +86,7 @@
     "show_docked": "Afficher le mode dock ou portable",
     "show_playtime": "Afficher le temps de jeu total",
     "show_badge": "Afficher le badge NX Discord RPC",
+    "english_game_names": "Afficher le nom des jeux en anglais",
     "hidden_games": "Jeux masqués",
     "hidden_none": "Aucun",
     "hidden_one": "1 jeu",

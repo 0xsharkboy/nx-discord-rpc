@@ -74,9 +74,9 @@ or a broken Discord link, a new `api_key.txt` is needed.
 The Settings tab of the app and the overlay edit the same settings. A change applies within about
 a second and is written to `config.ini` after about 2 seconds without further changes. The app
 has Enabled, Private mode, Show firmware version, Show HOME Menu, Show paused games, Show docked
-or handheld, Show total playtime, Show NX Discord RPC badge and Debug log. The overlay has the
-same toggles except Debug log, and labels them "Show firmware", "Show paused", "Show docked",
-"Show playtime" and "Show badge". It also
+or handheld, Show total playtime, Show NX Discord RPC badge, Show game names in English and Debug
+log. The overlay has the same toggles except Debug log, and labels them "Show firmware", "Show
+paused", "Show docked", "Show playtime", "Show badge" and "English game names". It also
 has "This game", which cycles the running game through Shown, Playing a game and Hidden (see
 [Hidden games](#hidden-games)). The relay URL cannot be changed from either: edit `relay_url`
 in `config.ini`.
@@ -102,6 +102,7 @@ while the console is off (SD card in a PC), never on a running console.
 | `show_docked` | `false` | Append Docked or Handheld |
 | `show_playtime` | `false` | Append the total playtime of the game on this console, all profiles together |
 | `show_badge` | `true` | Show the NX Discord RPC badge on your status: a small logo over the game icon, the tooltip "NX Discord RPC", and a link to this project (or the link set by the relay). Needs a relay from v0.7.0 on |
+| `english_game_names` | `false` | Send the game's English name to Discord (American, then British English), falling back to the console language when the game has none |
 | `debug_log` | `false` | Write debug lines to the log |
 | `relay_url` | `https://nx-discord-rpc.0xsharkboy.dev` | The relay's base URL (https only), editable in `config.ini` only. Empty uses the default. An invalid URL disables sending, and the API key never goes to another host |
 | `api_key` | empty | The API key issued by the relay when you link. Written by the sysmodule, not meant to be edited |
@@ -124,6 +125,11 @@ Show NX Discord RPC badge, on by default, adds the NX Discord RPC logo as a smal
 the game icon on your status, with the tooltip "NX Discord RPC"; a click opens this project page
 (a self-hosted relay may set another link with `BADGE_URL`). It names the tool, not the game,
 so it also shows in private mode. Relays older than v0.7.0 ignore it.
+
+Show game names in English, off by default, sends the game's English name to Discord whatever
+the console language (the American English name, else the British English one). A game without
+an English name keeps the console-language name. The Hidden games list in the app keeps the
+console language.
 
 Title icons are sent automatically. The console sends the icon's hash, and the relay asks for
 the image only if it does not have it yet. None are uploaded in private mode, for a game set
