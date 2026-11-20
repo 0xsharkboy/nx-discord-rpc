@@ -99,7 +99,7 @@
     "close": "Close",
     "relay": "Relay: {}",
     "relay_unset": "Relay: not set",
-    "relay_hint": "edit relay_url in config.ini",
+    "relay_hint": "Edit relay_url in config.ini",
     "updates": "Updates",
     "check_updates": "Check for updates",
     "check_updates_hint": "At start, asks GitHub for the latest version",

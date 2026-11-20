@@ -21,7 +21,7 @@ brls::Header* make_header(const std::string& title) {
 }
 
 // Puts a small note under the cell's title, inside the cell, so its separator stays below both.
-void add_hint(brls::BooleanCell* cell, const std::string& hint) {
+void add_hint(brls::DetailCell* cell, const std::string& hint) {
     auto* text = new brls::Box(brls::Axis::COLUMN);
     text->setGrow(1);
     text->setJustifyContent(brls::JustifyContent::CENTER);
@@ -68,8 +68,7 @@ SettingsTab::SettingsTab(drpc::Client& client, UpdateManager& updater) : client_
     auto* relay = new brls::DetailCell();
     relay->setText(status.relay_host[0] ? brls::getStr("app/settings/relay", std::string(status.relay_host))
                                         : "app/settings/relay_unset"_i18n);
-    relay->setDetailText("app/settings/relay_hint"_i18n);
-    relay->setDetailTextColor(palette::text_faint());
+    add_hint(relay, "app/settings/relay_hint"_i18n);
     list->addView(relay);
 
     add_updates(list);
