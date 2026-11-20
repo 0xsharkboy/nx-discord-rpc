@@ -10,4 +10,11 @@ std::string choose_title_name(std::string_view preferred, std::span<const std::s
     return std::string{kUnknownGameName};
 }
 
+std::string english_title_name(std::span<const std::string_view> entries) {
+    for (size_t i = 0; i < entries.size() && i < 2; ++i) {
+        if (!entries[i].empty()) return std::string{entries[i]};
+    }
+    return {};
+}
+
 }  // namespace drpc

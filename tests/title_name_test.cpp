@@ -23,3 +23,13 @@ TEST_CASE("all entries empty gives a non-empty placeholder") {
     CHECK(drpc::choose_title_name(""sv, {}) == "Unknown game");
     CHECK_FALSE(drpc::kUnknownGameName.empty());
 }
+
+TEST_CASE("english title name prefers American then British English") {
+    std::array a{"Zelda US"sv, "Zelda UK"sv, "ゼルダ"sv};
+    CHECK(drpc::english_title_name(a) == "Zelda US");
+    std::array b{""sv, "Zelda UK"sv, "ゼルダ"sv};
+    CHECK(drpc::english_title_name(b) == "Zelda UK");
+    std::array c{""sv, ""sv, "ゼルダ"sv};
+    CHECK(drpc::english_title_name(c).empty());
+    CHECK(drpc::english_title_name({}).empty());
+}

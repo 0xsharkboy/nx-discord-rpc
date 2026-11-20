@@ -225,3 +225,12 @@ TEST_CASE("show_badge defaults to true, parses and serializes") {
     CHECK(out.find("show_badge = false\n") != std::string::npos);
     CHECK(drpc::parse_settings(out) == s);
 }
+
+TEST_CASE("english_game_names defaults to false, parses and serializes") {
+    CHECK_FALSE(drpc::parse_settings("enabled = 1\n").english_game_names);
+    const auto s = drpc::parse_settings("english_game_names = true\n");
+    CHECK(s.english_game_names);
+    const std::string out = drpc::serialize_settings(s);
+    CHECK(out.find("english_game_names = true\n") != std::string::npos);
+    CHECK(drpc::parse_settings(out) == s);
+}

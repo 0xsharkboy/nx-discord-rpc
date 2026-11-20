@@ -401,3 +401,30 @@ TEST_CASE("a game name that is not valid UTF-8 is repaired before it is sent") {
     CHECK(repair_utf8("ab\xE2\x82") == "ab??");
     CHECK(repair_utf8("\xF4\x90\x80\x80") == "????");
 }
+
+TEST_CASE("english_game_names picks the English name and falls back to the console name") {
+    SceneInput in = game();
+    in.game_name = "Zelda : BOTW (fr)";
+    in.english_game_name = "Zelda: BOTW";
+    auto s = base();
+    auto off = render_report(in, s);
+    REQUIRE(off);
+    CHECK(off->name == "Zelda : BOTW (fr)");
+
+    s.english_game_names = true;
+    auto on = render_report(in, s);
+    REQUIRE(on);
+    CHECK(on->name == "Zelda: BOTW");
+
+    SceneInput no_english = in;
+    no_english.english_game_name.clear();
+    auto fallback = render_report(no_english, s);
+    REQUIRE(fallback);
+    CHECK(fallback->name == "Zelda : BOTW (fr)");
+
+    s.private_mode = true;
+    auto priv = render_report(in, s);
+    REQUIRE(priv);
+    CHECK(priv->name == "Nintendo Switch");
+    CHECK(report_json(*priv, 10).find("BOTW") == std::string::npos);
+}

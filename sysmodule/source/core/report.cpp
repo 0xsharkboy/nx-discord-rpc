@@ -93,7 +93,9 @@ std::optional<Report> render_report(const SceneInput& in, const Settings& settin
         r.name = kFallbackName;
         r.details = paused ? "Paused" : "Playing a game";
     } else {
-        r.name = in.game_name.empty() ? kFallbackName : in.game_name;
+        const bool english = settings.english_game_names && !in.english_game_name.empty();
+        const std::string& game_name = english ? in.english_game_name : in.game_name;
+        r.name = game_name.empty() ? kFallbackName : game_name;
         r.details = paused ? paused_details(in.paused_screen) : "on Nintendo Switch";
         if (in.title_id >= ipc::kMinReportableTitleId) r.title_id = format_title_id(in.title_id);
     }

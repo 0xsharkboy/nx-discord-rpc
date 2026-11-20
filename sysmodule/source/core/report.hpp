@@ -17,6 +17,7 @@ struct SceneInput {
     Scene scene = Scene::HomeMenu;
     uint64_t title_id = 0;
     std::string game_name;
+    std::string english_game_name;  // empty when the game has no English name
     std::string firmware;
     Screen paused_screen = Screen::Unknown;
     std::optional<bool> docked;
