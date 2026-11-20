@@ -534,6 +534,7 @@ void publish(SharedState& shared, const Snapshot& s) {
             scene.scene = Scene::Game;
             scene.title_id = title->title_id;
             scene.game_name = title->name;
+            scene.english_game_name = title->english_name;
             if (settings.show_paused) {
                 const std::optional<Focus> focus = query_focus(title->title_id);
                 if (!focus && !focus_warned) {
