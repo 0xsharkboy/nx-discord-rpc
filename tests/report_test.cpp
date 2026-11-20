@@ -428,3 +428,14 @@ TEST_CASE("english_game_names picks the English name and falls back to the conso
     CHECK(priv->name == "Nintendo Switch");
     CHECK(report_json(*priv, 10).find("BOTW") == std::string::npos);
 }
+
+TEST_CASE("english_game_names never leaks the English name of a title set to Playing a game") {
+    SceneInput in = game();
+    in.english_game_name = "Zelda: BOTW";
+    Settings s = with_visibility(TitleVisibility::Private);
+    s.english_game_names = true;
+    auto r = render_report(in, s);
+    REQUIRE(r);
+    CHECK(r->name == "Nintendo Switch");
+    CHECK(report_json(*r, 10).find("BOTW") == std::string::npos);
+}
