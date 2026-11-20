@@ -17,4 +17,10 @@ std::string english_title_name(std::span<const std::string_view> entries) {
     return {};
 }
 
+std::optional<uint64_t> parent_application_id(uint64_t program_id) {
+    const uint64_t parent = program_id & ~uint64_t{0xFF};
+    if (parent == program_id) return std::nullopt;
+    return parent;
+}
+
 }  // namespace drpc

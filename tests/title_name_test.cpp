@@ -33,3 +33,10 @@ TEST_CASE("english title name prefers American then British English") {
     CHECK(drpc::english_title_name(c).empty());
     CHECK(drpc::english_title_name({}).empty());
 }
+
+TEST_CASE("a sub-program maps to its parent application, an application to nothing") {
+    // Sonic X Shadow Generations (01005EA01C0FC000) starts Sonic Generations as program index 1.
+    CHECK(drpc::parent_application_id(0x01005EA01C0FC001ULL) == std::optional<uint64_t>{0x01005EA01C0FC000ULL});
+    CHECK(drpc::parent_application_id(0x01005EA01C0FC0FFULL) == std::optional<uint64_t>{0x01005EA01C0FC000ULL});
+    CHECK_FALSE(drpc::parent_application_id(0x01005EA01C0FC000ULL).has_value());
+}
