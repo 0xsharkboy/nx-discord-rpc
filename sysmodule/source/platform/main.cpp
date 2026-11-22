@@ -44,6 +44,8 @@ constexpr int64_t kKeyCheckIntervalMs = 30'000;
 constexpr int64_t kIpcRetryMs = 5000;
 constexpr int64_t kProfileRefreshMs = 24 * 60 * 60 * 1000;
 constexpr int64_t kPlaytimeRefreshMs = 600'000;
+// Each focus query opens a pdm:qry session (see system_state.cpp): once a second, not every tick.
+constexpr int64_t kFocusPollMs = 1000;
 // A title whose icon could not be hashed is read again at most this often.
 constexpr int64_t kIconHashRetryMs = 60'000;
 // How often a staged app update (nx-discord-rpc.nro.new) is looked for (a stat while none is staged). Short, so
@@ -436,6 +438,8 @@ void publish(SharedState& shared, const Snapshot& s) {
     int64_t next_key_check = mono_ms() + kKeyCheckIntervalMs;
     int64_t next_profile_ms = mono_ms() + kProfileRefreshMs;
     bool focus_warned = false;
+    std::optional<Focus> focus;
+    int64_t next_focus_ms = 0;
     std::optional<uint64_t> playtime_title;
     std::optional<uint64_t> playtime_s;
     int64_t next_playtime_ms = 0;
@@ -524,6 +528,8 @@ void publish(SharedState& shared, const Snapshot& s) {
             polled = true;
             shown_id = id;
             elapsed.restart();
+            focus.reset();
+            next_focus_ms = 0;
             log_title_change(title, settings);
         }
 
@@ -536,7 +542,10 @@ void publish(SharedState& shared, const Snapshot& s) {
             scene.game_name = title->name;
             scene.english_game_name = title->english_name;
             if (settings.show_paused) {
-                const std::optional<Focus> focus = query_focus(title->title_id);
+                if (now >= next_focus_ms) {
+                    focus = query_focus(title->title_id);
+                    next_focus_ms = now + kFocusPollMs;
+                }
                 if (!focus && !focus_warned) {
                     focus_warned = true;
                     log::warn("Focus unknown from the play log; the open game counts as in front");

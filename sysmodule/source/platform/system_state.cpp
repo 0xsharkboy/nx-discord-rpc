@@ -17,6 +17,23 @@ static_assert(kAppletShop == AppletId_LibraryAppletShop);
 static_assert(kAppletPhotoViewer == AppletId_LibraryAppletPhotoViewer);
 static_assert(kAppletMyPage == AppletId_LibraryAppletMyPage);
 
+// pdm:qry has few sessions, and am needs one when a game reads the play log of other games (NACP
+// PlayLogQueryCapability, for example the Kirby games): a session held by this sysmodule made that fail and
+// crash am (2021-0003, sm OutOfSessions). So it is opened for each query and closed right after.
+class PdmSession {
+public:
+    PdmSession() : ok_(R_SUCCEEDED(pdmqryInitialize())) {}
+    ~PdmSession() {
+        if (ok_) pdmqryExit();
+    }
+    PdmSession(const PdmSession&) = delete;
+    PdmSession& operator=(const PdmSession&) = delete;
+    bool ok() const { return ok_; }
+
+private:
+    bool ok_;
+};
+
 // The newest play events are enough to know who holds focus.
 constexpr s32 kFocusWindow = 64;
 
@@ -29,6 +46,8 @@ uint64_t swapped_id(const u32 (&id)[2]) {
 
 std::optional<Focus> query_focus(uint64_t app_program_id) {
     if (!service_up(OptionalService::PdmQuery)) return std::nullopt;
+    const PdmSession session;
+    if (!session.ok()) return std::nullopt;
 
     s32 total = 0, first = 0, last = 0;
     if (R_FAILED(pdmqryGetAvailablePlayEventRange(&total, &first, &last)) || total <= 0) return std::nullopt;
@@ -63,6 +82,8 @@ std::optional<uint64_t> query_playtime_s(uint64_t title_id) {
     // All profiles together: pdm only records which profile played once a session ends (checked on hardware), so
     // the profile playing now cannot be told apart. switch-discord-activity uses the same console-wide query.
     if (!service_up(OptionalService::PdmQuery)) return std::nullopt;
+    const PdmSession session;
+    if (!session.ok()) return std::nullopt;
     PdmPlayStatistics stats{};
     if (R_FAILED(pdmqryQueryPlayStatisticsByApplicationId(title_id, false, &stats))) return std::nullopt;
     return stats.playtime / 1'000'000'000ULL;

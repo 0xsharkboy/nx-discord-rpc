@@ -42,8 +42,16 @@ ServiceInit g_services[] = {
 };
 
 // Optional, in OptionalService order: a failure only disables focus, docked or playtime detection.
+// pdm:qry is only probed here: it is opened around each query, never held (see system_state.cpp).
+Result probe_pdmqry() {
+    const Result rc = pdmqryInitialize();
+    if (R_SUCCEEDED(rc)) pdmqryExit();
+    return rc;
+}
+void no_exit() {}
+
 ServiceInit g_optional[] = {
-    {"pdm:qry", pdmqryInitialize, pdmqryExit, false},
+    {"pdm:qry", probe_pdmqry, no_exit, false},
     {"apm", apmInitialize, apmExit, false},
 };
 static_assert(std::size(g_optional) == static_cast<size_t>(drpc::OptionalService::Count));
