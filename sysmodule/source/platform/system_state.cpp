@@ -19,20 +19,24 @@ static_assert(kAppletMyPage == AppletId_LibraryAppletMyPage);
 
 // pdm:qry has few sessions, and am needs one when a game reads the play log of other games (NACP
 // PlayLogQueryCapability, for example the Kirby games): a session held by this sysmodule made that fail and
-// crash am (2021-0003, sm OutOfSessions). So it is opened for each query and closed right after.
-class PdmSession {
+// crash am (2021-0003, sm OutOfSessions). So it is opened for each query and closed right after. apm, shared
+// with games and clock sysmodules, gets the same treatment as a precaution.
+template <Result (*Init)(), void (*Exit)()>
+class ScopedService {
 public:
-    PdmSession() : ok_(R_SUCCEEDED(pdmqryInitialize())) {}
-    ~PdmSession() {
-        if (ok_) pdmqryExit();
+    ScopedService() : ok_(R_SUCCEEDED(Init())) {}
+    ~ScopedService() {
+        if (ok_) Exit();
     }
-    PdmSession(const PdmSession&) = delete;
-    PdmSession& operator=(const PdmSession&) = delete;
+    ScopedService(const ScopedService&) = delete;
+    ScopedService& operator=(const ScopedService&) = delete;
     bool ok() const { return ok_; }
 
 private:
     bool ok_;
 };
+using PdmSession = ScopedService<pdmqryInitialize, pdmqryExit>;
+using ApmSession = ScopedService<apmInitialize, apmExit>;
 
 // The newest play events are enough to know who holds focus.
 constexpr s32 kFocusWindow = 64;
@@ -73,6 +77,8 @@ std::optional<Focus> query_focus(uint64_t app_program_id) {
 
 std::optional<bool> query_docked() {
     if (!service_up(OptionalService::Apm)) return std::nullopt;
+    const ApmSession session;
+    if (!session.ok()) return std::nullopt;
     ApmPerformanceMode mode = ApmPerformanceMode_Invalid;
     if (R_FAILED(apmGetPerformanceMode(&mode)) || mode == ApmPerformanceMode_Invalid) return std::nullopt;
     return mode == ApmPerformanceMode_Boost;

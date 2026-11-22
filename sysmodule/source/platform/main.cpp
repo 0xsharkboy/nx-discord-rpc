@@ -44,8 +44,9 @@ constexpr int64_t kKeyCheckIntervalMs = 30'000;
 constexpr int64_t kIpcRetryMs = 5000;
 constexpr int64_t kProfileRefreshMs = 24 * 60 * 60 * 1000;
 constexpr int64_t kPlaytimeRefreshMs = 600'000;
-// Each focus query opens a pdm:qry session (see system_state.cpp): once a second, not every tick.
+// Each focus or docked query opens a pdm:qry or apm session (see system_state.cpp): once a second, not every tick.
 constexpr int64_t kFocusPollMs = 1000;
+constexpr int64_t kDockedPollMs = 1000;
 // A title whose icon could not be hashed is read again at most this often.
 constexpr int64_t kIconHashRetryMs = 60'000;
 // How often a staged app update (nx-discord-rpc.nro.new) is looked for (a stat while none is staged). Short, so
@@ -440,6 +441,8 @@ void publish(SharedState& shared, const Snapshot& s) {
     bool focus_warned = false;
     std::optional<Focus> focus;
     int64_t next_focus_ms = 0;
+    std::optional<bool> docked;
+    int64_t next_docked_ms = 0;
     std::optional<uint64_t> playtime_title;
     std::optional<uint64_t> playtime_s;
     int64_t next_playtime_ms = 0;
@@ -556,7 +559,13 @@ void publish(SharedState& shared, const Snapshot& s) {
                     scene.paused_screen = focus->screen;
                 }
             }
-            if (settings.show_docked) scene.docked = query_docked();
+            if (settings.show_docked) {
+                if (now >= next_docked_ms) {
+                    docked = query_docked();
+                    next_docked_ms = now + kDockedPollMs;
+                }
+                scene.docked = docked;
+            }
             if (settings.show_playtime) {
                 const bool new_title = playtime_title != title->title_id;
                 if (new_title || now >= next_playtime_ms) {
